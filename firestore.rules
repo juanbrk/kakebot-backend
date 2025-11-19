@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isFamilyMember(familyId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.familyId == familyId;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        isOwner(userId) ||
+        isFamilyMember(resource.data.familyId)
+      );
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId);
+      allow delete: if false; // No se permite eliminar usuarios
+    }
+
+    // Families collection
+    match /families/{familyId} {
+      allow read: if isFamilyMember(familyId);
+      allow create: if isAuthenticated();
+      allow update: if isFamilyMember(familyId);
+      allow delete: if false;
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if isFamilyMember(resource.data.familyId);
+      allow create: if isAuthenticated() &&
+                      request.resource.data.userId == request.auth.uid;
+      allow update: if isFamilyMember(resource.data.familyId) &&
+                      resource.data.userId == request.auth.uid;
+      allow delete: if isFamilyMember(resource.data.familyId) &&
+                      resource.data.userId == request.auth.uid;
+    }
+
+    // Categories collection
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Solo administradores via backend
+    }
+
+    // Monthly reports collection
+    match /reports/{reportId} {
+      allow read: if isFamilyMember(resource.data.familyId);
+      allow write: if false; // Solo se crean via Cloud Functions
+    }
+  }
+}

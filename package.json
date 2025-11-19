@@ -1,0 +1,21 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend functions para plataforma de finanzas",
+  "scripts": {
+    "lint": "eslint --ext .js,.ts .",
+    "build": "npm run build --prefix functions",
+    "serve": "npm run serve --prefix functions",
+    "shell": "npm run shell --prefix functions",
+    "start": "npm run shell --prefix functions",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.20.2"
+  }
+}
