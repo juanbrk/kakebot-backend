@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { transactionsRouter } from "./transactions";
 import { reportsRouter } from "./reports";
+import { yearlyReportsRouter } from "./yearly-reports";
 import { categoriesRouter } from "./categories";
 import { usersRouter } from "./users";
 
@@ -8,7 +9,8 @@ export const apiRouter = Router();
 
 // Rutas de la API
 apiRouter.use("/transactions", transactionsRouter);
-apiRouter.use("/reports", reportsRouter);
+apiRouter.use("/reports/monthly", reportsRouter);
+apiRouter.use("/reports/yearly", yearlyReportsRouter);
 apiRouter.use("/categories", categoriesRouter);
 apiRouter.use("/users", usersRouter);
 
