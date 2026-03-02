@@ -25,7 +25,7 @@ firebase deploy --only functions  # Deploy to production
 
 | File | What it covers |
 |------|---------------|
-| `core/hard-walls.md` | Never-violate constraints |
+| `core/hard-walls.md` | Never-violate constraints (security, deploy, git, code) |
 | `core/user-profile.md` | User context, identity |
 | `core/user-preferences.md` | Ticket templates (feature, bug, improvement) |
 | `core/session-protocol.md` | Start/end behavior, memory updates |
