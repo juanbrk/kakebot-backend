@@ -2,6 +2,8 @@ import { Telegraf, Markup } from "telegraf";
 import * as admin from "firebase-admin";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const AUTHORIZED_USER_ID = process.env.AUTHORIZED_USER_ID || "";
+
 export const telegramBot = new Telegraf(BOT_TOKEN);
 
 const AMOUNT_PATTERN =
@@ -19,6 +21,10 @@ const MONTH_NAMES = [
 
 function getDb() {
   return admin.firestore();
+}
+
+function isAuthorizedUser(telegramUserId?: number): boolean {
+  return telegramUserId?.toString() === AUTHORIZED_USER_ID;
 }
 
 function toFloatOrNull(value: string): number | null {
@@ -89,6 +95,8 @@ function formatARS(amount: number): string {
 }
 
 telegramBot.start(async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) return;
+
   const firstName = ctx.from?.first_name || "Usuario";
   await ctx.reply(
     `Hola ${firstName}! Bienvenido a KakeBot.\n\n` +
@@ -101,6 +109,8 @@ telegramBot.start(async (ctx) => {
 });
 
 telegramBot.on("text", async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) return;
+
   const messageText = ctx.message.text;
 
   if (messageText.startsWith("/")) return;
@@ -128,6 +138,11 @@ telegramBot.on("text", async (ctx) => {
 });
 
 telegramBot.action(/^confirm:(.+):(.+)$/, async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) {
+    await ctx.answerCbQuery();
+    return;
+  }
+
   await ctx.answerCbQuery();
 
   const description = ctx.match[1];
@@ -166,11 +181,18 @@ telegramBot.action(/^confirm:(.+):(.+)$/, async (ctx) => {
 });
 
 telegramBot.action("cancel", async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) {
+    await ctx.answerCbQuery();
+    return;
+  }
+
   await ctx.answerCbQuery();
   await ctx.editMessageText("Gasto anulado.");
 });
 
 telegramBot.command("reporte", async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) return;
+
   const telegramUserId = ctx.from?.id.toString() || "";
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);

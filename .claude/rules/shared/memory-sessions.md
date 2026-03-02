@@ -58,3 +58,17 @@
 
 ### Pending
 - Create commit with refactoring changes
+
+## 2026-03-02: Bot access control implementation
+
+### Completed
+- Implemented user authorization check: `isAuthorizedUser()` function
+- Added auth checks to all handlers: `/start`, text messages, `/reporte`, confirm/cancel
+- Bot now silently ignores unauthorized users (no response)
+- Moved `AUTHORIZED_USER_ID` from hardcoded to `process.env`
+- Updated `.env`, `.env.test`, `.env.prod` with `AUTHORIZED_USER_ID=1183288911`
+- Added security rule to `hard-walls.md`: never hardcode sensitive values
+- All build + lint checks pass
+
+### Pending
+- Create commit with auth implementation

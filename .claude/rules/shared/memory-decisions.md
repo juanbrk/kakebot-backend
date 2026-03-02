@@ -36,3 +36,8 @@
 - Feature, bug, improvement requests use structured templates
 - Templates defined in `core/user-preferences.md`
 - Strictly follow template structure—no additions, no omissions
+
+## 2026-03-02: Sensitive values security
+- NEVER hardcode sensitive values (user IDs, API keys, secrets)
+- All sensitive values obtained from `process.env` via .env files
+- Hard rule added to `core/hard-walls.md`

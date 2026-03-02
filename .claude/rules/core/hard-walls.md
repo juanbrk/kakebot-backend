@@ -4,6 +4,7 @@ Constraints that must never be violated.
 
 ## Security
 - NEVER commit `.env` files or tokens to git
+- NEVER hardcode sensitive values (user IDs, API keys, secrets) — always use `process.env`
 - NEVER expose Telegram bot tokens in logs or responses
 - Bot must only respond to authorized user (see user-profile.md for ID)
 
