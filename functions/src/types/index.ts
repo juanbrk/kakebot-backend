@@ -27,3 +27,35 @@ export interface Category {
   subcategories?: string[];
   isFixed?: boolean;
 }
+
+export interface PendingDescEntry {
+  normalizedDesc: string;
+  displayName: string;
+  totalAmount: number;
+}
+
+export interface SessionExpenseEntry {
+  desc: string;
+  displayName: string;
+  amount: number;
+  categoryName: string;
+}
+
+export interface Session {
+  telegramUserId: string;
+  state:
+    | "categorizing"
+    | "awaiting_new_category_name"
+    | "awaiting_amount"
+    | "awaiting_description";
+  pendingDescs: PendingDescEntry[];
+  currentDesc: string;
+  currentDisplayName: string;
+  currentTotalAmount: number;
+  currentPage: number;
+  messageId: number;
+  chatId: number;
+  sessionExpenses: SessionExpenseEntry[];
+  partialDescription?: string;
+  partialAmount?: number;
+}
