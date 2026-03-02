@@ -17,6 +17,12 @@ Constraints that must never be violated.
   - Explicitly tell the user: "Vas a deployar a TEST/PROD, confirmar?"
   - Use `npm run deploy:test` for testing, `npm run deploy:prod` for production
 
+## Git
+- NEVER create commits — Juan handles all commits manually
+- When asked for a commit message: provide a non-technical, coarse-grained description
+  - Describe the before/after state, not each individual step
+  - Focus on what was implemented, not how
+
 ## Code
 - NEVER use `functions.config()` — it's deprecated. Use `process.env` (dotenv)
 - NEVER assume deploy region is southamerica-east1 — functions deploy to `us-central1`

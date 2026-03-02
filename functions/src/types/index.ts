@@ -41,13 +41,19 @@ export interface SessionExpenseEntry {
   categoryName: string;
 }
 
+export interface BulkExpenseEntry {
+  description: string;
+  amount: number;
+}
+
 export interface Session {
   telegramUserId: string;
   state:
     | "categorizing"
     | "awaiting_new_category_name"
     | "awaiting_amount"
-    | "awaiting_description";
+    | "awaiting_description"
+    | "bulk_pending";
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;
@@ -58,4 +64,5 @@ export interface Session {
   sessionExpenses: SessionExpenseEntry[];
   partialDescription?: string;
   partialAmount?: number;
+  bulkExpenses?: BulkExpenseEntry[];
 }

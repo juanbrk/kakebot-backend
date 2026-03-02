@@ -47,6 +47,12 @@
 - Positive actions (Confirmar, Continuar, Crear) go RIGHT
 - Rule added to `core/user-preferences.md` and `shared/conventions.md`
 
+## 2026-03-02: Git commit policy
+- Claude NEVER creates commits — Juan handles all commits manually
+- When asked, provide a non-technical, coarse-grained commit message
+- Describe before/after state, not each step
+- Rule added to `core/hard-walls.md`
+
 ## 2026-03-03: Telegraf handler registration order
 - Must be: start → command() → action() → on("text") → catch
 - `on("text")` is catch-all, blocks subsequent handlers if registered first

@@ -2,6 +2,7 @@ import { Telegraf, Markup, Context } from "telegraf";
 import * as admin from "firebase-admin";
 import {
   Expense, Category, Session, PendingDescEntry, SessionExpenseEntry,
+  BulkExpenseEntry,
 } from "../types/index";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -23,6 +24,7 @@ const MONTH_NAMES = [
 ];
 
 const CATEGORIES_PER_PAGE = 4;
+const MAX_BULK_LINES = 50;
 
 function getDb() {
   return admin.firestore();
@@ -152,15 +154,14 @@ function buildCategoryKeyboard(categories: Category[], page: number) {
     navRow.push(Markup.button.callback("← Anterior", `cat_pg:${page - 1}`));
   }
   if (hasNext) {
-    navRow.push(Markup.button.callback("Siguiente →", `cat_pg:${page + 1}`));
+    navRow.push(Markup.button.callback("Más categorías →", `cat_pg:${page + 1}`));
   }
   if (navRow.length > 0) {
     buttons.push(navRow);
   }
 
   buttons.push([
-    Markup.button.callback("Cancelar", "cat_cancel"),
-    Markup.button.callback("Nueva categoría", "cat_new"),
+    Markup.button.callback("+ Agregar categoría", "cat_new"),
   ]);
 
   return Markup.inlineKeyboard(buttons);
@@ -173,10 +174,10 @@ function buildExpensePromptText(
   total: number
 ): string {
   return (
-    `Gasto sin categorizar (${current} de ${total}):\n` +
-    `${displayName}\n` +
-    `Total: ${formatARS(totalAmount)}\n\n` +
-    "Elegí una categoría:"
+    `*${displayName}* ${formatARS(totalAmount)} (${current} de ${total})\n` +
+    "• Elegí una categoría o creá una nueva\n" +
+    "• Enviá \"omitir\" para saltar\n" +
+    "• Enviá \"cancelar\" para salir"
   );
 }
 
@@ -279,7 +280,7 @@ async function advanceOrFinish(
     session.messageId,
     undefined,
     messageText,
-    keyboard
+    { ...keyboard, parse_mode: "Markdown" }
   );
 }
 
@@ -354,7 +355,7 @@ async function finishCategorizingFlow(
         session.messageId,
         undefined,
         messageText,
-        keyboard
+        { ...keyboard, parse_mode: "Markdown" }
       );
       return;
     }
@@ -414,6 +415,56 @@ function emptySessionForPartial(telegramUserId: string): Session {
     chatId: 0,
     sessionExpenses: [],
   };
+}
+
+function stripLinePrefix(line: string): string {
+  return line.replace(/^[\d.\-\s]*/, "").trim();
+}
+
+function isBulkMessage(text: string): boolean {
+  const nonEmptyLines = text.split("\n")
+    .filter((l) => l.trim().length > 0);
+  return nonEmptyLines.length >= 2;
+}
+
+function parseBulkLines(
+  text: string
+): { parsed: BulkExpenseEntry[]; failedLines: string[] } {
+  const lines = text.split("\n")
+    .filter((l) => l.trim().length > 0);
+  const parsed: BulkExpenseEntry[] = [];
+  const failedLines: string[] = [];
+
+  for (const line of lines) {
+    const cleanedLine = stripLinePrefix(line);
+    const result = parseExpenseMessage(cleanedLine);
+    if (result) {
+      parsed.push({
+        description: result.description,
+        amount: result.amount,
+      });
+    } else {
+      failedLines.push(line.trim());
+    }
+  }
+
+  return { parsed, failedLines };
+}
+
+function buildBulkConfirmText(expenses: BulkExpenseEntry[]): string {
+  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  return `¿Deseas registrar ${expenses.length} gastos` +
+    ` por un total de ${formatARS(total)}?`;
+}
+
+function buildBulkSummaryText(expenses: BulkExpenseEntry[]): string {
+  const lines = [
+    `✅ Registrados ${expenses.length} gastos:`,
+  ];
+  for (const expense of expenses) {
+    lines.push(`• ${expense.description} ${formatARS(expense.amount)}`);
+  }
+  return lines.join("\n");
 }
 
 async function handleNewCategoryInput(
@@ -619,7 +670,10 @@ telegramBot.action("menu_categorizar", async (ctx) => {
     total
   );
 
-  const sentMessage = await ctx.reply(messageText, keyboard);
+  const sentMessage = await ctx.reply(messageText, {
+    ...keyboard,
+    parse_mode: "Markdown",
+  });
 
   const newSession: Session = {
     telegramUserId,
@@ -767,7 +821,10 @@ telegramBot.command("categorizar", async (ctx) => {
     total
   );
 
-  const sentMessage = await ctx.reply(messageText, keyboard);
+  const sentMessage = await ctx.reply(messageText, {
+    ...keyboard,
+    parse_mode: "Markdown",
+  });
 
   const newSession: Session = {
     telegramUserId,
@@ -881,6 +938,7 @@ telegramBot.action("cat_new", async (ctx) => {
   );
 });
 
+
 telegramBot.action("cat_cancel", async (ctx) => {
   if (!isAuthorizedUser(ctx.from?.id)) {
     await ctx.answerCbQuery();
@@ -895,6 +953,70 @@ telegramBot.action("cat_cancel", async (ctx) => {
   await ctx.editMessageText(
     "Categorización cancelada. Los gastos sin categorizar quedan para después."
   );
+});
+
+telegramBot.action("bulk_confirm", async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) {
+    await ctx.answerCbQuery();
+    return;
+  }
+
+  await ctx.answerCbQuery();
+
+  const telegramUserId = ctx.from?.id.toString() || "";
+  const session = await getSession(telegramUserId);
+
+  if (!session || session.state !== "bulk_pending" || !session.bulkExpenses) {
+    await ctx.editMessageText("La sesión expiró. Enviá los gastos de nuevo.");
+    return;
+  }
+
+  const mappingsSnapshot = await getDb()
+    .collection("subcategory_mappings")
+    .where("telegramUserId", "==", telegramUserId)
+    .get();
+
+  const categoryByDesc = new Map<string, string>();
+  for (const doc of mappingsSnapshot.docs) {
+    const mapping = doc.data();
+    categoryByDesc.set(mapping.normalizedDesc, mapping.categoryId);
+  }
+
+  const batch = getDb().batch();
+  const expensesRef = getDb().collection("expenses");
+  const now = admin.firestore.Timestamp.now();
+
+  for (const entry of session.bulkExpenses) {
+    const normalizedDesc = entry.description.toLowerCase().trim();
+    const categoryId = categoryByDesc.get(normalizedDesc) || null;
+
+    batch.set(expensesRef.doc(), {
+      telegramUserId,
+      description: entry.description,
+      normalizedDesc,
+      amount: entry.amount,
+      categoryId,
+      date: now,
+      createdAt: now,
+    });
+  }
+
+  await batch.commit();
+  await clearSession(telegramUserId);
+  await ctx.editMessageText(buildBulkSummaryText(session.bulkExpenses));
+});
+
+telegramBot.action("bulk_cancel", async (ctx) => {
+  if (!isAuthorizedUser(ctx.from?.id)) {
+    await ctx.answerCbQuery();
+    return;
+  }
+
+  await ctx.answerCbQuery();
+
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await clearSession(telegramUserId);
+  await ctx.editMessageText("Carga masiva cancelada.");
 });
 
 telegramBot.action(/^confirm:(.+):(.+)$/, async (ctx) => {
@@ -1001,6 +1123,89 @@ telegramBot.on("text", async (ctx) => {
           "Confirmar",
           `confirm:${description}:${amount}`
         ),
+      ])
+    );
+    return;
+  }
+
+  if (session?.state === "categorizing") {
+    const lowerText = messageText.trim().toLowerCase();
+
+    if (lowerText === "cancelar") {
+      await clearSession(telegramUserId);
+      await ctx.reply("Categorización cancelada.");
+      return;
+    }
+
+    if (lowerText === "omitir") {
+      const nextPendingDescs = session.pendingDescs.slice(1);
+      const nextDesc = nextPendingDescs.length > 0 ?
+        nextPendingDescs[0].normalizedDesc :
+        "";
+      const nextDisplayName = nextPendingDescs.length > 0 ?
+        nextPendingDescs[0].displayName :
+        "";
+      const nextTotalAmount = nextPendingDescs.length > 0 ?
+        nextPendingDescs[0].totalAmount :
+        0;
+
+      const updatedSession: Session = {
+        ...session,
+        pendingDescs: nextPendingDescs,
+        currentDesc: nextDesc,
+        currentDisplayName: nextDisplayName,
+        currentTotalAmount: nextTotalAmount,
+        currentPage: 0,
+      };
+
+      await setSession(telegramUserId, updatedSession);
+      await advanceOrFinish(ctx, updatedSession);
+      return;
+    }
+
+    await ctx.reply(
+      "Tenés una sesión de categorización activa." +
+      " Elegí una categoría, o enviá \"omitir\" o \"cancelar\"."
+    );
+    return;
+  }
+
+  if (isBulkMessage(messageText)) {
+    const nonEmptyLines = messageText.split("\n")
+      .filter((l) => l.trim().length > 0);
+
+    if (nonEmptyLines.length > MAX_BULK_LINES) {
+      await ctx.reply(
+        `El mensaje tiene ${nonEmptyLines.length} líneas.` +
+        ` El máximo es ${MAX_BULK_LINES}.`
+      );
+      return;
+    }
+
+    const { parsed, failedLines } = parseBulkLines(messageText);
+
+    if (failedLines.length > 0) {
+      const errorLines = failedLines
+        .map((line) => `• ${line}`);
+      await ctx.reply(
+        `No pude interpretar ${failedLines.length} línea(s):\n\n` +
+        errorLines.join("\n") +
+        "\n\nRevisá el formato: descripcion monto"
+      );
+      return;
+    }
+
+    await setSession(telegramUserId, {
+      ...emptySessionForPartial(telegramUserId),
+      state: "bulk_pending",
+      bulkExpenses: parsed,
+    });
+
+    await ctx.reply(
+      buildBulkConfirmText(parsed),
+      Markup.inlineKeyboard([
+        Markup.button.callback("Cancelar", "bulk_cancel"),
+        Markup.button.callback("Confirmar", "bulk_confirm"),
       ])
     );
     return;
