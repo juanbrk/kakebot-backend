@@ -25,3 +25,14 @@
 ## 2026-03-01: Access control
 - Bot restricted to Juan only (by Telegram user ID, pending capture)
 - Future: per-user/family auth
+
+## 2026-03-01: Code documentation philosophy
+- Self-documenting code > comments (fix naming, not comments)
+- Naming: no `raw`, `data`, `num`, `val`, `tmp` (ever)
+- JSDoc only for non-obvious exported functions
+- Handler labels are unnecessary (code structure is the label)
+
+## 2026-03-01: Ticket format standards
+- Feature, bug, improvement requests use structured templates
+- Templates defined in `core/user-preferences.md`
+- Strictly follow template structure—no additions, no omissions

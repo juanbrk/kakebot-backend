@@ -31,3 +31,30 @@
 - Test `/reporte` command on emulators
 - Deploy Firestore indexes to production
 - Implement category assignment feature
+
+## 2026-03-02: Code quality and documentation standards
+
+### Completed
+- Refactored `telegram.ts`:
+  - Eliminated all obvious/redundant comments
+  - Improved variable naming: `raw`→`input`, `cleaned`→`withoutThousands`, `num`→`parsedAmount`, `userId`→`telegramUserId`, etc.
+  - Extracted regex patterns to module constants: `AMOUNT_PATTERN`, `AMOUNT_AT_END`, `AMOUNT_AT_START`
+  - Extracted `MONTH_NAMES` constant
+  - Added helper function `toFloatOrNull` for clarity
+  - Renamed `parseAmount` → `parseArgentineAmount` (self-documenting)
+  - Improved loop variable naming: `cat`/`norm`/`groups` → `categoryKey`/`subcategoryKey`/`groupedByCategory`
+- Enhanced code documentation rules:
+  - New philosophy: "Fix the code, not the comment" — naming first
+  - Explicit prohibition of generic variable names (`raw`, `data`, `num`, `val`, `tmp`)
+  - Handler labels are unnecessary (code structure is the label)
+  - JSDoc only for non-obvious exported functions (ESLint format: `{type}` annotations, `@return`)
+- Created `core/user-preferences.md` with structured ticket templates:
+  - Feature (funcionalidad): Historia de Usuario, Criterios de Aceptación, Aspectos Técnicos, Sugerencias UX
+  - Bug (error): Comportamiento Actual, Comportamiento Deseado, Aspectos Técnicos
+  - Improvement (mejora): Historia de Usuario, Situación Actual, Situación Deseada, Criterios de Aceptación
+- Updated CLAUDE.md to reference new `user-preferences.md`
+- Updated `memory-decisions.md` with decisions on code docs + ticket formats
+- All build + lint checks pass
+
+### Pending
+- Create commit with refactoring changes
