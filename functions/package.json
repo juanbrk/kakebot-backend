@@ -7,24 +7,32 @@
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "serve": "npm run build && firebase emulators:start --only functions,firestore",
+    "dev": "npm run build && concurrently \"firebase emulators:start --only firestore --import=../emulator-data --export-on-exit=../emulator-data\" \"node -r dotenv/config lib/dev.js\"",
+    "dev:bot": "npm run build && FIRESTORE_EMULATOR_HOST=localhost:8080 node -r dotenv/config lib/dev.js",
+    "dev:emulators": "firebase emulators:start --only firestore --import=../emulator-data --export-on-exit=../emulator-data",
+    "serve": "npm run build && firebase emulators:start --only functions,firestore --import=../emulator-data --export-on-exit=../emulator-data",
+    "env:test": "bash ../scripts/switch-env.sh test",
+    "env:prod": "bash ../scripts/switch-env.sh prod",
+    "env:status": "bash ../scripts/switch-env.sh status",
+    "deploy:test": "bash ../scripts/switch-env.sh test && firebase deploy --only functions",
+    "deploy:prod": "bash ../scripts/switch-env.sh prod && firebase deploy --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "lib/index.js",
   "dependencies": {
+    "cors": "^2.8.5",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^5.1.1",
-    "express": "^4.21.1",
-    "cors": "^2.8.5",
     "telegraf": "^4.16.3",
-    "dotenv": "^16.4.5",
-    "date-fns": "^3.6.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -32,6 +40,7 @@
     "@types/express": "^4.17.21",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.31.0",
