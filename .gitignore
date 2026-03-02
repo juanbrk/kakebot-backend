@@ -65,5 +65,8 @@ node_modules/
 # dotenv environment variables file
 .env
 
+# Emulator data
+emulator-data/
+
 # dataconnect generated files
 .dataconnect
