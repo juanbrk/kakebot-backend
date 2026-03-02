@@ -28,6 +28,11 @@
 - Webhook handler exported as `bot` Cloud Function
 - Use inline keyboards (Markup.inlineKeyboard) for confirmations
 - Callback data format: `action:param1:param2`
+- Handler registration order: `start` → `command()` → `action()` → `on("text")` → `catch`
+  (`on("text")` is catch-all, must be last before `catch`)
+- Button order in inline keyboards (when multiple options):
+  - Left: cancel, back, exit (negative/dismissive actions)
+  - Right: confirm, continue, create (positive/affirmative actions)
 
 ## Project Structure
 ```

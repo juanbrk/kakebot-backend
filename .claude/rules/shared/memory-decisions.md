@@ -41,3 +41,13 @@
 - NEVER hardcode sensitive values (user IDs, API keys, secrets)
 - All sensitive values obtained from `process.env` via .env files
 - Hard rule added to `core/hard-walls.md`
+
+## 2026-03-03: Bot UI button ordering
+- Negative actions (Cancelar, Volver, Salir) go LEFT
+- Positive actions (Confirmar, Continuar, Crear) go RIGHT
+- Rule added to `core/user-preferences.md` and `shared/conventions.md`
+
+## 2026-03-03: Telegraf handler registration order
+- Must be: start → command() → action() → on("text") → catch
+- `on("text")` is catch-all, blocks subsequent handlers if registered first
+- Bug found: commands registered after `on("text")` were unreachable

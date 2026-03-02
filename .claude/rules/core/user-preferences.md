@@ -1,5 +1,12 @@
 # User Preferences
 
+## Bot UI
+
+### Button Order
+When presenting multiple action buttons in an inline keyboard row:
+- **Left**: negative/dismissive actions (Cancelar, Volver, Salir, Anterior)
+- **Right**: positive/affirmative actions (Confirmar, Continuar, Crear, Siguiente)
+
 ## Ticket Format
 
 When requesting improvements (bug), bugs (error), or features (feature), use the templates below. Provide ONLY the information defined in each template — no additions, no omissions.
