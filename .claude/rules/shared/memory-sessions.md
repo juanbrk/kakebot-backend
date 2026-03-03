@@ -125,3 +125,26 @@
 - Manual testing of all three changes on emulators
 - Deploy to test bot (botitio_testitoBot) and verify
 
+## 2026-03-03: Modularization of telegram.ts
+
+### Completed
+- Refactored telegram.ts from 1267-line monolith to ~28-line orchestrator
+- Created modular architecture with clear separation of concerns:
+  - `helpers/`: pure functions (parse-amount.ts, format.ts, bulk-parse.ts)
+  - `services/`: Firestore operations (db.ts, session.service.ts, expense.service.ts, category.service.ts, report.service.ts)
+  - `bot/handlers/`: feature-organized handlers (start, menu, expense, bulk, report, categorize, text)
+  - `bot/middleware/auth.ts`: centralized Telegraf auth middleware
+  - `bot/keyboards/category.ts`: keyboard builders
+- Eliminated code duplication:
+  - Report logic (was copy-pasted in /reporte and menu_reporte) → single `generateMonthlyReport()` in report.service.ts
+  - Categorization init (was copy-pasted in /categorizar and menu_categorizar) → single `startCategorizationFlow()` in categorize.ts
+- Centralized auth: `telegramBot.use(authMiddleware)` replaces 16 manual auth checks
+- Extracted text handler sub-functions for readability (handleAwaitingAmount, handleAwaitingDescription, etc.)
+- Updated conventions.md with new project structure
+- Deleted empty stub `services/reports.service.ts`
+- Build + lint: both pass clean (0 errors, 0 warnings)
+
+### Pending
+- Test on emulators (npm run serve)
+- Deploy to botitio_testitoBot and verify all flows
+
