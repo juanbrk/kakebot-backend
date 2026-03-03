@@ -27,3 +27,9 @@ Constraints that must never be violated.
 - NEVER use `functions.config()` — it's deprecated. Use `process.env` (dotenv)
 - NEVER assume deploy region is southamerica-east1 — functions deploy to `us-central1`
 - Firestore database is in `southamerica-east1` but functions are in `us-central1`
+- ALWAYS respect the modular project structure defined in `shared/conventions.md`:
+  - New handlers go in `bot/handlers/` (one file per feature)
+  - New Firestore operations go in `services/` (one file per domain)
+  - New pure functions go in `helpers/`
+  - New keyboard builders go in `bot/keyboards/`
+  - NEVER add logic directly to `bot/telegram.ts` — it is only an orchestrator

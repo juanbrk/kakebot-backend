@@ -57,3 +57,14 @@
 - Must be: start → command() → action() → on("text") → catch
 - `on("text")` is catch-all, blocks subsequent handlers if registered first
 - Bug found: commands registered after `on("text")` were unreachable
+
+## 2026-03-03: Modular architecture
+- telegram.ts is a thin orchestrator: creates bot, registers auth middleware, registers handlers
+- Auth centralized via Telegraf middleware (`bot.use(authMiddleware)`) — no per-handler checks
+- Handlers organized by feature (one file per feature), each exports `register*Handler(bot)`
+- Services may receive Telegraf `ctx` when orchestrating flow + Firestore (pragmatic decision)
+- Helpers are pure functions only (no I/O, no side effects)
+- Services handle Firestore I/O and business logic
+- `getDb()` lives in `services/db.ts` as single source of truth for lazy Firestore access
+- Use relative imports (not `@/*` path aliases) — CommonJS doesn't resolve them at runtime
+- All new code MUST follow this structure — hard wall added to prevent regression

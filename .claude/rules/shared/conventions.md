@@ -37,11 +37,33 @@
 ## Project Structure
 ```
 functions/src/
-├── index.ts           # Cloud Function exports (entry point)
-├── bot/telegram.ts    # All bot logic
-├── types/index.ts     # TypeScript interfaces
-├── routes/            # API routes (empty, reserved for future)
-├── middleware/         # Express middleware (reserved)
-├── services/          # Business logic (reserved)
-└── utils/             # Utilities (categories init)
+├── index.ts                        # Cloud Function exports (entry point)
+├── dev.ts                          # Local dev (polling mode)
+├── bot/
+│   ├── telegram.ts                 # Orchestrator: creates bot, registers middleware + handlers
+│   ├── middleware/
+│   │   └── auth.ts                 # Telegraf auth middleware (isAuthorizedUser)
+│   ├── handlers/
+│   │   ├── start.ts                # /start command
+│   │   ├── menu.ts                 # /menu command
+│   │   ├── expense.ts              # confirm/cancel actions (single expense)
+│   │   ├── bulk.ts                 # bulk_confirm/bulk_cancel actions
+│   │   ├── report.ts               # /reporte + menu_reporte action
+│   │   ├── categorize.ts           # /categorizar + menu_categorizar + cat_* actions
+│   │   └── text.ts                 # on("text") central dispatcher
+│   └── keyboards/
+│       └── category.ts             # buildCategoryKeyboard, buildExpensePromptText
+├── services/
+│   ├── db.ts                       # getDb() lazy Firestore getter
+│   ├── session.service.ts          # Session CRUD + emptySessionForPartial
+│   ├── expense.service.ts          # saveExpense, saveBulkExpenses
+│   ├── category.service.ts         # Category CRUD, categorization flow logic
+│   └── report.service.ts           # generateMonthlyReport
+├── helpers/
+│   ├── parse-amount.ts             # Argentine amount parsing + expense message parsing
+│   ├── format.ts                   # formatARS, MONTH_NAMES
+│   └── bulk-parse.ts               # Bulk message parsing + text builders
+├── types/index.ts                  # TypeScript interfaces
+├── middleware/auth.ts               # Express auth middleware (unused by bot)
+└── routes/                          # API routes (reserved for future)
 ```
