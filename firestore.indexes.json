@@ -7,6 +7,22 @@
         { "fieldPath": "telegramUserId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "service_installments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "dueMonth", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "service_installments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "serviceId", "order": "ASCENDING" },
+        { "fieldPath": "dueMonth", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

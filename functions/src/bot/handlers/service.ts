@@ -1,5 +1,4 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { ServiceInstallment } from "../../types/index";
 import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
@@ -13,6 +12,7 @@ import {
 import {
   buildServicesSubmenuKeyboard,
   buildServiceListKeyboard,
+  buildServiceActionKeyboard,
   buildServiceEditKeyboard,
   buildMonthKeyboard,
   buildDeleteConfirmKeyboard,
@@ -28,10 +28,11 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action("svc_add", handleAddService);
   bot.action("svc_installment", handleRegisterInstallment);
   bot.action("svc_view", handleViewServices);
-  bot.action("svc_modify", handleModifyService);
+  bot.action("svc_list", handleListServices);
   bot.action("svc_back", handleBackToMenu);
 
   bot.action(/^svc_pick:(.+)$/, handlePickServiceForInstallment);
+  bot.action(/^svc_view_pick:(.+)$/, handlePickServiceForAction);
   bot.action(/^svc_month:(.+):(\d{4}-\d{2})$/, handleMonthSelected);
 
   bot.action("svc_skip", handleSkipDuplicate);
@@ -98,21 +99,11 @@ async function handleViewServices(ctx: Context): Promise<void> {
     return;
   }
 
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const dueMonth = `${now.getFullYear()}-${month}`;
-
-  const installmentsByServiceId: Record<string, ServiceInstallment | null> = {};
-  for (const service of services) {
-    const installment = await getInstallment(service.id || "", dueMonth);
-    installmentsByServiceId[service.id || ""] = installment;
-  }
-
-  const text = buildServiceViewText(services, installmentsByServiceId);
-  await ctx.reply(text, { parse_mode: "Markdown" });
+  const keyboard = buildServiceListKeyboard(services, 0, "svc_view_pick");
+  await ctx.reply("Seleccioná un servicio:", keyboard);
 }
 
-async function handleModifyService(ctx: Context): Promise<void> {
+async function handleListServices(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
@@ -123,8 +114,51 @@ async function handleModifyService(ctx: Context): Promise<void> {
     return;
   }
 
-  const keyboard = buildServiceListKeyboard(services, 0, "svc_edit");
-  await ctx.reply("Seleccioná un servicio para modificar:", keyboard);
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${month}`;
+
+  const installmentsByServiceId: Record<string, import("../../types/index").ServiceInstallment | null> = {};
+  for (const service of services) {
+    const installment = await getInstallment(service.id || "", dueMonth);
+    installmentsByServiceId[service.id || ""] = installment;
+  }
+
+  const text = buildServiceViewText(services, installmentsByServiceId);
+  await ctx.reply(text, { parse_mode: "Markdown" });
+}
+
+async function handlePickServiceForAction(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceId = ((ctx as any).match as string[])[1];
+
+  await ctx.answerCbQuery();
+
+  const service = await getServiceById(serviceId);
+  if (!service) {
+    await ctx.reply("Servicio no encontrado.");
+    return;
+  }
+
+  const now = new Date();
+  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${monthStr}`;
+  const installment = await getInstallment(serviceId, dueMonth);
+
+  let title = `*${service.name}*`;
+  if (installment) {
+    const dueDate = installment.dueDate.toDate();
+    const day = String(dueDate.getDate()).padStart(2, "0");
+    const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+    title = `*${service.name}* ${formatARS(installment.amount)} (vence ${day}/${mo})`;
+  }
+
+  const keyboard = buildServiceActionKeyboard(serviceId);
+  await ctx.reply(title, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 async function handleBackToMenu(ctx: Context): Promise<void> {
@@ -274,7 +308,7 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
   });
 
   const keyboard = buildMonthKeyboard(serviceId);
-  await ctx.reply(`Mes para ${service.name}:`, keyboard);
+  await ctx.reply(`¿Qué mes vence ${service.name}?:`, keyboard);
 }
 
 async function handleEditInstallment(ctx: Context): Promise<void> {
@@ -405,7 +439,7 @@ async function handlePagination(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
 
   const services = await getServicesByUser(telegramUserId);
-  const keyboard = buildServiceListKeyboard(services, page, "svc_edit");
+  const keyboard = buildServiceListKeyboard(services, page, "svc_view_pick");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await ctx.editMessageReplyMarkup(keyboard.reply_markup as any);

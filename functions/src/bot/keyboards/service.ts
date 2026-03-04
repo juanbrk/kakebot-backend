@@ -7,9 +7,8 @@ const SERVICES_PER_PAGE = 6;
 export function buildServicesSubmenuKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Añadir servicio", "svc_add")],
-    [Markup.button.callback("Registrar cuota", "svc_installment")],
     [Markup.button.callback("Ver servicios", "svc_view")],
-    [Markup.button.callback("Modificar servicio", "svc_modify")],
+    [Markup.button.callback("Listar servicios", "svc_list")],
   ]);
 }
 
@@ -56,6 +55,16 @@ export function buildServiceListKeyboard(
   rows.push([Markup.button.callback("Volver", "svc_back")]);
 
   return Markup.inlineKeyboard(rows);
+}
+
+export function buildServiceActionKeyboard(serviceId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Registrar cuota", `svc_reg:${serviceId}`),
+      Markup.button.callback("Modificar", `svc_edit:${serviceId}`),
+    ],
+    [Markup.button.callback("Volver", "svc_view")],
+  ]);
 }
 
 export function buildServiceEditKeyboard(serviceId: string) {
