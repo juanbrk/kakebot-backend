@@ -9,6 +9,15 @@ import { formatARS } from "../../helpers/format";
 import {
   isBulkMessage, parseBulkLines, buildBulkConfirmText, MAX_BULK_LINES,
 } from "../../helpers/bulk-parse";
+import {
+  createService,
+  getInstallment,
+  saveInstallment,
+  updateServiceName,
+  updateInstallmentAmount,
+  updateInstallmentDueDay,
+} from "../../services/service.service";
+import { buildDuplicateKeyboard } from "../keyboards/service";
 
 export function registerTextHandler(bot: Telegraf<Context>): void {
   bot.on("text", async (ctx) => {
@@ -36,6 +45,36 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "categorizing") {
       await handleCategorizingText(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "svc_awaiting_name") {
+      await handleServiceName(ctx, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "svc_awaiting_amount") {
+      await handleServiceAmount(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "svc_awaiting_day") {
+      await handleServiceDay(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "svc_awaiting_edit_name") {
+      await handleEditServiceNameText(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "svc_awaiting_edit_amount") {
+      await handleEditServiceAmountText(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "svc_awaiting_edit_day") {
+      await handleEditServiceDayText(ctx, session, telegramUserId, messageText);
       return;
     }
 
@@ -232,4 +271,193 @@ async function handleBulkInput(
       Markup.button.callback("Confirmar", "bulk_confirm"),
     ])
   );
+}
+
+async function handleServiceName(
+  ctx: Context,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const name = messageText.trim();
+
+  const hasValidName = name.length > 0;
+  if (!hasValidName) {
+    await ctx.reply("El nombre no puede estar vacío.");
+    return;
+  }
+
+  const serviceId = await createService(telegramUserId, name);
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "svc_awaiting_amount",
+    serviceId,
+    serviceName: name,
+  });
+
+  await ctx.reply(
+    `✅ Servicio '${name}' creado.\n\n¿Deseas agregar una cuota ahora?`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback("Cancelar", "svc_back"),
+        Markup.button.callback("Aceptar", `svc_reg:${serviceId}`),
+      ],
+    ])
+  );
+}
+
+async function handleServiceAmount(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const amount = parseArgentineAmount(messageText.trim());
+
+  if (amount === null || amount <= 0) {
+    await ctx.reply(
+      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
+    );
+    return;
+  }
+
+  const serviceId = session.serviceId || "";
+  const serviceName = session.serviceName || "";
+  const selectedMonth = session.selectedMonth || "";
+  const dayStr = session.partialDescription || "";
+  const day = parseInt(dayStr, 10);
+
+  const hasRequiredSessionData =
+    serviceId && serviceName && selectedMonth && dayStr;
+  if (!hasRequiredSessionData) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  const [year, month] = selectedMonth.split("-");
+  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
+
+  const existing = await getInstallment(serviceId, selectedMonth);
+
+  if (existing) {
+    await setSession(telegramUserId, {
+      ...session,
+      state: "svc_awaiting_amount",
+      partialAmount: amount,
+    });
+
+    const keyboard = buildDuplicateKeyboard(existing.id || "");
+    await ctx.reply(
+      "Ya existe cuota registrada para este mes.",
+      keyboard
+    );
+    return;
+  }
+
+  await saveInstallment(
+    telegramUserId,
+    serviceId,
+    serviceName,
+    amount,
+    dueDate,
+    selectedMonth
+  );
+  await clearSession(telegramUserId);
+
+  const day2 = String(dueDate.getDate()).padStart(2, "0");
+  const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
+
+  await ctx.reply(
+    `✅ Cuota registrada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`
+  );
+}
+
+async function handleServiceDay(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const dayStr = messageText.trim();
+  const day = parseInt(dayStr, 10);
+
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  if (!isValidDay) {
+    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "svc_awaiting_amount",
+    partialDescription: dayStr,
+  });
+
+  await ctx.reply("¿Cuál es el monto de la cuota?");
+}
+
+async function handleEditServiceNameText(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const newName = messageText.trim();
+  const serviceId = session.serviceId || "";
+
+  const hasValidName = newName.length > 0;
+  if (!hasValidName) {
+    await ctx.reply("El nombre no puede estar vacío.");
+    return;
+  }
+
+  await updateServiceName(serviceId, newName);
+  await clearSession(telegramUserId);
+
+  await ctx.reply(`✅ Nombre actualizado a '${newName}'.`);
+}
+
+async function handleEditServiceAmountText(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const amount = parseArgentineAmount(messageText.trim());
+  const installmentId = session.installmentId || "";
+
+  const isValidAmount = amount !== null && amount > 0;
+  if (!isValidAmount) {
+    await ctx.reply(
+      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
+    );
+    return;
+  }
+
+  await updateInstallmentAmount(installmentId, amount);
+  await clearSession(telegramUserId);
+
+  await ctx.reply(`✅ Monto actualizado a ${formatARS(amount)}.`);
+}
+
+async function handleEditServiceDayText(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const dayStr = messageText.trim();
+  const day = parseInt(dayStr, 10);
+  const installmentId = session.installmentId || "";
+
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  if (!isValidDay) {
+    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    return;
+  }
+
+  await updateInstallmentDueDay(installmentId, day);
+  await clearSession(telegramUserId);
+
+  await ctx.reply(`✅ Vencimiento actualizado al día ${day}.`);
 }
