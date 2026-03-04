@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
 import { formatARS, MONTH_NAMES } from "../helpers/format";
+import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 
 export async function generateMonthlyReport(
   telegramUserId: string
@@ -11,14 +12,22 @@ export async function generateMonthlyReport(
     now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59
   );
 
-  const expensesSnapshot = await getDb()
-    .collection("expenses")
-    .where("telegramUserId", "==", telegramUserId)
-    .where("date", ">=", admin.firestore.Timestamp.fromDate(startOfMonth))
-    .where("date", "<=", admin.firestore.Timestamp.fromDate(endOfMonth))
-    .get();
+  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${monthStr}`;
 
-  if (expensesSnapshot.empty) {
+  const [expensesSnapshot, services, installments] = await Promise.all([
+    getDb()
+      .collection("expenses")
+      .where("telegramUserId", "==", telegramUserId)
+      .where("date", ">=", admin.firestore.Timestamp.fromDate(startOfMonth))
+      .where("date", "<=", admin.firestore.Timestamp.fromDate(endOfMonth))
+      .get(),
+    getServicesByUser(telegramUserId),
+    getInstallmentsForMonth(telegramUserId, dueMonth),
+  ]);
+
+  const hasNoData = expensesSnapshot.empty && services.length === 0;
+  if (hasNoData) {
     return null;
   }
 
@@ -67,6 +76,33 @@ export async function generateMonthlyReport(
       reportLines.push(
         `  • ${subcategory.displayName}  ${formatARS(subcategory.total)}`
       );
+    }
+    reportLines.push("");
+  }
+
+  if (services.length > 0) {
+    const installmentByServiceId = new Map(
+      installments.map((installment) => [installment.serviceId, installment])
+    );
+
+    const servicesTotal = installments.reduce(
+      (sum, installment) => sum + installment.amount, 0
+    );
+    grandTotal += servicesTotal;
+
+    reportLines.push(`*SERVICIOS* ${formatARS(servicesTotal)}`);
+    for (const service of services) {
+      const installment = installmentByServiceId.get(service.id || "");
+      if (installment) {
+        const dueDate = installment.dueDate.toDate();
+        const day = String(dueDate.getDate()).padStart(2, "0");
+        const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+        reportLines.push(
+          `  • ${service.name}  ${formatARS(installment.amount)} (vence ${day}/${mo})`
+        );
+      } else {
+        reportLines.push(`  • ${service.name}  $ -`);
+      }
     }
     reportLines.push("");
   }

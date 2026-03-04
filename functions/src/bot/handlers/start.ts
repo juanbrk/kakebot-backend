@@ -11,7 +11,8 @@ export function registerStartHandler(bot: Telegraf<Context>): void {
       "Comandos:\n" +
       "/menu - Ver opciones\n" +
       "/reporte - Resumen del mes actual\n" +
-      "/categorizar - Asignar categorías a gastos sin categorizar"
+      "/categorizar - Asignar categorías a gastos sin categorizar\n" +
+      "/servicios - Gestionar servicios fijos (Expensas, Gas, etc.)"
     );
   });
 }

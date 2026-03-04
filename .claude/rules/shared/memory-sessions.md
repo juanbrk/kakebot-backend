@@ -125,6 +125,33 @@
 - Manual testing of all three changes on emulators
 - Deploy to test bot (botitio_testitoBot) and verify
 
+## 2026-03-04: Guard conditions pattern + service flow optimization
+
+### Completed
+- Created `shared/guard-conditions.md` rule: extract multi-part conditions into named preconditions for clarity
+- Applied guard condition pattern to all validation checks:
+  - `isValidDay` variables in handleServiceDay, handleEditServiceDayText
+  - `hasRequiredSessionData` in handleServiceAmount, handleReplaceDuplicate
+  - `isValidAmount` in handleEditServiceAmountText
+  - `hasValidName` in handleEditServiceNameText
+- **Reordered service registration flow**: Mes → Día → Monto (improves UX)
+  - Modified handleMonthSelected to set `svc_awaiting_day` state
+  - Modified handleServiceDay to set `svc_awaiting_amount` state (validation only)
+  - Modified handleServiceAmount to save installment (was just validation)
+- **UI improvements** from user feedback:
+  - Menu: "Selecciona una opción" (clearer than "¿Qué querés hacer con servicios?")
+  - Service edit menu: 2-column layout (2x2 grid)
+  - Service list: 6 items per page, displayed 3x2 grid with pagination
+  - Edit service text: "¿Qué deseas hacer con *[nombre]*?" (with name in bold)
+  - Post-creation: prompt user to add installment immediately [Cancelar|Aceptar]
+- Updated CLAUDE.md to reference new guard-conditions rule
+- Build + lint: clean
+
+### Pending
+- Test service flows on emulators (Mes → Día → Monto sequence)
+- Deploy to botitio_testitoBot
+- Phase 2: Integración al reporte mensual (add SERVICIOS section)
+
 ## 2026-03-03: Modularization of telegram.ts
 
 ### Completed

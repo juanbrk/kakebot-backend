@@ -46,6 +46,25 @@ export interface BulkExpenseEntry {
   amount: number;
 }
 
+export interface Service {
+  id?: string;
+  telegramUserId: string;
+  name: string;
+  normalizedName: string;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
+export interface ServiceInstallment {
+  id?: string;
+  telegramUserId: string;
+  serviceId: string;
+  serviceName: string;
+  amount: number;
+  dueDate: FirebaseFirestore.Timestamp;
+  dueMonth: string;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
 export interface Session {
   telegramUserId: string;
   state:
@@ -53,7 +72,13 @@ export interface Session {
     | "awaiting_new_category_name"
     | "awaiting_amount"
     | "awaiting_description"
-    | "bulk_pending";
+    | "bulk_pending"
+    | "svc_awaiting_name"
+    | "svc_awaiting_amount"
+    | "svc_awaiting_day"
+    | "svc_awaiting_edit_name"
+    | "svc_awaiting_edit_amount"
+    | "svc_awaiting_edit_day";
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;
@@ -65,4 +90,8 @@ export interface Session {
   partialDescription?: string;
   partialAmount?: number;
   bulkExpenses?: BulkExpenseEntry[];
+  serviceId?: string;
+  serviceName?: string;
+  installmentId?: string;
+  selectedMonth?: string;
 }
