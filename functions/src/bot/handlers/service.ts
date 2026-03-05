@@ -1,4 +1,4 @@
-import { Telegraf, Markup, Context } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
@@ -8,6 +8,7 @@ import {
   getInstallment,
   replaceInstallment,
   deleteService,
+  markInstallmentAsPaid,
 } from "../../services/service.service";
 import {
   buildServicesSubmenuKeyboard,
@@ -17,7 +18,8 @@ import {
   buildMonthKeyboard,
   buildDeleteConfirmKeyboard,
   buildServiceViewText,
-  buildServiceEditCuotaText,
+  buildInstallmentDetailText,
+  buildInstallmentDetailKeyboard,
 } from "../keyboards/service";
 import { formatARS } from "../../helpers/format";
 
@@ -45,6 +47,9 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action(/^svc_delete:(.+)$/, handleDeleteService);
   bot.action(/^svc_delete_yes:(.+)$/, handleConfirmDelete);
 
+  bot.action(/^svc_pay:(.+)$/, handleMarkAsPaid);
+  bot.action(/^svc_pay_from:(.+)$/, handleMarkAsPaidFromService);
+
   bot.action(/^svc_edit_amt:(.+)$/, handleEditInstallmentAmount);
   bot.action(/^svc_edit_day:(.+)$/, handleEditInstallmentDay);
 
@@ -52,7 +57,7 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
 }
 
 async function openServicesMenu(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
+  if (ctx.callbackQuery) await ctx.answerCbQuery();
   await ctx.reply(
     "Selecciona una opción",
     buildServicesSubmenuKeyboard()
@@ -150,10 +155,15 @@ async function handlePickServiceForAction(ctx: Context): Promise<void> {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
     const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-    title = `*${service.name}* ${formatARS(installment.amount)} (vence ${day}/${mo})`;
+    const dueSuffix = installment.isPaid ?
+      "(Pagado) ✅" :
+      `(vence ${day}/${mo})`;
+    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
   }
 
-  const keyboard = buildServiceActionKeyboard(serviceId);
+  const hasInstallment = installment !== null;
+  const isPaid = installment?.isPaid ?? false;
+  const keyboard = buildServiceActionKeyboard(serviceId, hasInstallment, isPaid);
   await ctx.reply(title, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,8 +343,10 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
     return;
   }
 
-  const text = buildServiceEditCuotaText(installment);
-  const keyboard = buildServiceEditCuotaKeyboard(installment.id || "");
+  const text = buildInstallmentDetailText(installment);
+  const keyboard = buildInstallmentDetailKeyboard(
+    installment.id || "", installment.isPaid
+  );
   await ctx.reply(text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -342,13 +354,33 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
   });
 }
 
-function buildServiceEditCuotaKeyboard(installmentId: string) {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback("Modificar monto", `svc_edit_amt:${installmentId}`)],
-    [
-      Markup.button.callback("Modificar vencimiento", `svc_edit_day:${installmentId}`)],
-    [Markup.button.callback("Volver", "svc_back")],
-  ]);
+async function handleMarkAsPaid(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+
+  await ctx.answerCbQuery();
+  await markInstallmentAsPaid(installmentId);
+  await ctx.reply("✅ Cuota marcada como pagada.");
+}
+
+async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceId = ((ctx as any).match as string[])[1];
+
+  await ctx.answerCbQuery();
+
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${month}`;
+
+  const installment = await getInstallment(serviceId, dueMonth);
+  if (!installment) {
+    await ctx.reply("No hay cuota registrada para este mes.");
+    return;
+  }
+
+  await markInstallmentAsPaid(installment.id || "");
+  await ctx.reply("✅ Cuota marcada como pagada.");
 }
 
 async function handleEditServiceName(ctx: Context): Promise<void> {

@@ -62,6 +62,8 @@ export interface ServiceInstallment {
   amount: number;
   dueDate: FirebaseFirestore.Timestamp;
   dueMonth: string;
+  isPaid: boolean;
+  paidAt?: FirebaseFirestore.Timestamp;
   createdAt: FirebaseFirestore.Timestamp;
 }
 

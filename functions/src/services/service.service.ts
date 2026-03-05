@@ -96,9 +96,22 @@ export async function saveInstallment(
       amount,
       dueDate: admin.firestore.Timestamp.fromDate(dueDate),
       dueMonth,
+      isPaid: false,
       createdAt: admin.firestore.Timestamp.now(),
     });
   return docRef.id;
+}
+
+export async function markInstallmentAsPaid(
+  installmentId: string
+): Promise<void> {
+  await getDb()
+    .collection("service_installments")
+    .doc(installmentId)
+    .update({
+      isPaid: true,
+      paidAt: admin.firestore.Timestamp.now(),
+    });
 }
 
 export async function getInstallment(
