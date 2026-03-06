@@ -247,3 +247,25 @@
 1. Deploy a botitio_testitoBot con Storage real
 2. Fase 3: Foto directa al bot → crear cuota automáticamente
 
+## 2026-03-06: Fase 3b — Recepción de comprobante como mensaje directo
+
+### Completado
+- Flujo completo: foto/PDF sin sesión → `[Cancelar] [Factura] [Comprobante]` → selección de servicio → marca pagada + adjunta comprobante
+- **Nuevo archivo** `bot/handlers/receipt-direct.ts`:
+  - `registerReceiptDirectHandler(bot)` con actions: `doc_type_receipt`, `comp_pick`, `comp_new_service`, `comp_month`, `comp_pg`, `comp_cancel`
+  - `attachReceiptToInstallment()` — descarga archivo, sube a `receipts/`, marca pagada, guarda URL, limpia sesión
+- **keyboards/invoice.ts**: `buildDocTypeKeyboard` ahora muestra 3 opciones (Cancelar, Factura, Comprobante)
+  - `buildReceiptServiceListKeyboard` y `buildReceiptMonthKeyboard` (2 columnas, paginación)
+- **text.ts**: 3 nuevos handlers — `handleCompServiceName`, `handleCompDay`, `handleCompAmount`
+- **types/index.ts**: 5 estados nuevos (`comp_awaiting_service/name/month/day/amount`)
+- **Fix bug**: PDF en `svc_awaiting_receipt` ahora funciona (antes solo aceptaba fotos)
+  - `handleDocument` en photo.ts ahora detecta `svc_awaiting_receipt`
+  - Nueva función `handleReceiptUploadFromDocument`
+  - Mensaje actualizado: "Enviá la foto o PDF del comprobante."
+- Build + lint: clean
+
+### Pendiente
+- Testing en emuladores (`npm run dev`)
+- Deploy a botitio_testitoBot
+- Verificar Firestore indexes antes de deploy a producción
+

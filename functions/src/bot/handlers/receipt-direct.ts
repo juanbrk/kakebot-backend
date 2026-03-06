@@ -6,26 +6,26 @@ import {
   getServicesByUser,
   getServiceById,
   getInstallment,
-  saveInvoiceUrl,
+  markInstallmentAsPaid,
+  saveReceiptUrl,
 } from "../../services/service.service";
-import { uploadInvoice } from "../../services/storage.service";
+import { uploadReceipt } from "../../services/storage.service";
 import { downloadFile } from "./photo";
 import {
-  buildInvoiceServiceListKeyboard,
-  buildInvoiceMonthKeyboard,
+  buildReceiptServiceListKeyboard,
+  buildReceiptMonthKeyboard,
 } from "../keyboards/invoice";
-import { MONTH_NAMES } from "../../helpers/format";
 
-export function registerInvoiceHandler(bot: Telegraf<Context>): void {
-  bot.action("doc_type_invoice", handleDocTypeInvoice);
-  bot.action(/^inv_pick:(.+)$/, handlePickServiceForInvoice);
-  bot.action("inv_new_service", handleNewServiceForInvoice);
-  bot.action(/^inv_month:(.+):(\d{4}-\d{2})$/, handleInvoiceMonthSelected);
-  bot.action(/^inv_pg:(\d+)$/, handleInvoicePagination);
-  bot.action("inv_cancel", handleInvoiceCancel);
+export function registerReceiptDirectHandler(bot: Telegraf<Context>): void {
+  bot.action("doc_type_receipt", handleDocTypeReceipt);
+  bot.action(/^comp_pick:(.+)$/, handlePickServiceForReceipt);
+  bot.action("comp_new_service", handleNewServiceForReceipt);
+  bot.action(/^comp_month:(.+):(\d{4}-\d{2})$/, handleReceiptMonthSelected);
+  bot.action(/^comp_pg:(\d+)$/, handleReceiptPagination);
+  bot.action("comp_cancel", handleReceiptCancel);
 }
 
-async function handleDocTypeInvoice(ctx: Context): Promise<void> {
+async function handleDocTypeReceipt(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
@@ -34,7 +34,7 @@ async function handleDocTypeInvoice(ctx: Context): Promise<void> {
   if (services.length === 0) {
     await setSession(telegramUserId, {
       ...await getSession(telegramUserId) as ReturnType<typeof emptySessionForPartial>,
-      state: "invoice_awaiting_name",
+      state: "comp_awaiting_name",
     });
     await ctx.reply(
       "No tenés servicios registrados.\n¿Cómo se llama el servicio?"
@@ -46,15 +46,15 @@ async function handleDocTypeInvoice(ctx: Context): Promise<void> {
   if (session) {
     await setSession(telegramUserId, {
       ...session,
-      state: "invoice_awaiting_service",
+      state: "comp_awaiting_service",
     });
   }
 
-  const keyboard = buildInvoiceServiceListKeyboard(services);
-  await ctx.reply("¿A qué servicio corresponde esta factura?", keyboard);
+  const keyboard = buildReceiptServiceListKeyboard(services);
+  await ctx.reply("¿A qué servicio corresponde este comprobante?", keyboard);
 }
 
-async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
+async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
   const telegramUserId = ctx.from?.id.toString() || "";
@@ -75,7 +75,7 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
   const installment = await getInstallment(serviceId, dueMonth);
 
   if (installment) {
-    await attachInvoiceToInstallment(
+    await attachReceiptToInstallment(
       ctx, telegramUserId, installment.id || "", session
     );
     return;
@@ -83,16 +83,16 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
 
   await setSession(telegramUserId, {
     ...session,
-    state: "invoice_awaiting_month",
+    state: "comp_awaiting_month",
     serviceId,
     serviceName,
   });
 
-  const keyboard = buildInvoiceMonthKeyboard(serviceId);
-  await ctx.reply("¿A qué mes corresponde la factura?", keyboard);
+  const keyboard = buildReceiptMonthKeyboard(serviceId);
+  await ctx.reply("¿A qué mes corresponde el comprobante?", keyboard);
 }
 
-async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
+async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const match = (ctx as any).match as string[];
   const serviceId = match[1];
@@ -108,7 +108,7 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
 
   const existingInstallment = await getInstallment(serviceId, dueMonth);
   if (existingInstallment) {
-    await attachInvoiceToInstallment(
+    await attachReceiptToInstallment(
       ctx, telegramUserId, existingInstallment.id || "", session
     );
     return;
@@ -116,7 +116,7 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
 
   await setSession(telegramUserId, {
     ...session,
-    state: "invoice_awaiting_day",
+    state: "comp_awaiting_day",
     serviceId,
     selectedMonth: dueMonth,
   });
@@ -124,7 +124,7 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
   await ctx.reply("¿Cuál es el día de vencimiento? (1-31)");
 }
 
-async function handleNewServiceForInvoice(ctx: Context): Promise<void> {
+async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
@@ -136,13 +136,13 @@ async function handleNewServiceForInvoice(ctx: Context): Promise<void> {
 
   await setSession(telegramUserId, {
     ...session,
-    state: "invoice_awaiting_name",
+    state: "comp_awaiting_name",
   });
 
   await ctx.reply("¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix");
 }
 
-async function handleInvoicePagination(ctx: Context): Promise<void> {
+async function handleReceiptPagination(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const page = parseInt(((ctx as any).match as string[])[1], 10);
   const telegramUserId = ctx.from?.id.toString() || "";
@@ -150,26 +150,26 @@ async function handleInvoicePagination(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
 
   const services = await getServicesByUser(telegramUserId);
-  const keyboard = buildInvoiceServiceListKeyboard(services, page);
+  const keyboard = buildReceiptServiceListKeyboard(services, page);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await ctx.editMessageReplyMarkup(keyboard.reply_markup as any);
 }
 
-async function handleInvoiceCancel(ctx: Context): Promise<void> {
+async function handleReceiptCancel(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Carga de factura cancelada.");
+  await ctx.reply("Carga de comprobante cancelada.");
 }
 
-export async function attachInvoiceToInstallment(
+export async function attachReceiptToInstallment(
   ctx: Context,
   telegramUserId: string,
   installmentId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   session: any,
-  successMessage: string = "✅ Factura adjunta."
+  successMessage: string = "✅ Comprobante adjunto. Cuota marcada como pagada."
 ): Promise<void> {
   try {
     const fileId = session.pendingFileId;
@@ -182,21 +182,16 @@ export async function attachInvoiceToInstallment(
       "application/pdf" :
       (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
 
-    const invoiceUrl = await uploadInvoice(
+    const receiptUrl = await uploadReceipt(
       telegramUserId, installmentId, fileBuffer, mimeType
     );
 
-    await saveInvoiceUrl(installmentId, invoiceUrl);
+    await markInstallmentAsPaid(installmentId);
+    await saveReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
     await ctx.reply(successMessage);
   } catch (error) {
-    console.error("Error uploading invoice:", error);
-    await ctx.reply("Error al guardar la factura. Intentá de nuevo.");
+    console.error("Error uploading receipt:", error);
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
-}
-
-export function getMonthLabel(dueMonth: string): string {
-  const [year, month] = dueMonth.split("-");
-  const monthIndex = parseInt(month, 10) - 1;
-  return `${MONTH_NAMES[monthIndex]} ${year}`;
 }

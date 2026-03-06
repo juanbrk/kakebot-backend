@@ -90,7 +90,12 @@ export interface Session {
     | "invoice_awaiting_name"
     | "invoice_awaiting_month"
     | "invoice_awaiting_day"
-    | "invoice_awaiting_amount";
+    | "invoice_awaiting_amount"
+    | "comp_awaiting_service"
+    | "comp_awaiting_name"
+    | "comp_awaiting_month"
+    | "comp_awaiting_day"
+    | "comp_awaiting_amount";
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;

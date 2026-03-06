@@ -59,6 +59,11 @@ async function handleDocument(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
 
+  if (session?.state === "svc_awaiting_receipt") {
+    await handleReceiptUploadFromDocument(ctx, telegramUserId, session, document.file_id);
+    return;
+  }
+
   if (session?.state === "svc_awaiting_invoice") {
     await handleInvoiceUpload(ctx, telegramUserId, session, "pdf", document.file_id);
     return;
@@ -81,7 +86,10 @@ async function startDocTypeFlow(
   });
 
   const keyboard = buildDocTypeKeyboard();
-  await ctx.reply("¿Qué tipo de documento es?", keyboard);
+  await ctx.reply(
+    "¿Qué tipo de documento es?\nEnviá \"cancelar\" para anular la carga.",
+    keyboard
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,6 +131,36 @@ async function handleReceiptUpload(
     await ctx.reply("✅ Comprobante guardado.");
   } catch (error) {
     console.error("Error uploading receipt:", error);
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+  }
+}
+
+async function handleReceiptUploadFromDocument(
+  ctx: Context,
+  telegramUserId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  session: any,
+  documentFileId: string
+): Promise<void> {
+  const installmentId = session.installmentId || "";
+  if (!installmentId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(documentFileId);
+    const fileBuffer = await downloadFile(fileLink.href);
+
+    const receiptUrl = await uploadReceipt(
+      telegramUserId, installmentId, fileBuffer, "application/pdf"
+    );
+
+    await saveReceiptUrl(installmentId, receiptUrl);
+    await clearSession(telegramUserId);
+    await ctx.reply("✅ Comprobante guardado.");
+  } catch (error) {
+    console.error("Error uploading receipt PDF:", error);
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }

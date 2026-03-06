@@ -412,7 +412,7 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply("Enviá la foto del comprobante.");
+  await ctx.reply("Enviá la foto o PDF del comprobante.");
 }
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
