@@ -64,6 +64,7 @@ export interface ServiceInstallment {
   dueMonth: string;
   isPaid: boolean;
   paidAt?: FirebaseFirestore.Timestamp;
+  receiptUrl?: string;
   createdAt: FirebaseFirestore.Timestamp;
 }
 
@@ -80,7 +81,8 @@ export interface Session {
     | "svc_awaiting_day"
     | "svc_awaiting_edit_name"
     | "svc_awaiting_edit_amount"
-    | "svc_awaiting_edit_day";
+    | "svc_awaiting_edit_day"
+    | "svc_awaiting_receipt";
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;

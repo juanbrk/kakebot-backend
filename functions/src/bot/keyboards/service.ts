@@ -184,7 +184,8 @@ export function buildInstallmentDetailText(installment: ServiceInstallment): str
 
 export function buildInstallmentDetailKeyboard(
   installmentId: string,
-  isPaid: boolean
+  isPaid: boolean,
+  hasReceipt: boolean
 ) {
   const rows = [
     [Markup.button.callback("Modificar monto", `svc_edit_amt:${installmentId}`)],
@@ -199,6 +200,23 @@ export function buildInstallmentDetailKeyboard(
     ]);
   }
 
+  if (isPaid && !hasReceipt) {
+    rows.push([
+      Markup.button.callback(
+        "Adjuntar comprobante", `svc_attach:${installmentId}`
+      ),
+    ]);
+  }
+
   rows.push([Markup.button.callback("Volver", "svc_back")]);
   return Markup.inlineKeyboard(rows);
+}
+
+export function buildReceiptPromptKeyboard(installmentId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Omitir", "svc_skip_receipt"),
+      Markup.button.callback("Adjuntar", `svc_attach:${installmentId}`),
+    ],
+  ]);
 }

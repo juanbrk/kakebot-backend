@@ -189,6 +189,16 @@ export async function updateInstallmentDueDay(
     });
 }
 
+export async function saveReceiptUrl(
+  installmentId: string,
+  receiptUrl: string
+): Promise<void> {
+  await getDb()
+    .collection("service_installments")
+    .doc(installmentId)
+    .update({ receiptUrl });
+}
+
 export async function getInstallmentsForMonth(
   telegramUserId: string,
   dueMonth: string

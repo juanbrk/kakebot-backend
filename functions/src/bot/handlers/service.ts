@@ -20,6 +20,7 @@ import {
   buildServiceViewText,
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
+  buildReceiptPromptKeyboard,
 } from "../keyboards/service";
 import { formatARS } from "../../helpers/format";
 
@@ -49,6 +50,9 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
 
   bot.action(/^svc_pay:(.+)$/, handleMarkAsPaid);
   bot.action(/^svc_pay_from:(.+)$/, handleMarkAsPaidFromService);
+
+  bot.action(/^svc_attach:(.+)$/, handleAttachReceipt);
+  bot.action("svc_skip_receipt", handleSkipReceipt);
 
   bot.action(/^svc_edit_amt:(.+)$/, handleEditInstallmentAmount);
   bot.action(/^svc_edit_day:(.+)$/, handleEditInstallmentDay);
@@ -344,8 +348,9 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
   }
 
   const text = buildInstallmentDetailText(installment);
+  const hasReceipt = !!installment.receiptUrl;
   const keyboard = buildInstallmentDetailKeyboard(
-    installment.id || "", installment.isPaid
+    installment.id || "", installment.isPaid, hasReceipt
   );
   await ctx.reply(text, {
     parse_mode: "Markdown",
@@ -361,6 +366,9 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await markInstallmentAsPaid(installmentId);
   await ctx.reply("✅ Cuota marcada como pagada.");
+
+  const keyboard = buildReceiptPromptKeyboard(installmentId);
+  await ctx.reply("¿Deseas adjuntar comprobante?", keyboard);
 }
 
 async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
@@ -381,6 +389,32 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
 
   await markInstallmentAsPaid(installment.id || "");
   await ctx.reply("✅ Cuota marcada como pagada.");
+
+  const keyboard = buildReceiptPromptKeyboard(installment.id || "");
+  await ctx.reply("¿Deseas adjuntar comprobante?", keyboard);
+}
+
+async function handleAttachReceipt(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
+
+  await ctx.answerCbQuery();
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "svc_awaiting_receipt",
+    installmentId,
+  });
+
+  await ctx.reply("Enviá la foto del comprobante.");
+}
+
+async function handleSkipReceipt(ctx: Context): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+  await clearSession(telegramUserId);
+  await ctx.reply("Comprobante omitido.");
 }
 
 async function handleEditServiceName(ctx: Context): Promise<void> {
