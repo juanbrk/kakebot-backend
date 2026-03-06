@@ -5,14 +5,21 @@ function getBucket() {
   return admin.storage().bucket(bucketName);
 }
 
-export async function uploadReceipt(
+const EXTENSION_MAP: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "application/pdf": "pdf",
+};
+
+async function uploadFile(
+  folder: string,
   telegramUserId: string,
   installmentId: string,
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
-  const extension = mimeType === "image/png" ? "png" : "jpg";
-  const filePath = `receipts/${telegramUserId}/${installmentId}.${extension}`;
+  const extension = EXTENSION_MAP[mimeType] || "jpg";
+  const filePath = `${folder}/${telegramUserId}/${installmentId}.${extension}`;
 
   const bucket = getBucket();
   const file = bucket.file(filePath);
@@ -31,4 +38,22 @@ export async function uploadReceipt(
   }
 
   return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+}
+
+export async function uploadReceipt(
+  telegramUserId: string,
+  installmentId: string,
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  return uploadFile("receipts", telegramUserId, installmentId, fileBuffer, mimeType);
+}
+
+export async function uploadInvoice(
+  telegramUserId: string,
+  installmentId: string,
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  return uploadFile("invoices", telegramUserId, installmentId, fileBuffer, mimeType);
 }

@@ -157,11 +157,11 @@ export function buildServiceViewText(
       const day = String(dueDate.getDate()).padStart(2, "0");
       const month = String(dueDate.getMonth() + 1).padStart(2, "0");
       const dueLine = installment.isPaid ?
-        `${service.name}  ${formatARS(installment.amount)} (Pagado) ✅` :
-        `${service.name}  ${formatARS(installment.amount)} (vence ${day}/${month})`;
+        `• ${service.name}  ${formatARS(installment.amount)} (Pagado) ✅` :
+        `• ${service.name}  ${formatARS(installment.amount)} (vence ${day}/${month})`;
       lines.push(dueLine);
     } else {
-      lines.push(`${service.name}  Sin cuota este mes`);
+      lines.push(`• ${service.name}  Sin cuota este mes`);
     }
   });
 
@@ -185,7 +185,8 @@ export function buildInstallmentDetailText(installment: ServiceInstallment): str
 export function buildInstallmentDetailKeyboard(
   installmentId: string,
   isPaid: boolean,
-  hasReceipt: boolean
+  hasReceipt: boolean,
+  hasInvoice: boolean
 ) {
   const rows = [
     [Markup.button.callback("Modificar monto", `svc_edit_amt:${installmentId}`)],
@@ -193,6 +194,14 @@ export function buildInstallmentDetailKeyboard(
       "Modificar vencimiento", `svc_edit_day:${installmentId}`
     )],
   ];
+
+  if (!hasInvoice) {
+    rows.push([
+      Markup.button.callback(
+        "Adjuntar factura", `svc_attach_inv:${installmentId}`
+      ),
+    ]);
+  }
 
   if (!isPaid) {
     rows.push([
@@ -210,6 +219,15 @@ export function buildInstallmentDetailKeyboard(
 
   rows.push([Markup.button.callback("Volver", "svc_back")]);
   return Markup.inlineKeyboard(rows);
+}
+
+export function buildInvoicePromptKeyboard(installmentId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Omitir", "svc_skip_invoice"),
+      Markup.button.callback("Adjuntar", `svc_attach_inv:${installmentId}`),
+    ],
+  ]);
 }
 
 export function buildReceiptPromptKeyboard(installmentId: string) {

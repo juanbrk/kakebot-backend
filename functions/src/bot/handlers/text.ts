@@ -17,7 +17,9 @@ import {
   updateInstallmentAmount,
   updateInstallmentDueDay,
 } from "../../services/service.service";
-import { buildDuplicateKeyboard } from "../keyboards/service";
+import { buildDuplicateKeyboard, buildInvoicePromptKeyboard } from "../keyboards/service";
+import { buildInvoiceMonthKeyboard } from "../keyboards/invoice";
+import { attachInvoiceToInstallment } from "./invoice";
 
 export function registerTextHandler(bot: Telegraf<Context>): void {
   bot.on("text", async (ctx) => {
@@ -75,6 +77,21 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "svc_awaiting_edit_day") {
       await handleEditServiceDayText(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "invoice_awaiting_name") {
+      await handleInvoiceServiceName(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "invoice_awaiting_day") {
+      await handleInvoiceDay(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "invoice_awaiting_amount") {
+      await handleInvoiceAmount(ctx, session, telegramUserId, messageText);
       return;
     }
 
@@ -299,7 +316,7 @@ async function handleServiceName(
     `✅ Servicio '${name}' creado.\n\n¿Deseas agregar una cuota ahora?`,
     Markup.inlineKeyboard([
       [
-        Markup.button.callback("Cancelar", "svc_back"),
+        Markup.button.callback("Cancelar", "svc_no_cuota"),
         Markup.button.callback("Aceptar", `svc_reg:${serviceId}`),
       ],
     ])
@@ -354,7 +371,7 @@ async function handleServiceAmount(
     return;
   }
 
-  await saveInstallment(
+  const installmentId = await saveInstallment(
     telegramUserId,
     serviceId,
     serviceName,
@@ -370,6 +387,9 @@ async function handleServiceAmount(
   await ctx.reply(
     `✅ Cuota registrada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`
   );
+
+  const keyboard = buildInvoicePromptKeyboard(installmentId);
+  await ctx.reply("¿Deseas adjuntar factura?", keyboard);
 }
 
 async function handleServiceDay(
@@ -460,4 +480,100 @@ async function handleEditServiceDayText(
   await clearSession(telegramUserId);
 
   await ctx.reply(`✅ Vencimiento actualizado al día ${day}.`);
+}
+
+async function handleInvoiceServiceName(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const name = messageText.trim();
+  if (!name) {
+    await ctx.reply("El nombre no puede estar vacío.");
+    return;
+  }
+
+  const serviceId = await createService(telegramUserId, name);
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "invoice_awaiting_month",
+    serviceId,
+    serviceName: name,
+    isNewService: true,
+  });
+
+  const keyboard = buildInvoiceMonthKeyboard(serviceId);
+  await ctx.reply(
+    `✅ Servicio '${name}' creado.\n¿A qué mes corresponde la factura?`,
+    keyboard
+  );
+}
+
+async function handleInvoiceDay(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const dayStr = messageText.trim();
+  const day = parseInt(dayStr, 10);
+
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  if (!isValidDay) {
+    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "invoice_awaiting_amount",
+    partialDescription: dayStr,
+  });
+
+  await ctx.reply("¿Cuál es el monto de la cuota?");
+}
+
+async function handleInvoiceAmount(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const amount = parseArgentineAmount(messageText.trim());
+
+  const isValidAmount = amount !== null && amount > 0;
+  if (!isValidAmount) {
+    await ctx.reply(
+      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
+    );
+    return;
+  }
+
+  const serviceId = session.serviceId || "";
+  const serviceName = session.serviceName || "";
+  const selectedMonth = session.selectedMonth || "";
+  const day = parseInt(session.partialDescription || "1", 10);
+
+  const hasRequiredData = serviceId && serviceName && selectedMonth;
+  if (!hasRequiredData) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  const [year, month] = selectedMonth.split("-");
+  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
+
+  const installmentId = await saveInstallment(
+    telegramUserId, serviceId, serviceName, amount, dueDate, selectedMonth
+  );
+
+  const successMessage = session.isNewService ?
+    "✅ Servicio creado y factura adjuntada." :
+    "✅ Factura adjunta.";
+
+  await attachInvoiceToInstallment(
+    ctx, telegramUserId, installmentId, session, successMessage
+  );
 }

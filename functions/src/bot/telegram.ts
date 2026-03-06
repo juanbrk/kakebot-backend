@@ -7,6 +7,7 @@ import { registerCategorizeHandler } from "./handlers/categorize";
 import { registerServiceHandler } from "./handlers/service";
 import { registerExpenseHandler } from "./handlers/expense";
 import { registerBulkHandler } from "./handlers/bulk";
+import { registerInvoiceHandler } from "./handlers/invoice";
 import { registerPhotoHandler } from "./handlers/photo";
 import { registerTextHandler } from "./handlers/text";
 
@@ -23,6 +24,7 @@ registerCategorizeHandler(telegramBot);
 registerServiceHandler(telegramBot);
 registerExpenseHandler(telegramBot);
 registerBulkHandler(telegramBot);
+registerInvoiceHandler(telegramBot);
 registerPhotoHandler(telegramBot);
 registerTextHandler(telegramBot);
 
