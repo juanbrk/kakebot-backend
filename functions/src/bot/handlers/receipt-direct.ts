@@ -37,7 +37,9 @@ async function handleDocTypeReceipt(ctx: Context): Promise<void> {
       state: "comp_awaiting_name",
     });
     await ctx.reply(
-      "No tenés servicios registrados.\n¿Cómo se llama el servicio?"
+      "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
+      "_Enviá la palabra cancelar para salir._",
+      { parse_mode: "Markdown" }
     );
     return;
   }
@@ -121,7 +123,11 @@ async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.reply("¿Cuál es el día de vencimiento? (1-31)");
+  await ctx.reply(
+    "¿Cuál es el día de vencimiento? (1-31)\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
@@ -139,7 +145,11 @@ async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
     state: "comp_awaiting_name",
   });
 
-  await ctx.reply("¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix");
+  await ctx.reply(
+    "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleReceiptPagination(ctx: Context): Promise<void> {

@@ -22,6 +22,8 @@ import { buildInvoiceMonthKeyboard, buildReceiptMonthKeyboard } from "../keyboar
 import { attachInvoiceToInstallment } from "./invoice";
 import { attachReceiptToInstallment } from "./receipt-direct";
 
+const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
+
 export function registerTextHandler(bot: Telegraf<Context>): void {
   bot.on("text", async (ctx) => {
     const messageText = ctx.message.text;
@@ -31,19 +33,16 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     const session = await getSession(telegramUserId);
 
-    const isDocFlowState = session?.state?.startsWith("doc_") ||
-      session?.state?.startsWith("invoice_") ||
-      session?.state?.startsWith("comp_");
-
-    if (isDocFlowState && messageText.trim().toLowerCase() === "cancelar") {
+    const isCancelWord = CANCEL_WORDS.has(messageText.trim().toLowerCase());
+    if (isCancelWord && session) {
       await clearSession(telegramUserId);
-      await ctx.reply("Carga cancelada.");
+      await ctx.reply("Operación cancelada.");
       return;
     }
 
     if (session?.state === "doc_awaiting_type") {
       await ctx.reply(
-        "Elegí una opción del menú, o enviá \"cancelar\" para anular."
+        "Elegí una opción del menú, o escribí \"cancelar\" para anular."
       );
       return;
     }
@@ -160,7 +159,11 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
           state: "awaiting_description",
           partialAmount: amount,
         });
-        await ctx.reply(`¿En qué gastaste ${formatARS(amount)}?`);
+        await ctx.reply(
+          `¿En qué gastaste ${formatARS(amount)}?\n` +
+          "_Enviá la palabra cancelar para salir._",
+          { parse_mode: "Markdown" }
+        );
         return;
       }
     }
@@ -172,7 +175,11 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
         state: "awaiting_amount",
         partialDescription: trimmed,
       });
-      await ctx.reply(`¿Cuánto gastaste en ${trimmed}?`);
+      await ctx.reply(
+        `¿Cuánto gastaste en ${trimmed}?\n` +
+        "_Enviá la palabra cancelar para salir._",
+        { parse_mode: "Markdown" }
+      );
       return;
     }
 
@@ -241,12 +248,6 @@ async function handleCategorizingText(
 ): Promise<void> {
   const lowerText = messageText.trim().toLowerCase();
 
-  if (lowerText === "cancelar") {
-    await clearSession(telegramUserId);
-    await ctx.reply("Categorización cancelada.");
-    return;
-  }
-
   if (lowerText === "omitir") {
     const nextPendingDescs = session.pendingDescs.slice(1);
     const nextDesc = nextPendingDescs.length > 0 ?
@@ -275,7 +276,7 @@ async function handleCategorizingText(
 
   await ctx.reply(
     "Tenés una sesión de categorización activa." +
-    " Elegí una categoría, o enviá \"omitir\" o \"cancelar\"."
+    " Elegí una categoría, o enviá \"omitir\" para saltar."
   );
 }
 
@@ -446,7 +447,11 @@ async function handleServiceDay(
     partialDescription: dayStr,
   });
 
-  await ctx.reply("¿Cuál es el monto de la cuota?");
+  await ctx.reply(
+    "¿Cuál es el monto de la cuota?\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleEditServiceNameText(
@@ -565,7 +570,11 @@ async function handleInvoiceDay(
     partialDescription: dayStr,
   });
 
-  await ctx.reply("¿Cuál es el monto de la cuota?");
+  await ctx.reply(
+    "¿Cuál es el monto de la cuota?\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleInvoiceAmount(
@@ -661,7 +670,11 @@ async function handleCompDay(
     partialDescription: dayStr,
   });
 
-  await ctx.reply("¿Cuál es el monto de la cuota?");
+  await ctx.reply(
+    "¿Cuál es el monto de la cuota?\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleCompAmount(

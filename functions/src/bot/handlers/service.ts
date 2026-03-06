@@ -81,7 +81,11 @@ async function handleAddService(ctx: Context): Promise<void> {
     state: "svc_awaiting_name",
   });
 
-  await ctx.reply("¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix");
+  await ctx.reply(
+    "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleRegisterInstallment(ctx: Context): Promise<void> {
@@ -231,7 +235,11 @@ async function handleMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.reply("¿Cuál es el día de vencimiento? (1-31)");
+  await ctx.reply(
+    "¿Cuál es el día de vencimiento? (1-31)\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleSkipDuplicate(ctx: Context): Promise<void> {
@@ -412,7 +420,11 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply("Enviá la foto o PDF del comprobante.");
+  await ctx.reply(
+    "Enviá la foto o PDF del comprobante.\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
@@ -435,7 +447,11 @@ async function handleAttachInvoice(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply("Enviá la foto o PDF de la factura.");
+  await ctx.reply(
+    "Enviá la foto o PDF de la factura.\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleSkipInvoice(ctx: Context): Promise<void> {
@@ -469,7 +485,11 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
     serviceId,
   });
 
-  await ctx.reply("¿Cuál es el nuevo nombre del servicio?");
+  await ctx.reply(
+    "¿Cuál es el nuevo nombre del servicio?\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleDeleteService(ctx: Context): Promise<void> {
@@ -517,7 +537,11 @@ async function handleEditInstallmentAmount(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply("¿Cuál es el nuevo monto?");
+  await ctx.reply(
+    "¿Cuál es el nuevo monto?\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handleEditInstallmentDay(ctx: Context): Promise<void> {
@@ -533,7 +557,11 @@ async function handleEditInstallmentDay(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply("¿Cuál es el nuevo día de vencimiento? (1-31)");
+  await ctx.reply(
+    "¿Cuál es el nuevo día de vencimiento? (1-31)\n" +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" }
+  );
 }
 
 async function handlePagination(ctx: Context): Promise<void> {

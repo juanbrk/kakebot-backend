@@ -173,10 +173,14 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
 
     await ctx.editMessageText(
       `Nueva categoría para "${session.currentDisplayName}":\n\n` +
-      "Escribí el nombre de la nueva categoría.",
-      Markup.inlineKeyboard([
-        [Markup.button.callback("Cancelar", "cat_cancel")],
-      ])
+      "Escribí el nombre de la nueva categoría.\n" +
+      "_Enviá la palabra cancelar para salir._",
+      {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback("Cancelar", "cat_cancel")],
+        ]),
+      }
     );
   });
 
