@@ -57,14 +57,34 @@ export function buildServiceListKeyboard(
   return Markup.inlineKeyboard(rows);
 }
 
-export function buildServiceActionKeyboard(serviceId: string) {
-  return Markup.inlineKeyboard([
-    [
+export function buildServiceActionKeyboard(
+  serviceId: string,
+  hasInstallment: boolean,
+  isPaid: boolean
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[][] = [];
+
+  if (hasInstallment) {
+    const actionRow = [];
+    if (!isPaid) {
+      actionRow.push(
+        Markup.button.callback("Marcar como pagado", `svc_pay_from:${serviceId}`)
+      );
+    }
+    actionRow.push(
+      Markup.button.callback("Modificar", `svc_edit:${serviceId}`)
+    );
+    rows.push(actionRow);
+  } else {
+    rows.push([
       Markup.button.callback("Registrar cuota", `svc_reg:${serviceId}`),
       Markup.button.callback("Modificar", `svc_edit:${serviceId}`),
-    ],
-    [Markup.button.callback("Volver", "svc_view")],
-  ]);
+    ]);
+  }
+
+  rows.push([Markup.button.callback("Volver", "svc_view")]);
+  return Markup.inlineKeyboard(rows);
 }
 
 export function buildServiceEditKeyboard(serviceId: string) {
@@ -136,25 +156,85 @@ export function buildServiceViewText(
       const dueDate = installment.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
       const month = String(dueDate.getMonth() + 1).padStart(2, "0");
-      lines.push(
-        `${service.name}  ${formatARS(installment.amount)} (vence ${day}/${month})`
-      );
+      const dueLine = installment.isPaid ?
+        `• ${service.name}  ${formatARS(installment.amount)} (Pagado) ✅` :
+        `• ${service.name}  ${formatARS(installment.amount)} (vence ${day}/${month})`;
+      lines.push(dueLine);
     } else {
-      lines.push(`${service.name}  Sin cuota este mes`);
+      lines.push(`• ${service.name}  Sin cuota este mes`);
     }
   });
 
   return lines.join("\n");
 }
 
-export function buildServiceEditCuotaText(installment: ServiceInstallment): string {
+export function buildInstallmentDetailText(installment: ServiceInstallment): string {
   const dueDate = installment.dueDate.toDate();
   const day = String(dueDate.getDate()).padStart(2, "0");
   const month = String(dueDate.getMonth() + 1).padStart(2, "0");
+  const statusLine = installment.isPaid ? "Estado: ✅ Pagado" : "Estado: Pendiente";
 
   return (
-    `*Cuota actual: ${installment.serviceName}*\n\n` +
+    `*Cuota: ${installment.serviceName}*\n\n` +
     `Monto: ${formatARS(installment.amount)}\n` +
-    `Vencimiento: ${day}/${month}`
+    `Vencimiento: ${day}/${month}\n` +
+    statusLine
   );
+}
+
+export function buildInstallmentDetailKeyboard(
+  installmentId: string,
+  isPaid: boolean,
+  hasReceipt: boolean,
+  hasInvoice: boolean
+) {
+  const rows = [
+    [Markup.button.callback("Modificar monto", `svc_edit_amt:${installmentId}`)],
+    [Markup.button.callback(
+      "Modificar vencimiento", `svc_edit_day:${installmentId}`
+    )],
+  ];
+
+  if (!hasInvoice) {
+    rows.push([
+      Markup.button.callback(
+        "Adjuntar factura", `svc_attach_inv:${installmentId}`
+      ),
+    ]);
+  }
+
+  if (!isPaid) {
+    rows.push([
+      Markup.button.callback("Marcar como pagado", `svc_pay:${installmentId}`),
+    ]);
+  }
+
+  if (isPaid && !hasReceipt) {
+    rows.push([
+      Markup.button.callback(
+        "Adjuntar comprobante", `svc_attach:${installmentId}`
+      ),
+    ]);
+  }
+
+  rows.push([Markup.button.callback("Volver", "svc_back")]);
+  return Markup.inlineKeyboard(rows);
+}
+
+export function buildInvoicePromptKeyboard(installmentId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Omitir", "svc_skip_invoice"),
+      Markup.button.callback("Adjuntar", `svc_attach_inv:${installmentId}`),
+    ],
+  ]);
+}
+
+export function buildReceiptPromptKeyboard(installmentId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Omitir", "svc_skip_receipt"),
+      Markup.button.callback("Adjuntar", `svc_attach:${installmentId}`),
+    ],
+  ]);
 }

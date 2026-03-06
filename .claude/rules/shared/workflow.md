@@ -21,11 +21,22 @@ npm run deploy:test   # Switches to test .env + deploys
   ```
 - Test in Telegram via @botitio_testitoBot
 
-### 3. Deploy to kakebot (production)
+### 3. Verify Firestore Indexes (production only)
+```bash
+gcloud functions logs read bot --limit 100 --project kakebot-972c2 2>&1 | grep "requires an index"
+```
+- **If any index errors appear**: Follow `shared/firestore-indexes.md` to create missing indexes
+- Wait for all indexes to reach "Enabled" status (5-10 minutes each)
+- Re-test affected features locally before deploying
+- **DO NOT deploy to production if index errors exist**
+
+### 4. Deploy to kakebot (production)
 ```bash
 npm run deploy:prod   # Switches to prod .env + deploys
 ```
-- Only after testing passes on botitio_testitoBot
+- Only after:
+  - Testing passes on botitio_testitoBot ✅
+  - All Firestore indexes are created and enabled ✅
 
 ## Environment Switching
 ```bash

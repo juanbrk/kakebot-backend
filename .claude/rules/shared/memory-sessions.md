@@ -175,3 +175,97 @@
 - Test on emulators (npm run serve)
 - Deploy to botitio_testitoBot and verify all flows
 
+## 2026-03-06: Estado de pago (Fase 1) + Comprobantes (Fase 2)
+
+### Fase 1: Estado de pago — COMPLETADA
+- Agregado `isPaid: boolean` y `paidAt?: Timestamp` a `ServiceInstallment` en types/index.ts
+- `saveInstallment()` ahora guarda `isPaid: false` por defecto
+- Nueva función `markInstallmentAsPaid()` en service.service.ts
+- Nuevo handler `svc_pay` (por installmentId) y `svc_pay_from` (por serviceId del mes actual)
+- `buildServiceActionKeyboard` ahora muestra botones condicionales:
+  - Con cuota impaga: `[Marcar como pagado] [Modificar]`
+  - Con cuota pagada: `[Modificar]`
+  - Sin cuota: `[Registrar cuota] [Modificar]`
+- `buildInstallmentDetailKeyboard` muestra "Marcar como pagado" solo si `!isPaid`
+- `buildInstallmentDetailText` muestra "Estado: Pendiente" o "Estado: ✅ Pagado"
+- `buildServiceViewText` (svc_list): cuotas pagadas muestran `(Pagado) ✅`
+- `report.service.ts`: sección SERVICIOS muestra `(Pagado) ✅` en vez de `(vence DD/MM)`
+- Título del detalle de servicio muestra `(Pagado) ✅` para cuotas pagadas
+- Fix bug pre-existente: `openServicesMenu` llamaba `answerCbQuery()` incondicionalmente
+- Build + lint: clean
+
+### Fase 2: Adjuntar comprobantes — CÓDIGO COMPLETADO, PENDIENTE TESTING
+- Agregado `receiptUrl?: string` a `ServiceInstallment`
+- Agregado estado `svc_awaiting_receipt` a Session
+- **Nuevo archivo** `services/storage.service.ts`:
+  - `getBucket()` lazy getter usando `process.env.GCS_BUCKET`
+  - `uploadReceipt()` sube a `receipts/{userId}/{installmentId}.jpg`
+  - Detecta emulador via `FIREBASE_STORAGE_EMULATOR_HOST` (skipea makePublic, genera URL de emulador)
+- **Nuevo archivo** `bot/handlers/photo.ts`:
+  - `bot.on("photo")` handler
+  - Verifica sesión `svc_awaiting_receipt`
+  - Descarga foto de Telegram → sube a Storage → guarda URL en Firestore
+  - Try/catch con logging de errores
+- `service.service.ts`: nueva función `saveReceiptUrl()`
+- `keyboards/service.ts`:
+  - `buildReceiptPromptKeyboard(installmentId)`: botones `[Omitir] [Adjuntar]`
+  - `buildInstallmentDetailKeyboard` ahora recibe `hasReceipt`, muestra "Adjuntar comprobante" si `isPaid && !hasReceipt`
+- `handlers/service.ts`:
+  - `handleMarkAsPaid` y `handleMarkAsPaidFromService` ahora muestran prompt post-pago "¿Deseas adjuntar comprobante?"
+  - Nuevos handlers: `handleAttachReceipt` (svc_attach), `handleSkipReceipt` (svc_skip_receipt)
+- `telegram.ts`: registra `registerPhotoHandler` antes de `registerTextHandler`
+- `dev.ts`: agregado `FIREBASE_STORAGE_EMULATOR_HOST = "localhost:9199"`
+- `firebase.json`: agregado emulador de Storage en puerto 9199
+- **Nuevo archivo** `storage.rules`: acceso denegado (Admin SDK bypasea reglas)
+- Scripts npm: `dev`, `dev:emulators`, `serve` ahora incluyen `storage`
+- `.env*`: variable `GCS_BUCKET=kakebot-972c2.appspot.com` (no `FIREBASE_STORAGE_BUCKET` — prefijo reservado por Firebase)
+- Build + lint: clean
+
+### Bug encontrado durante testing
+- `FIREBASE_STORAGE_BUCKET` es prefijo reservado por Firebase Functions → renombrado a `GCS_BUCKET`
+- `npm run serve` no sirve para probar fotos (webhook apunta a producción, no al emulador local)
+- Para probar fotos en local: `npm run dev:emulators` + `npm run dev` (polling mode)
+
+## 2026-03-06: Testing Fase 2 (Storage + Comprobantes) — ✅ COMPLETADO
+
+**Resultado**: Fase 2 funcionando perfectamente
+
+**Validación Exitosa**:
+- ✅ Marcar cuota como pagada → prompt "¿Deseas adjuntar comprobante?"
+- ✅ Enviar foto → respuesta "✅ Comprobante guardado." + sesión limpia
+- ✅ Archivo en Storage: `receipts/1183288911/tfOyDuYqaS2avCNSMSoK.jpg`
+- ✅ receiptUrl guardado en Firestore
+- ✅ Flujo funciona en cuota existente + nuevo servicio registrado como pagado
+- ✅ Build + lint: clean
+
+**Bug Descubierto + Resuelto**:
+- Error inicial: ECONNREFUSED localhost:9199
+- Causa: Ejecutar `npm run dev:emulators` + `npm run dev` (2 instancias de emuladores)
+- Solución: Usar solo `npm run dev` (inicia todo con concurrently)
+
+**Próximos Pasos**:
+1. Deploy a botitio_testitoBot con Storage real
+2. Fase 3: Foto directa al bot → crear cuota automáticamente
+
+## 2026-03-06: Fase 3b — Recepción de comprobante como mensaje directo
+
+### Completado
+- Flujo completo: foto/PDF sin sesión → `[Cancelar] [Factura] [Comprobante]` → selección de servicio → marca pagada + adjunta comprobante
+- **Nuevo archivo** `bot/handlers/receipt-direct.ts`:
+  - `registerReceiptDirectHandler(bot)` con actions: `doc_type_receipt`, `comp_pick`, `comp_new_service`, `comp_month`, `comp_pg`, `comp_cancel`
+  - `attachReceiptToInstallment()` — descarga archivo, sube a `receipts/`, marca pagada, guarda URL, limpia sesión
+- **keyboards/invoice.ts**: `buildDocTypeKeyboard` ahora muestra 3 opciones (Cancelar, Factura, Comprobante)
+  - `buildReceiptServiceListKeyboard` y `buildReceiptMonthKeyboard` (2 columnas, paginación)
+- **text.ts**: 3 nuevos handlers — `handleCompServiceName`, `handleCompDay`, `handleCompAmount`
+- **types/index.ts**: 5 estados nuevos (`comp_awaiting_service/name/month/day/amount`)
+- **Fix bug**: PDF en `svc_awaiting_receipt` ahora funciona (antes solo aceptaba fotos)
+  - `handleDocument` en photo.ts ahora detecta `svc_awaiting_receipt`
+  - Nueva función `handleReceiptUploadFromDocument`
+  - Mensaje actualizado: "Enviá la foto o PDF del comprobante."
+- Build + lint: clean
+
+### Pendiente
+- Testing en emuladores (`npm run dev`)
+- Deploy a botitio_testitoBot
+- Verificar Firestore indexes antes de deploy a producción
+

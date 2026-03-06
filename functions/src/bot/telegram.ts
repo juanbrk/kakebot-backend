@@ -7,6 +7,9 @@ import { registerCategorizeHandler } from "./handlers/categorize";
 import { registerServiceHandler } from "./handlers/service";
 import { registerExpenseHandler } from "./handlers/expense";
 import { registerBulkHandler } from "./handlers/bulk";
+import { registerInvoiceHandler } from "./handlers/invoice";
+import { registerReceiptDirectHandler } from "./handlers/receipt-direct";
+import { registerPhotoHandler } from "./handlers/photo";
 import { registerTextHandler } from "./handlers/text";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -22,6 +25,9 @@ registerCategorizeHandler(telegramBot);
 registerServiceHandler(telegramBot);
 registerExpenseHandler(telegramBot);
 registerBulkHandler(telegramBot);
+registerInvoiceHandler(telegramBot);
+registerReceiptDirectHandler(telegramBot);
+registerPhotoHandler(telegramBot);
 registerTextHandler(telegramBot);
 
 telegramBot.catch((err: unknown) => {

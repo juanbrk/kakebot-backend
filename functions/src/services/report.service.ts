@@ -97,8 +97,11 @@ export async function generateMonthlyReport(
         const dueDate = installment.dueDate.toDate();
         const day = String(dueDate.getDate()).padStart(2, "0");
         const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+        const dueSuffix = installment.isPaid ?
+          "(Pagado) ✅" :
+          `(vence ${day}/${mo})`;
         reportLines.push(
-          `  • ${service.name}  ${formatARS(installment.amount)} (vence ${day}/${mo})`
+          `  • ${service.name}  ${formatARS(installment.amount)} ${dueSuffix}`
         );
       } else {
         reportLines.push(`  • ${service.name}  $ -`);

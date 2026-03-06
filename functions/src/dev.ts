@@ -3,8 +3,9 @@
 
 import * as admin from "firebase-admin";
 
-// Point to Firestore emulator BEFORE initializing
+// Point to emulators BEFORE initializing
 process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
+process.env.FIREBASE_STORAGE_EMULATOR_HOST = "localhost:9199";
 
 admin.initializeApp({ projectId: "kakebot-972c2" });
 
@@ -16,6 +17,7 @@ telegramBot.telegram.deleteWebhook().then(() => {
   console.log("Webhook deleted, starting polling...");
   console.log(`Bot token: ...${(process.env.TELEGRAM_BOT_TOKEN || "").slice(-6)}`);
   console.log("Firestore: emulator (localhost:8080)");
+  console.log("Storage: emulator (localhost:9199)");
   console.log("Ready! Send a message to the bot in Telegram.\n");
 
   telegramBot.launch();

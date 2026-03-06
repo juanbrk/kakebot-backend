@@ -62,6 +62,10 @@ export interface ServiceInstallment {
   amount: number;
   dueDate: FirebaseFirestore.Timestamp;
   dueMonth: string;
+  isPaid: boolean;
+  paidAt?: FirebaseFirestore.Timestamp;
+  receiptUrl?: string;
+  invoiceUrl?: string;
   createdAt: FirebaseFirestore.Timestamp;
 }
 
@@ -78,7 +82,20 @@ export interface Session {
     | "svc_awaiting_day"
     | "svc_awaiting_edit_name"
     | "svc_awaiting_edit_amount"
-    | "svc_awaiting_edit_day";
+    | "svc_awaiting_edit_day"
+    | "svc_awaiting_receipt"
+    | "svc_awaiting_invoice"
+    | "doc_awaiting_type"
+    | "invoice_awaiting_service"
+    | "invoice_awaiting_name"
+    | "invoice_awaiting_month"
+    | "invoice_awaiting_day"
+    | "invoice_awaiting_amount"
+    | "comp_awaiting_service"
+    | "comp_awaiting_name"
+    | "comp_awaiting_month"
+    | "comp_awaiting_day"
+    | "comp_awaiting_amount";
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;
@@ -94,4 +111,7 @@ export interface Session {
   serviceName?: string;
   installmentId?: string;
   selectedMonth?: string;
+  pendingFileId?: string;
+  pendingFileType?: "photo" | "pdf";
+  isNewService?: boolean;
 }

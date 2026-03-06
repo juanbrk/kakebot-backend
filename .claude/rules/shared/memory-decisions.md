@@ -68,3 +68,13 @@
 - `getDb()` lives in `services/db.ts` as single source of truth for lazy Firestore access
 - Use relative imports (not `@/*` path aliases) — CommonJS doesn't resolve them at runtime
 - All new code MUST follow this structure — hard wall added to prevent regression
+
+## 2026-03-05: Firestore composite index requirement
+- **Hard rule**: ALWAYS verify Firestore composite indexes BEFORE deploying to production
+- Any Firestore query with 2+ field filters requires a composite index
+- Missing indexes cause silent failures: bot doesn't crash, just returns empty data
+- Real example: `/reporte` returned empty text because service_installments query had no index
+- Pre-deploy procedure: `gcloud functions logs read bot --limit 100 | grep "requires an index"`
+- New rule file: `shared/firestore-indexes.md` with creation/verification procedure
+- Updated `core/hard-walls.md` (Deployment section) and `shared/workflow.md` (step 3)
+- Added to CLAUDE.md rules table for visibility

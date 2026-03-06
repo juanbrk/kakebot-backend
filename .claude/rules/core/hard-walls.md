@@ -16,6 +16,11 @@ Constraints that must never be violated.
   - Run `npm run env:status` to verify
   - Explicitly tell the user: "Vas a deployar a TEST/PROD, confirmar?"
   - Use `npm run deploy:test` for testing, `npm run deploy:prod` for production
+- **ALWAYS verify Firestore composite indexes exist BEFORE deploying to production**
+  - Check logs for "The query requires an index" errors
+  - All Firestore queries with multiple field filters need composite indexes
+  - See `shared/firestore-indexes.md` for index creation & verification procedure
+  - Failure to create indexes = silent bot failures in production
 
 ## Git
 - NEVER create commits — Juan handles all commits manually

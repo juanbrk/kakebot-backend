@@ -1,4 +1,4 @@
-import { Telegraf, Markup, Context } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
@@ -8,6 +8,7 @@ import {
   getInstallment,
   replaceInstallment,
   deleteService,
+  markInstallmentAsPaid,
 } from "../../services/service.service";
 import {
   buildServicesSubmenuKeyboard,
@@ -17,7 +18,9 @@ import {
   buildMonthKeyboard,
   buildDeleteConfirmKeyboard,
   buildServiceViewText,
-  buildServiceEditCuotaText,
+  buildInstallmentDetailText,
+  buildInstallmentDetailKeyboard,
+  buildReceiptPromptKeyboard,
 } from "../keyboards/service";
 import { formatARS } from "../../helpers/format";
 
@@ -30,6 +33,7 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action("svc_view", handleViewServices);
   bot.action("svc_list", handleListServices);
   bot.action("svc_back", handleBackToMenu);
+  bot.action("svc_no_cuota", handleSkipInstallmentAfterCreate);
 
   bot.action(/^svc_pick:(.+)$/, handlePickServiceForInstallment);
   bot.action(/^svc_view_pick:(.+)$/, handlePickServiceForAction);
@@ -45,6 +49,15 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action(/^svc_delete:(.+)$/, handleDeleteService);
   bot.action(/^svc_delete_yes:(.+)$/, handleConfirmDelete);
 
+  bot.action(/^svc_pay:(.+)$/, handleMarkAsPaid);
+  bot.action(/^svc_pay_from:(.+)$/, handleMarkAsPaidFromService);
+
+  bot.action(/^svc_attach:(.+)$/, handleAttachReceipt);
+  bot.action("svc_skip_receipt", handleSkipReceipt);
+
+  bot.action(/^svc_attach_inv:(.+)$/, handleAttachInvoice);
+  bot.action("svc_skip_invoice", handleSkipInvoice);
+
   bot.action(/^svc_edit_amt:(.+)$/, handleEditInstallmentAmount);
   bot.action(/^svc_edit_day:(.+)$/, handleEditInstallmentDay);
 
@@ -52,7 +65,7 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
 }
 
 async function openServicesMenu(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
+  if (ctx.callbackQuery) await ctx.answerCbQuery();
   await ctx.reply(
     "Selecciona una opción",
     buildServicesSubmenuKeyboard()
@@ -150,10 +163,15 @@ async function handlePickServiceForAction(ctx: Context): Promise<void> {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
     const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-    title = `*${service.name}* ${formatARS(installment.amount)} (vence ${day}/${mo})`;
+    const dueSuffix = installment.isPaid ?
+      "(Pagado) ✅" :
+      `(vence ${day}/${mo})`;
+    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
   }
 
-  const keyboard = buildServiceActionKeyboard(serviceId);
+  const hasInstallment = installment !== null;
+  const isPaid = installment?.isPaid ?? false;
+  const keyboard = buildServiceActionKeyboard(serviceId, hasInstallment, isPaid);
   await ctx.reply(title, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,8 +351,12 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
     return;
   }
 
-  const text = buildServiceEditCuotaText(installment);
-  const keyboard = buildServiceEditCuotaKeyboard(installment.id || "");
+  const text = buildInstallmentDetailText(installment);
+  const hasReceipt = !!installment.receiptUrl;
+  const hasInvoice = !!installment.invoiceUrl;
+  const keyboard = buildInstallmentDetailKeyboard(
+    installment.id || "", installment.isPaid, hasReceipt, hasInvoice
+  );
   await ctx.reply(text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -342,13 +364,96 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
   });
 }
 
-function buildServiceEditCuotaKeyboard(installmentId: string) {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback("Modificar monto", `svc_edit_amt:${installmentId}`)],
-    [
-      Markup.button.callback("Modificar vencimiento", `svc_edit_day:${installmentId}`)],
-    [Markup.button.callback("Volver", "svc_back")],
-  ]);
+async function handleMarkAsPaid(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+
+  await ctx.answerCbQuery();
+  await markInstallmentAsPaid(installmentId);
+  await ctx.reply("✅ Cuota marcada como pagada.");
+
+  const keyboard = buildReceiptPromptKeyboard(installmentId);
+  await ctx.reply("¿Deseas adjuntar comprobante?", keyboard);
+}
+
+async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceId = ((ctx as any).match as string[])[1];
+
+  await ctx.answerCbQuery();
+
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${month}`;
+
+  const installment = await getInstallment(serviceId, dueMonth);
+  if (!installment) {
+    await ctx.reply("No hay cuota registrada para este mes.");
+    return;
+  }
+
+  await markInstallmentAsPaid(installment.id || "");
+  await ctx.reply("✅ Cuota marcada como pagada.");
+
+  const keyboard = buildReceiptPromptKeyboard(installment.id || "");
+  await ctx.reply("¿Deseas adjuntar comprobante?", keyboard);
+}
+
+async function handleAttachReceipt(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
+
+  await ctx.answerCbQuery();
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "svc_awaiting_receipt",
+    installmentId,
+  });
+
+  await ctx.reply("Enviá la foto o PDF del comprobante.");
+}
+
+async function handleSkipReceipt(ctx: Context): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+  await clearSession(telegramUserId);
+  await ctx.reply("Comprobante omitido.");
+}
+
+async function handleAttachInvoice(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
+
+  await ctx.answerCbQuery();
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "svc_awaiting_invoice",
+    installmentId,
+  });
+
+  await ctx.reply("Enviá la foto o PDF de la factura.");
+}
+
+async function handleSkipInvoice(ctx: Context): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+  await clearSession(telegramUserId);
+  await ctx.reply("Factura omitida.");
+}
+
+async function handleSkipInstallmentAfterCreate(ctx: Context): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+
+  const session = await getSession(telegramUserId);
+  const serviceName = session?.serviceName || "servicio";
+  await clearSession(telegramUserId);
+
+  await ctx.editMessageText(`✅ Servicio '${serviceName}' creado.`);
 }
 
 async function handleEditServiceName(ctx: Context): Promise<void> {
