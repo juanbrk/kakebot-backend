@@ -18,6 +18,7 @@ import {
   updateInstallmentDueDay,
 } from "../../services/service.service";
 import { buildDuplicateKeyboard, buildInvoicePromptKeyboard } from "../keyboards/service";
+import { showInstallmentDetail } from "./service";
 import { buildInvoiceMonthKeyboard, buildReceiptMonthKeyboard } from "../keyboards/invoice";
 import { attachInvoiceToInstallment } from "./invoice";
 import { attachReceiptToInstallment } from "./receipt-direct";
@@ -495,7 +496,7 @@ async function handleEditServiceAmountText(
   await updateInstallmentAmount(installmentId, amount);
   await clearSession(telegramUserId);
 
-  await ctx.reply(`✅ Monto actualizado a ${formatARS(amount)}.`);
+  await showInstallmentDetail(ctx, installmentId);
 }
 
 async function handleEditServiceDayText(
@@ -517,7 +518,7 @@ async function handleEditServiceDayText(
   await updateInstallmentDueDay(installmentId, day);
   await clearSession(telegramUserId);
 
-  await ctx.reply(`✅ Vencimiento actualizado al día ${day}.`);
+  await showInstallmentDetail(ctx, installmentId);
 }
 
 async function handleInvoiceServiceName(

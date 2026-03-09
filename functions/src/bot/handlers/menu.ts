@@ -5,9 +5,9 @@ export function registerMenuHandler(bot: Telegraf<Context>): void {
     await ctx.reply(
       "¿Qué querés hacer?",
       Markup.inlineKeyboard([
-        [Markup.button.callback("Reporte", "menu_reporte")],
-        [Markup.button.callback("Categorizar gastos", "menu_categorizar")],
+        [Markup.button.callback("Ver Reporte", "menu_reporte")],
         [Markup.button.callback("Servicios", "menu_servicios")],
+        [Markup.button.callback("Categorizar gastos", "menu_categorizar")],
       ])
     );
   });

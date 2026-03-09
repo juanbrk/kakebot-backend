@@ -6,6 +6,8 @@ import {
   getServicesByUser,
   getServiceById,
   getInstallment,
+  getInstallmentById,
+  getInstallmentsByService,
   replaceInstallment,
   deleteService,
   markInstallmentAsPaid,
@@ -21,6 +23,9 @@ import {
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
   buildReceiptPromptKeyboard,
+  buildInstallmentListKeyboard,
+  buildFilteredMonthKeyboard,
+  INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
 import { formatARS } from "../../helpers/format";
 
@@ -62,6 +67,11 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action(/^svc_edit_day:(.+)$/, handleEditInstallmentDay);
 
   bot.action(/^svc_pg:(\d+)$/, handlePagination);
+
+  bot.action(/^svc_cuotas:(.+)$/, handleInstallmentsList);
+  bot.action(/^svc_cuotas_pg:(.+):(\d+)$/, handleInstallmentsListPagination);
+  bot.action(/^svc_cuota_detail:(.+)$/, handleInstallmentDetailFromHistory);
+  bot.action(/^svc_back_svc:(.+)$/, handleBackToServiceAction);
 }
 
 async function openServicesMenu(ctx: Context): Promise<void> {
@@ -326,6 +336,28 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     return;
   }
 
+  const existingInstallments = await getInstallmentsByService(serviceId, telegramUserId);
+  const existingMonths = new Set(existingInstallments.map((inst) => inst.dueMonth));
+
+  const now = new Date();
+  const availableMonths: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const dueMonth = `${date.getFullYear()}-${month}`;
+    if (!existingMonths.has(dueMonth)) {
+      availableMonths.push(dueMonth);
+    }
+  }
+
+  if (availableMonths.length === 0) {
+    await ctx.reply(
+      "No hay meses disponibles para crear cuotas.\n" +
+      "Ya tenés cuotas registradas para los próximos 3 meses."
+    );
+    return;
+  }
+
   await setSession(telegramUserId, {
     ...emptySessionForPartial(telegramUserId),
     state: "svc_awaiting_amount",
@@ -333,8 +365,12 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     serviceName: service.name,
   });
 
-  const keyboard = buildMonthKeyboard(serviceId);
-  await ctx.reply(`¿Qué mes vence ${service.name}?:`, keyboard);
+  const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
+  await ctx.reply(
+    "Seleccioná el mes de la nueva cuota.\n" +
+    "_Podés crear cuotas solo para meses que aún no tengan una._",
+    { parse_mode: "Markdown", ...keyboard }
+  );
 }
 
 async function handleEditInstallment(ctx: Context): Promise<void> {
@@ -576,4 +612,139 @@ async function handlePagination(ctx: Context): Promise<void> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await ctx.editMessageReplyMarkup(keyboard.reply_markup as any);
+}
+
+export async function showInstallmentDetail(
+  ctx: Context,
+  installmentId: string
+): Promise<void> {
+  const installment = await getInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("No se encontró la cuota.");
+    return;
+  }
+
+  const text = buildInstallmentDetailText(installment);
+  const keyboard = buildInstallmentDetailKeyboard(
+    installmentId,
+    installment.isPaid,
+    !!installment.receiptUrl,
+    !!installment.invoiceUrl,
+    `svc_cuotas:${installment.serviceId}`
+  );
+  await ctx.reply(text, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
+}
+
+async function handleInstallmentsList(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+
+  const installments = await getInstallmentsByService(serviceId, telegramUserId);
+
+  if (installments.length === 0) {
+    await ctx.editMessageText("No hay cuotas registradas para este servicio.");
+    return;
+  }
+
+  await renderInstallmentsList(ctx, installments, 0, serviceId);
+}
+
+async function handleBackToServiceAction(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceId = ((ctx as any).match as string[])[1];
+  await ctx.answerCbQuery();
+
+  const service = await getServiceById(serviceId);
+  if (!service) {
+    await ctx.reply("Servicio no encontrado.");
+    return;
+  }
+
+  const now = new Date();
+  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${monthStr}`;
+  const installment = await getInstallment(serviceId, dueMonth);
+
+  let title = `*${service.name}*`;
+  if (installment) {
+    const dueDate = installment.dueDate.toDate();
+    const day = String(dueDate.getDate()).padStart(2, "0");
+    const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+    const dueSuffix = installment.isPaid ?
+      "(Pagado) ✅" :
+      `(vence ${day}/${mo})`;
+    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
+  }
+
+  const hasInstallment = installment !== null;
+  const isPaid = installment?.isPaid ?? false;
+  const keyboard = buildServiceActionKeyboard(serviceId, hasInstallment, isPaid);
+  await ctx.editMessageText(title, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
+}
+
+async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = ((ctx as any).match as string[]);
+  const serviceId = match[1];
+  const page = parseInt(match[2], 10);
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+
+  const installments = await getInstallmentsByService(serviceId, telegramUserId);
+  await renderInstallmentsList(ctx, installments, page, serviceId);
+}
+
+async function renderInstallmentsList(
+  ctx: Context,
+  installments: import("../../types/index").ServiceInstallment[],
+  page: number,
+  serviceId: string
+): Promise<void> {
+  const totalPages = Math.ceil(installments.length / INSTALLMENTS_PER_PAGE);
+  const text =
+    `Seleccioná la cuota a ver.\n\n_Página ${page + 1} de ${totalPages}_`;
+  const keyboard = buildInstallmentListKeyboard(installments, page, serviceId);
+
+  await ctx.editMessageText(text, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
+}
+
+async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+  await ctx.answerCbQuery();
+
+  const installment = await getInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("Cuota no encontrada.");
+    return;
+  }
+
+  const text = buildInstallmentDetailText(installment);
+  const keyboard = buildInstallmentDetailKeyboard(
+    installmentId,
+    installment.isPaid,
+    !!installment.receiptUrl,
+    !!installment.invoiceUrl,
+    `svc_cuotas:${installment.serviceId}`
+  );
+
+  await ctx.editMessageText(text, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
