@@ -23,7 +23,7 @@ const hasArgentineDecimalSeparator = input.includes(",");
 | Non-obvious business rule | `// AR format: dot=thousands, comma=decimal (opposite to US)` |
 | Workaround for external limitation | `// HACK: Telegraf v4 requires ...` |
 | Technical debt | `// TODO: replace with per-user locale` |
-| Exported function contract | JSDoc with `@param`, `@returns` |
+| Any function contract | JSDoc with `@param`, `@return` |
 
 ## Never Comment
 
@@ -33,7 +33,14 @@ const hasArgentineDecimalSeparator = input.includes(",");
 - Commented-out code (use git)
 - Handler labels (`// Callback: cancel`) — the code structure is the label
 
-## JSDoc (Only for Non-Obvious Exported Functions)
+## JSDoc (All Functions — New or Modified)
+
+**Every function must have a JSDoc comment**, whether exported or internal.
+Apply this rule to: any new function you write, and any existing function you modify.
+
+The same philosophy applies to all functions:
+- If the signature is self-explanatory, a single summary line suffices.
+- If the purpose, parameters, or return value are non-obvious, add `@param` and `@return`.
 
 ```typescript
 /**
@@ -44,16 +51,15 @@ const hasArgentineDecimalSeparator = input.includes(",");
  * @return {number | null} Parsed number or null if invalid
  */
 function parseArgentineAmount(input: string): number | null {
+
+/** Formats a number as ARS currency string. */
+function formatARS(amount: number): string {
+
+/** Returns the lazy Firestore instance, initializing it on first call. */
+function getDb(): FirebaseFirestore.Firestore {
 ```
 
 Note: ESLint `valid-jsdoc` requires `{type}` annotations and `@return` (not `@returns`).
-
-Skip JSDoc when the function signature is self-explanatory:
-
-```typescript
-// No JSDoc needed — name + types say it all
-function formatARS(amount: number): string {
-```
 
 ## Naming Conventions
 

@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-03-08: JSDoc required on all functions
+- Scope expanded: JSDoc now required on ALL functions (new or modified), not just exported ones
+- Single-line summary is enough for self-explanatory signatures
+- Add `@param` / `@return` when purpose or contract is non-obvious
+- Updated `shared/code-docs.md` accordingly
+
 ## 2026-03-01: Project reset
 - Cleaned all generated code, started from minimal skeleton
 - Only `/start` command initially, build incrementally
