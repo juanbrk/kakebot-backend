@@ -209,6 +209,42 @@ export async function saveInvoiceUrl(
     .update({ invoiceUrl });
 }
 
+export async function getInstallmentById(
+  installmentId: string
+): Promise<ServiceInstallment | null> {
+  const doc = await getDb()
+    .collection("service_installments")
+    .doc(installmentId)
+    .get();
+
+  if (!doc.exists) {
+    return null;
+  }
+
+  return {
+    id: doc.id,
+    ...(doc.data() as Omit<ServiceInstallment, "id">),
+  };
+}
+
+export async function getInstallmentsByService(
+  serviceId: string,
+  telegramUserId: string
+): Promise<ServiceInstallment[]> {
+  const snapshot = await getDb()
+    .collection("service_installments")
+    .where("serviceId", "==", serviceId)
+    .where("telegramUserId", "==", telegramUserId)
+    .get();
+
+  const installments = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Omit<ServiceInstallment, "id">),
+  }));
+
+  return installments.sort((a, b) => b.dueMonth.localeCompare(a.dueMonth));
+}
+
 export async function getInstallmentsForMonth(
   telegramUserId: string,
   dueMonth: string
