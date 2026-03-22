@@ -23,6 +23,14 @@
         { "fieldPath": "serviceId", "order": "ASCENDING" },
         { "fieldPath": "dueMonth", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "incomes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
