@@ -12,7 +12,8 @@ export function registerStartHandler(bot: Telegraf<Context>): void {
       "/menu - Ver opciones\n" +
       "/reporte - Resumen del mes actual\n" +
       "/categorizar - Asignar categorías a gastos sin categorizar\n" +
-      "/servicios - Gestionar servicios fijos (Expensas, Gas, etc.)"
+      "/servicios - Gestionar servicios fijos (Expensas, Gas, etc.)\n" +
+      "/ingreso - Registrar un ingreso"
     );
   });
 }
