@@ -11,7 +11,8 @@ export function registerReportHandler(bot: Telegraf<Context>): void {
       return;
     }
 
-    await ctx.reply(report, { parse_mode: "Markdown" });
+    await ctx.reply(report.detail, { parse_mode: "Markdown" });
+    await ctx.reply(report.balance, { parse_mode: "Markdown" });
   });
 
   bot.action("menu_reporte", async (ctx) => {
@@ -26,6 +27,7 @@ export function registerReportHandler(bot: Telegraf<Context>): void {
       return;
     }
 
-    await ctx.reply(report, { parse_mode: "Markdown" });
+    await ctx.reply(report.detail, { parse_mode: "Markdown" });
+    await ctx.reply(report.balance, { parse_mode: "Markdown" });
   });
 }

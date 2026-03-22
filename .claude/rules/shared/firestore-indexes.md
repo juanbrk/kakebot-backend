@@ -49,35 +49,41 @@ service_installments query filters by (telegramUserId + dueMonth + serviceName)
 |---|---|---|---|
 | `services` | `telegramUserId` ↑, `createdAt` ↑ | ❓ | List user's services |
 | `service_installments` | `dueMonth` ↑, `telegramUserId` ↑, `serviceName` ↑ | ❓ | Generate monthly report with service section |
-| `expenses` | `telegramUserId` ↑, `date` ↓ | ✅ | Monthly report expense filtering |
+| `expenses` | `telegramUserId` ↑, `date` ↑ | ✅ | Monthly report expense filtering |
+| `incomes` | `telegramUserId` ↑, `date` ↑ | ⏳ | Monthly income report filtering |
+
+## Preferred Workflow
+
+**Always add new indexes to `firestore.indexes.json` BEFORE deploying to production.**
+
+Benefits:
+- Indexes are version-controlled in the repository
+- Team visibility: all indexes tracked in one file
+- Reproducibility: deploy with `firebase deploy --only firestore:indexes`
+
+⚠️ Do NOT create indexes manually in Firebase Console — they won't be tracked in git.
 
 ## Creating Indexes Programmatically
 
-If many indexes needed, can use `firestore.indexes.yaml`:
+Add entries to `firestore.indexes.json`:
 
-```yaml
-indexes:
-  - collection: services
-    fields:
-      - fieldPath: telegramUserId
-        order: ASCENDING
-      - fieldPath: createdAt
-        order: ASCENDING
-  - collection: service_installments
-    queryScope: COLLECTION
-    fields:
-      - fieldPath: dueMonth
-        order: ASCENDING
-      - fieldPath: telegramUserId
-        order: ASCENDING
-      - fieldPath: serviceName
-        order: ASCENDING
+```json
+{
+  "collectionGroup": "COLLECTION_NAME",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "fieldName1", "order": "ASCENDING" },
+    { "fieldPath": "fieldName2", "order": "ASCENDING" }
+  ]
+}
 ```
 
 Then deploy with:
 ```bash
 firebase deploy --only firestore:indexes
 ```
+
+Wait 5-10 minutes for status to change from "Creating" → "Enabled".
 
 ## Troubleshooting
 

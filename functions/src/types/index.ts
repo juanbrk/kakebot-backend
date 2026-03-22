@@ -69,6 +69,15 @@ export interface ServiceInstallment {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
+export interface Income {
+  id?: string;
+  telegramUserId: string;
+  amount: number;
+  reason: string;
+  date: FirebaseFirestore.Timestamp;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
 export interface Session {
   telegramUserId: string;
   state:
@@ -95,7 +104,9 @@ export interface Session {
     | "comp_awaiting_name"
     | "comp_awaiting_month"
     | "comp_awaiting_day"
-    | "comp_awaiting_amount";
+    | "comp_awaiting_amount"
+    | "inc_awaiting_amount"
+    | "inc_awaiting_reason";
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;
