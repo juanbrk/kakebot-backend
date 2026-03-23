@@ -20,9 +20,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install root dependencies
-        run: npm ci
-
       - name: Deploy Indexes
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
