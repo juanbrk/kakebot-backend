@@ -1,0 +1,29 @@
+name: Deploy Firestore Indexes
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "firestore.indexes.json"
+  workflow_dispatch:
+
+jobs:
+  deploy-indexes:
+    name: Deploy Indexes
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Deploy Indexes
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: npx firebase deploy --only firestore:indexes --project kakebot-972c2
