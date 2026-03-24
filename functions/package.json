@@ -7,16 +7,9 @@
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "dev": "npm run build && concurrently \"firebase emulators:start --only firestore,storage --import=../emulator-data --export-on-exit=../emulator-data\" \"node -r dotenv/config lib/dev.js\"",
-    "dev:bot": "npm run build && FIRESTORE_EMULATOR_HOST=localhost:8080 node -r dotenv/config lib/dev.js",
-    "dev:emulators": "firebase emulators:start --only firestore,storage --import=../emulator-data --export-on-exit=../emulator-data",
-    "serve": "npm run build && firebase emulators:start --only functions,firestore,storage --import=../emulator-data --export-on-exit=../emulator-data",
-    "env:prod": "bash ../scripts/switch-env.sh prod",
-    "env:status": "bash ../scripts/switch-env.sh status",
-    "deploy:prod": "bash ../scripts/switch-env.sh prod && firebase deploy --only functions && bash ../scripts/set-webhook.sh",
+    "go": "bash ../scripts/go.sh",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
   "engines": {
