@@ -36,7 +36,7 @@ async function handleDocTypeReceipt(ctx: Context): Promise<void> {
       ...await getSession(telegramUserId) as ReturnType<typeof emptySessionForPartial>,
       state: "comp_awaiting_name",
     });
-    await ctx.reply(
+    await ctx.editMessageText(
       "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
       "_Enviá la palabra cancelar para salir._",
       { parse_mode: "Markdown" }
@@ -53,7 +53,7 @@ async function handleDocTypeReceipt(ctx: Context): Promise<void> {
   }
 
   const keyboard = buildReceiptServiceListKeyboard(services);
-  await ctx.reply("¿A qué servicio corresponde este comprobante?", keyboard);
+  await ctx.editMessageText("¿A qué servicio corresponde este comprobante?", keyboard);
 }
 
 async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
@@ -64,7 +64,7 @@ async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -91,7 +91,7 @@ async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
   });
 
   const keyboard = buildReceiptMonthKeyboard(serviceId);
-  await ctx.reply("¿A qué mes corresponde el comprobante?", keyboard);
+  await ctx.editMessageText("¿A qué mes corresponde el comprobante?", keyboard);
 }
 
 async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
@@ -104,7 +104,7 @@ async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -123,8 +123,8 @@ async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.reply(
-    "¿Cuál es el día de vencimiento? (1-31)\n" +
+  await ctx.editMessageText(
+    "¿Cuándo vence la cuota? (1-31)\n" +
     "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" }
   );
@@ -136,7 +136,7 @@ async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -145,7 +145,7 @@ async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
     state: "comp_awaiting_name",
   });
 
-  await ctx.reply(
+  await ctx.editMessageText(
     "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n" +
     "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" }
@@ -170,7 +170,7 @@ async function handleReceiptCancel(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Carga de comprobante cancelada.");
+  await ctx.editMessageText("Carga de comprobante cancelada.");
 }
 
 export async function attachReceiptToInstallment(
@@ -199,9 +199,9 @@ export async function attachReceiptToInstallment(
     await markInstallmentAsPaid(installmentId);
     await saveReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
-    await ctx.reply(successMessage);
+    await ctx.editMessageText(successMessage);
   } catch (error) {
     console.error("Error uploading receipt:", error);
-    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+    await ctx.editMessageText("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }

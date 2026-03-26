@@ -462,8 +462,7 @@ async function handleServiceDay(
   });
 
   await ctx.reply(
-    "¿Cuál es el monto de la cuota?\n" +
-    "_Enviá la palabra cancelar para salir._",
+    "*¿Cuál es el monto de la cuota?*",
     { parse_mode: "Markdown" }
   );
 }

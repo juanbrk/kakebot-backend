@@ -1,6 +1,9 @@
 import { Telegraf, Context } from "telegraf";
 import {
-  getSession, setSession, clearSession, emptySessionForPartial,
+  getSession,
+  setSession,
+  clearSession,
+  emptySessionForPartial,
 } from "../../services/session.service";
 import {
   getServicesByUser,
@@ -33,13 +36,15 @@ async function handleDocTypeInvoice(ctx: Context): Promise<void> {
 
   if (services.length === 0) {
     await setSession(telegramUserId, {
-      ...await getSession(telegramUserId) as ReturnType<typeof emptySessionForPartial>,
+      ...((await getSession(telegramUserId)) as ReturnType<
+        typeof emptySessionForPartial
+      >),
       state: "invoice_awaiting_name",
     });
-    await ctx.reply(
+    await ctx.editMessageText(
       "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
-      "_Enviá la palabra cancelar para salir._",
-      { parse_mode: "Markdown" }
+        "_Enviá la palabra cancelar para salir._",
+      { parse_mode: "Markdown" },
     );
     return;
   }
@@ -53,7 +58,10 @@ async function handleDocTypeInvoice(ctx: Context): Promise<void> {
   }
 
   const keyboard = buildInvoiceServiceListKeyboard(services);
-  await ctx.reply("¿A qué servicio corresponde esta factura?", keyboard);
+  await ctx.editMessageText(
+    "¿A qué servicio corresponde esta factura?",
+    keyboard,
+  );
 }
 
 async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
@@ -64,7 +72,7 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -78,7 +86,10 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
 
   if (installment) {
     await attachInvoiceToInstallment(
-      ctx, telegramUserId, installment.id || "", session
+      ctx,
+      telegramUserId,
+      installment.id || "",
+      session,
     );
     return;
   }
@@ -91,7 +102,7 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
   });
 
   const keyboard = buildInvoiceMonthKeyboard(serviceId);
-  await ctx.reply("¿A qué mes corresponde la factura?", keyboard);
+  await ctx.editMessageText("¿A qué mes corresponde la factura?", keyboard);
 }
 
 async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
@@ -104,14 +115,17 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
     return;
   }
 
   const existingInstallment = await getInstallment(serviceId, dueMonth);
   if (existingInstallment) {
     await attachInvoiceToInstallment(
-      ctx, telegramUserId, existingInstallment.id || "", session
+      ctx,
+      telegramUserId,
+      existingInstallment.id || "",
+      session,
     );
     return;
   }
@@ -123,10 +137,9 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.reply(
-    "¿Cuál es el día de vencimiento? (1-31)\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    "¿Qué día vence ? (1-31)\n" + "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" },
   );
 }
 
@@ -136,7 +149,7 @@ async function handleNewServiceForInvoice(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -145,10 +158,10 @@ async function handleNewServiceForInvoice(ctx: Context): Promise<void> {
     state: "invoice_awaiting_name",
   });
 
-  await ctx.reply(
-    "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    "¿Cómo se llama el servicio?\n_Ej: Expensas, Gas, Flow, Netflix_\n" +
+      "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" },
   );
 }
 
@@ -170,7 +183,7 @@ async function handleInvoiceCancel(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Carga de factura cancelada.");
+  await ctx.editMessageText("Carga de factura cancelada.");
 }
 
 export async function attachInvoiceToInstallment(
@@ -179,7 +192,7 @@ export async function attachInvoiceToInstallment(
   installmentId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   session: any,
-  successMessage: string = "✅ Factura adjunta."
+  successMessage: string = "✅ Factura adjunta.",
 ): Promise<void> {
   try {
     const fileId = session.pendingFileId;
@@ -188,25 +201,33 @@ export async function attachInvoiceToInstallment(
     const fileLink = await ctx.telegram.getFileLink(fileId);
     const fileBuffer = await downloadFile(fileLink.href);
 
-    const mimeType = fileType === "pdf" ?
-      "application/pdf" :
-      (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
+    const mimeType =
+      fileType === "pdf"
+        ? "application/pdf"
+        : fileLink.href.includes(".png")
+          ? "image/png"
+          : "image/jpeg";
 
     const invoiceUrl = await uploadInvoice(
-      telegramUserId, installmentId, fileBuffer, mimeType
+      telegramUserId,
+      installmentId,
+      fileBuffer,
+      mimeType,
     );
 
     await saveInvoiceUrl(installmentId, invoiceUrl);
     await clearSession(telegramUserId);
-    await ctx.reply(successMessage);
+    await ctx.editMessageText(successMessage);
   } catch (error) {
     console.error("Error uploading invoice:", error);
-    await ctx.reply("Error al guardar la factura. Intentá de nuevo.");
+    await ctx.editMessageText("Error al guardar la factura. Intentá de nuevo.");
   }
 }
 
-export function getMonthLabel(dueMonth: string): string {
+export function getMonthLabel(dueMonth: string, monthNameOnly = false): string {
   const [year, month] = dueMonth.split("-");
   const monthIndex = parseInt(month, 10) - 1;
-  return `${MONTH_NAMES[monthIndex]} ${year}`;
+  const monthName = MONTH_NAMES[monthIndex];
+  const fullDate = monthName + year;
+  return `${monthNameOnly ? monthName : fullDate}`;
 }

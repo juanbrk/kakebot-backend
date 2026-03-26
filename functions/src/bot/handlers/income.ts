@@ -51,7 +51,7 @@ async function handleIncomeFromMenu(ctx: Context): Promise<void> {
     state: "inc_awaiting_amount",
   });
 
-  await ctx.reply(
+  await ctx.editMessageText(
     "*Ingresa el monto percibido*\n" +
     "_Escribí \"cancelar\" o \"salir\" para anular._",
     { parse_mode: "Markdown" }

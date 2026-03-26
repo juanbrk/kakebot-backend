@@ -1,6 +1,9 @@
 import { Telegraf, Context } from "telegraf";
 import {
-  getSession, setSession, clearSession, emptySessionForPartial,
+  getSession,
+  setSession,
+  clearSession,
+  emptySessionForPartial,
 } from "../../services/session.service";
 import {
   getServicesByUser,
@@ -27,7 +30,10 @@ import {
   buildFilteredMonthKeyboard,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { formatARS } from "../../helpers/format";
+import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { replyOrEdit } from "../../helpers/telegram";
+import { buildBreadcrumb } from "../../helpers/breadcrumb";
+import { getMonthLabel } from "./invoice";
 
 export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.command("servicios", openServicesMenu);
@@ -76,10 +82,12 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
 
 async function openServicesMenu(ctx: Context): Promise<void> {
   if (ctx.callbackQuery) await ctx.answerCbQuery();
-  await ctx.reply(
-    "Selecciona una opción",
-    buildServicesSubmenuKeyboard()
-  );
+  const breadcrumb = buildBreadcrumb(["Servicios"]);
+  await replyOrEdit(ctx, breadcrumb + "*Selecciona una opción*", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: buildServicesSubmenuKeyboard().reply_markup as any,
+  });
 }
 
 async function handleAddService(ctx: Context): Promise<void> {
@@ -91,10 +99,15 @@ async function handleAddService(ctx: Context): Promise<void> {
     state: "svc_awaiting_name",
   });
 
+  await ctx.editMessageText(
+    "*Vas a crear un nuevo servicio*\n" +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
+  );
+
   await ctx.reply(
-    "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+    "*¿Cómo se llama el servicio?*\nEj: Expensas, Gas, Flow, Netflix",
+    { parse_mode: "Markdown" },
   );
 }
 
@@ -105,14 +118,15 @@ async function handleRegisterInstallment(ctx: Context): Promise<void> {
   const services = await getServicesByUser(telegramUserId);
 
   if (services.length === 0) {
-    await ctx.reply(
-      "No hay servicios registrados.\nUsa 'Añadir servicio' primero."
+    await replyOrEdit(
+      ctx,
+      "No hay servicios registrados.\nUsa 'Añadir servicio' primero.",
     );
     return;
   }
 
   const keyboard = buildServiceListKeyboard(services, 0, "svc_pick");
-  await ctx.reply("Seleccioná un servicio:", keyboard);
+  await replyOrEdit(ctx, "Seleccioná un servicio:", keyboard);
 }
 
 async function handleViewServices(ctx: Context): Promise<void> {
@@ -122,12 +136,17 @@ async function handleViewServices(ctx: Context): Promise<void> {
   const services = await getServicesByUser(telegramUserId);
 
   if (services.length === 0) {
-    await ctx.reply("No hay servicios registrados.");
+    await replyOrEdit(ctx, "No hay servicios registrados.");
     return;
   }
 
+  const breadcrumb = buildBreadcrumb(["Servicios", "Selección"]);
   const keyboard = buildServiceListKeyboard(services, 0, "svc_view_pick");
-  await ctx.reply("Seleccioná un servicio:", keyboard);
+  await replyOrEdit(ctx, breadcrumb + "*Seleccioná un servicio:*", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 async function handleListServices(ctx: Context): Promise<void> {
@@ -137,7 +156,7 @@ async function handleListServices(ctx: Context): Promise<void> {
   const services = await getServicesByUser(telegramUserId);
 
   if (services.length === 0) {
-    await ctx.reply("No hay servicios registrados.");
+    await replyOrEdit(ctx, "No hay servicios registrados.");
     return;
   }
 
@@ -145,14 +164,17 @@ async function handleListServices(ctx: Context): Promise<void> {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${month}`;
 
-  const installmentsByServiceId: Record<string, import("../../types/index").ServiceInstallment | null> = {};
+  const installmentsByServiceId: Record<
+    string,
+    import("../../types/index").ServiceInstallment | null
+  > = {};
   for (const service of services) {
     const installment = await getInstallment(service.id || "", dueMonth);
     installmentsByServiceId[service.id || ""] = installment;
   }
 
   const text = buildServiceViewText(services, installmentsByServiceId);
-  await ctx.reply(text, { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, text, { parse_mode: "Markdown" });
 }
 
 async function handlePickServiceForAction(ctx: Context): Promise<void> {
@@ -163,7 +185,7 @@ async function handlePickServiceForAction(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
@@ -177,16 +199,21 @@ async function handlePickServiceForAction(ctx: Context): Promise<void> {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
     const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-    const dueSuffix = installment.isPaid ?
-      "(Pagado) ✅" :
-      `(vence ${day}/${mo})`;
+    const dueSuffix = installment.isPaid
+      ? "(Pagado) ✅"
+      : `(vence ${day}/${mo})`;
     title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
   }
 
+  const breadcrumb = buildBreadcrumb(["Servicios", service.name]);
   const hasInstallment = installment !== null;
   const isPaid = installment?.isPaid ?? false;
-  const keyboard = buildServiceActionKeyboard(serviceId, hasInstallment, isPaid);
-  await ctx.reply(title, {
+  const keyboard = buildServiceActionKeyboard(
+    serviceId,
+    hasInstallment,
+    isPaid,
+  );
+  await replyOrEdit(ctx, breadcrumb + title, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -195,7 +222,6 @@ async function handlePickServiceForAction(ctx: Context): Promise<void> {
 
 async function handleBackToMenu(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.deleteMessage();
   await openServicesMenu(ctx);
 }
 
@@ -208,7 +234,7 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
@@ -219,13 +245,23 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
     serviceName: service.name,
   });
 
+  await ctx.editMessageText(
+    `*Vas a agregar una nueva cuota para ${service.name}*\n` +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
+  );
+
   const keyboard = buildMonthKeyboard(serviceId);
-  await ctx.reply(`Seleccioná el mes para ${service.name}:`, keyboard);
+  await ctx.reply(`*Seleccioná el mes para ${service.name}:*`, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 async function handleMonthSelected(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match = ((ctx as any).match as string[]);
+  const match = (ctx as any).match as string[];
   const serviceId = match[1];
   const dueMonth = match[2];
   const telegramUserId = ctx.from?.id.toString() || "";
@@ -234,7 +270,7 @@ async function handleMonthSelected(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session) {
-    await ctx.reply("Error: sesión perdida.");
+    await replyOrEdit(ctx, "Error: sesión perdida.");
     return;
   }
 
@@ -245,10 +281,12 @@ async function handleMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.reply(
-    "¿Cuál es el día de vencimiento? (1-31)\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await replyOrEdit(
+    ctx,
+    `*¿Qué día de ${getMonthLabel(dueMonth, true)} vence el servicio? (1-31)*`,
+    {
+      parse_mode: "Markdown",
+    },
   );
 }
 
@@ -256,7 +294,7 @@ async function handleSkipDuplicate(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Registro de cuota omitido.");
+  await ctx.editMessageText("Registro de cuota omitido.");
 }
 
 async function handleReplaceDuplicate(ctx: Context): Promise<void> {
@@ -268,11 +306,9 @@ async function handleReplaceDuplicate(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   const hasRequiredSessionData =
-    session &&
-    session.selectedMonth &&
-    session.partialAmount;
+    session && session.selectedMonth && session.partialAmount;
   if (!hasRequiredSessionData) {
-    await ctx.reply("Error: datos de sesión incompletos.");
+    await ctx.editMessageText("Error: datos de sesión incompletos.");
     return;
   }
 
@@ -283,7 +319,7 @@ async function handleReplaceDuplicate(ctx: Context): Promise<void> {
 
   const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
   if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.editMessageText("Día inválido. Ingresá un número entre 1 y 31.");
     return;
   }
 
@@ -298,8 +334,8 @@ async function handleReplaceDuplicate(ctx: Context): Promise<void> {
   const day2 = String(dueDate.getDate()).padStart(2, "0");
   const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
 
-  await ctx.reply(
-    `✅ Cuota reemplazada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`
+  await ctx.editMessageText(
+    `✅ Cuota reemplazada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`,
   );
 }
 
@@ -311,16 +347,21 @@ async function handleEditService(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
-  const keyboard = buildServiceEditKeyboard(serviceId);
-  await ctx.reply(`¿Qué deseas hacer con *${service.name}*?`, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
+  const breadcrumb = buildBreadcrumb(["Servicios", service.name, "Modificar"]);
+  const keyboard = buildServiceEditKeyboard(serviceId, service.name);
+  await replyOrEdit(
+    ctx,
+    breadcrumb + `¿Qué deseas hacer con *${service.name}*?`,
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    },
+  );
 }
 
 async function handleRegFromEdit(ctx: Context): Promise<void> {
@@ -332,12 +373,17 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
-  const existingInstallments = await getInstallmentsByService(serviceId, telegramUserId);
-  const existingMonths = new Set(existingInstallments.map((inst) => inst.dueMonth));
+  const existingInstallments = await getInstallmentsByService(
+    serviceId,
+    telegramUserId,
+  );
+  const existingMonths = new Set(
+    existingInstallments.map((inst) => inst.dueMonth),
+  );
 
   const now = new Date();
   const availableMonths: string[] = [];
@@ -351,9 +397,10 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
   }
 
   if (availableMonths.length === 0) {
-    await ctx.reply(
+    await replyOrEdit(
+      ctx,
       "No hay meses disponibles para crear cuotas.\n" +
-      "Ya tenés cuotas registradas para los próximos 3 meses."
+        "Ya tenés cuotas registradas para los próximos 3 meses.",
     );
     return;
   }
@@ -365,11 +412,17 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     serviceName: service.name,
   });
 
+  await ctx.editMessageText(
+    `*Vas a agregar una nueva cuota para ${service.name}*\n` +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
+  );
+
   const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
   await ctx.reply(
-    "Seleccioná el mes de la nueva cuota.\n" +
-    "_Podés crear cuotas solo para meses que aún no tengan una._",
-    { parse_mode: "Markdown", ...keyboard }
+    "*Seleccioná el mes de la nueva cuota.*\n" +
+      "Podés crear cuotas solo para meses que aún no tengan una.",
+    { parse_mode: "Markdown", ...keyboard },
   );
 }
 
@@ -381,7 +434,7 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
@@ -391,17 +444,30 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
 
   const installment = await getInstallment(serviceId, dueMonth);
   if (!installment) {
-    await ctx.reply(`No hay cuota registrada para ${service.name} este mes.`);
+    await replyOrEdit(
+      ctx,
+      `No hay cuota registrada para ${service.name} este mes.`,
+    );
     return;
   }
 
+  const breadcrumb = buildBreadcrumb([
+    "Servicios",
+    service.name,
+    "Cuota detalle",
+  ]);
   const text = buildInstallmentDetailText(installment);
   const hasReceipt = !!installment.receiptUrl;
   const hasInvoice = !!installment.invoiceUrl;
   const keyboard = buildInstallmentDetailKeyboard(
-    installment.id || "", installment.isPaid, hasReceipt, hasInvoice
+    installment.id || "",
+    installment.isPaid,
+    hasReceipt,
+    hasInvoice,
+    `svc_back_svc:${serviceId}`,
+    `Volver a ${service.name}`,
   );
-  await ctx.reply(text, {
+  await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -414,10 +480,12 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
 
   await ctx.answerCbQuery();
   await markInstallmentAsPaid(installmentId);
-  await ctx.reply("✅ Cuota marcada como pagada.");
 
   const keyboard = buildReceiptPromptKeyboard(installmentId);
-  await ctx.reply("¿Deseas adjuntar comprobante?", keyboard);
+  await ctx.editMessageText(
+    "✅ Cuota marcada como pagada. ¿Deseas adjuntar comprobante?",
+    keyboard,
+  );
 }
 
 async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
@@ -432,15 +500,17 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
 
   const installment = await getInstallment(serviceId, dueMonth);
   if (!installment) {
-    await ctx.reply("No hay cuota registrada para este mes.");
+    await ctx.editMessageText("No hay cuota registrada para este mes.");
     return;
   }
 
   await markInstallmentAsPaid(installment.id || "");
-  await ctx.reply("✅ Cuota marcada como pagada.");
 
   const keyboard = buildReceiptPromptKeyboard(installment.id || "");
-  await ctx.reply("¿Deseas adjuntar comprobante?", keyboard);
+  await ctx.editMessageText(
+    "✅ Cuota marcada como pagada. ¿Deseas adjuntar comprobante?",
+    keyboard,
+  );
 }
 
 async function handleAttachReceipt(ctx: Context): Promise<void> {
@@ -456,18 +526,22 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply(
-    "Enviá la foto o PDF del comprobante.\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    "*Adjuntar comprobante*\n" +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
   );
+
+  await ctx.reply("*Enviá la foto o PDF del comprobante.*", {
+    parse_mode: "Markdown",
+  });
 }
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Comprobante omitido.");
+  await ctx.editMessageText("Podes adjuntar el comprobante luego desde /servicios.");
 }
 
 async function handleAttachInvoice(ctx: Context): Promise<void> {
@@ -483,18 +557,24 @@ async function handleAttachInvoice(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply(
-    "Enviá la foto o PDF de la factura.\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    "*Adjuntar factura*\n" +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
   );
+
+  await ctx.reply("*Enviá la foto o PDF de la factura.*", {
+    parse_mode: "Markdown",
+  });
 }
 
 async function handleSkipInvoice(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Factura omitida.");
+  await ctx.editMessageText(
+    "Podes adjuntar la factura luego desde /servicios.",
+  );
 }
 
 async function handleSkipInstallmentAfterCreate(ctx: Context): Promise<void> {
@@ -512,6 +592,7 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
   const telegramUserId = ctx.from?.id.toString() || "";
+  const service = await getServiceById(serviceId);
 
   await ctx.answerCbQuery();
 
@@ -521,11 +602,15 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
     serviceId,
   });
 
-  await ctx.reply(
-    "¿Cuál es el nuevo nombre del servicio?\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    `*Vas a cambiar el nombre de ${service?.name}*\n 
+      "_Escribí cancelar en cualquier momento para salir._`,
+    { parse_mode: "Markdown" },
   );
+
+  await ctx.reply("*¿Cuál es el nuevo nombre del servicio?*", {
+    parse_mode: "Markdown",
+  });
 }
 
 async function handleDeleteService(ctx: Context): Promise<void> {
@@ -536,14 +621,15 @@ async function handleDeleteService(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await ctx.editMessageText("Servicio no encontrado.");
     return;
   }
 
+  const breadcrumb = buildBreadcrumb(["Servicios", service.name, "Eliminar"]);
   const keyboard = buildDeleteConfirmKeyboard(serviceId);
-  await ctx.reply(
-    `¿Eliminar ${service.name}? Se borrarán todas sus cuotas.`,
-    keyboard
+  await ctx.editMessageText(
+    breadcrumb + `*¿Eliminar ${service.name}?*\nSe borrarán todas sus cuotas.`,
+    { parse_mode: "Markdown", ...keyboard },
   );
 }
 
@@ -556,7 +642,7 @@ async function handleConfirmDelete(ctx: Context): Promise<void> {
   const service = await getServiceById(serviceId);
   if (service) {
     await deleteService(serviceId);
-    await ctx.reply(`✅ Servicio '${service.name}' eliminado.`);
+    await ctx.editMessageText(`✅ Servicio '${service.name}' eliminado.`);
   }
 }
 
@@ -573,11 +659,13 @@ async function handleEditInstallmentAmount(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply(
-    "¿Cuál es el nuevo monto?\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    "*Modificar monto*\n" +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
   );
+
+  await ctx.reply("*¿Cuál es el nuevo monto?*", { parse_mode: "Markdown" });
 }
 
 async function handleEditInstallmentDay(ctx: Context): Promise<void> {
@@ -593,11 +681,15 @@ async function handleEditInstallmentDay(ctx: Context): Promise<void> {
     installmentId,
   });
 
-  await ctx.reply(
-    "¿Cuál es el nuevo día de vencimiento? (1-31)\n" +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" }
+  await ctx.editMessageText(
+    "*Cambiar vencimiento*\n" +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
   );
+
+  await ctx.reply("*¿Cuál es el nuevo día de vencimiento? (1-31)*", {
+    parse_mode: "Markdown",
+  });
 }
 
 async function handlePagination(ctx: Context): Promise<void> {
@@ -608,31 +700,39 @@ async function handlePagination(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
 
   const services = await getServicesByUser(telegramUserId);
+  const breadcrumb = buildBreadcrumb(["Servicios", "Selección"]);
   const keyboard = buildServiceListKeyboard(services, page, "svc_view_pick");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await ctx.editMessageReplyMarkup(keyboard.reply_markup as any);
+  await ctx.editMessageText(breadcrumb + "*Seleccioná un servicio:*", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 export async function showInstallmentDetail(
   ctx: Context,
-  installmentId: string
+  installmentId: string,
+  backLabel = "Volver al historial",
+  breadcrumbSegments: string[] = [],
 ): Promise<void> {
   const installment = await getInstallmentById(installmentId);
   if (!installment) {
-    await ctx.reply("No se encontró la cuota.");
+    await replyOrEdit(ctx, "No se encontró la cuota.");
     return;
   }
 
+  const breadcrumb = buildBreadcrumb(breadcrumbSegments);
   const text = buildInstallmentDetailText(installment);
   const keyboard = buildInstallmentDetailKeyboard(
     installmentId,
     installment.isPaid,
     !!installment.receiptUrl,
     !!installment.invoiceUrl,
-    `svc_cuotas:${installment.serviceId}`
+    `svc_cuotas:${installment.serviceId}`,
+    backLabel,
   );
-  await ctx.reply(text, {
+  await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -645,14 +745,23 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
-  const installments = await getInstallmentsByService(serviceId, telegramUserId);
+  const [service, installments] = await Promise.all([
+    getServiceById(serviceId),
+    getInstallmentsByService(serviceId, telegramUserId),
+  ]);
 
   if (installments.length === 0) {
     await ctx.editMessageText("No hay cuotas registradas para este servicio.");
     return;
   }
 
-  await renderInstallmentsList(ctx, installments, 0, serviceId);
+  await renderInstallmentsList(
+    ctx,
+    installments,
+    0,
+    serviceId,
+    service?.name || serviceId,
+  );
 }
 
 async function handleBackToServiceAction(ctx: Context): Promise<void> {
@@ -662,7 +771,7 @@ async function handleBackToServiceAction(ctx: Context): Promise<void> {
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    await ctx.reply("Servicio no encontrado.");
+    await ctx.editMessageText("Servicio no encontrado.");
     return;
   }
 
@@ -676,16 +785,21 @@ async function handleBackToServiceAction(ctx: Context): Promise<void> {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
     const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-    const dueSuffix = installment.isPaid ?
-      "(Pagado) ✅" :
-      `(vence ${day}/${mo})`;
+    const dueSuffix = installment.isPaid
+      ? "(Pagado) ✅"
+      : `(vence ${day}/${mo})`;
     title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
   }
 
+  const breadcrumb = buildBreadcrumb(["Servicios", service.name]);
   const hasInstallment = installment !== null;
   const isPaid = installment?.isPaid ?? false;
-  const keyboard = buildServiceActionKeyboard(serviceId, hasInstallment, isPaid);
-  await ctx.editMessageText(title, {
+  const keyboard = buildServiceActionKeyboard(
+    serviceId,
+    hasInstallment,
+    isPaid,
+  );
+  await ctx.editMessageText(breadcrumb + title, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -694,28 +808,43 @@ async function handleBackToServiceAction(ctx: Context): Promise<void> {
 
 async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match = ((ctx as any).match as string[]);
+  const match = (ctx as any).match as string[];
   const serviceId = match[1];
   const page = parseInt(match[2], 10);
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
-  const installments = await getInstallmentsByService(serviceId, telegramUserId);
-  await renderInstallmentsList(ctx, installments, page, serviceId);
+  const [service, installments] = await Promise.all([
+    getServiceById(serviceId),
+    getInstallmentsByService(serviceId, telegramUserId),
+  ]);
+  await renderInstallmentsList(
+    ctx,
+    installments,
+    page,
+    serviceId,
+    service?.name || serviceId,
+  );
 }
 
 async function renderInstallmentsList(
   ctx: Context,
   installments: import("../../types/index").ServiceInstallment[],
   page: number,
-  serviceId: string
+  serviceId: string,
+  serviceName: string,
 ): Promise<void> {
+  const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Cuotas"]);
   const totalPages = Math.ceil(installments.length / INSTALLMENTS_PER_PAGE);
-  const text =
-    `Seleccioná la cuota a ver.\n\n_Página ${page + 1} de ${totalPages}_`;
-  const keyboard = buildInstallmentListKeyboard(installments, page, serviceId);
+  const text = `*Seleccioná la cuota a ver.*\n\n_Página ${page + 1} de ${totalPages}_`;
+  const keyboard = buildInstallmentListKeyboard(
+    installments,
+    page,
+    serviceId,
+    serviceName,
+  );
 
-  await ctx.editMessageText(text, {
+  await ctx.editMessageText(breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -729,9 +858,18 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
 
   const installment = await getInstallmentById(installmentId);
   if (!installment) {
-    await ctx.reply("Cuota no encontrada.");
+    await ctx.editMessageText("Cuota no encontrada.");
     return;
   }
+
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const breadcrumb = buildBreadcrumb([
+    "Servicios",
+    installment.serviceName,
+    "Cuotas",
+    monthLabel,
+  ]);
 
   const text = buildInstallmentDetailText(installment);
   const keyboard = buildInstallmentDetailKeyboard(
@@ -739,10 +877,11 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     installment.isPaid,
     !!installment.receiptUrl,
     !!installment.invoiceUrl,
-    `svc_cuotas:${installment.serviceId}`
+    `svc_cuotas:${installment.serviceId}`,
+    "Volver al historial",
   );
 
-  await ctx.editMessageText(text, {
+  await ctx.editMessageText(breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
