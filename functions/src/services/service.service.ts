@@ -264,6 +264,37 @@ export async function getInstallmentsByService(
   return installments.sort((a, b) => b.dueMonth.localeCompare(a.dueMonth));
 }
 
+/**
+ * Returns unpaid installments for a user due within the next N days, ordered by dueDate ascending.
+ *
+ * @param {string} telegramUserId - User's Telegram ID
+ * @param {number} daysAhead - Number of days to look ahead from today
+ * @return {ServiceInstallment[]} Matching installments sorted by dueDate
+ */
+export async function getUpcomingUnpaidInstallments(
+  telegramUserId: string,
+  daysAhead: number
+): Promise<ServiceInstallment[]> {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const futureDate = new Date(now);
+  futureDate.setDate(futureDate.getDate() + daysAhead);
+
+  const snapshot = await getDb()
+    .collection("service_installments")
+    .where("telegramUserId", "==", telegramUserId)
+    .where("isPaid", "==", false)
+    .where("dueDate", ">=", admin.firestore.Timestamp.fromDate(now))
+    .where("dueDate", "<=", admin.firestore.Timestamp.fromDate(futureDate))
+    .orderBy("dueDate", "asc")
+    .get();
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Omit<ServiceInstallment, "id">),
+  }));
+}
+
 export async function getInstallmentsForMonth(
   telegramUserId: string,
   dueMonth: string

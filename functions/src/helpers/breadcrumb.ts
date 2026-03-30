@@ -18,5 +18,5 @@ export function buildBreadcrumb(segments: string[]): string {
     path = `${first} / ... / ${previous} / ${current}`;
   }
 
-  return `_${path}_\n\n\n`;
+  return `_${path}_\n\n`;
 }

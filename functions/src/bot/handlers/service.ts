@@ -1,4 +1,5 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf, Context, Markup } from "telegraf";
+import { ServiceInstallment } from "../../types/index";
 import {
   getSession,
   setSession,
@@ -14,9 +15,11 @@ import {
   replaceInstallment,
   deleteService,
   markInstallmentAsPaid,
+  getUpcomingUnpaidInstallments,
 } from "../../services/service.service";
 import {
   buildServicesSubmenuKeyboard,
+  buildMyServicesSubmenuKeyboard,
   buildServiceListKeyboard,
   buildServiceActionKeyboard,
   buildServiceEditKeyboard,
@@ -44,7 +47,7 @@ import { getMonthLabel } from "./invoice";
  */
 async function getServiceNameCached(
   telegramUserId: string,
-  serviceId: string
+  serviceId: string,
 ): Promise<string | null> {
   const session = await getSession(telegramUserId);
   if (session?.serviceId === serviceId && session?.serviceName) {
@@ -61,7 +64,9 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action("svc_add", handleAddService);
   bot.action("svc_installment", handleRegisterInstallment);
   bot.action("svc_view", handleViewServices);
+  bot.action("svc_my_services", handleMyServices);
   bot.action("svc_list", handleListServices);
+  bot.action("svc_upcoming", handleShowUpcoming);
   bot.action("svc_back", handleBackToMenu);
   bot.action("svc_no_cuota", handleSkipInstallmentAfterCreate);
 
@@ -183,22 +188,126 @@ async function handleListServices(ctx: Context): Promise<void> {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${month}`;
 
-  const installmentEntries = await Promise.all(
-    services.map(async (svc) => {
-      const installment = await getInstallment(svc.id || "", dueMonth);
-      return [svc.id || "", installment] as const;
-    })
-  );
-  const installmentsByServiceId: Record<
-    string,
-    import("../../types/index").ServiceInstallment | null
-  > = {};
+  const [installmentEntries] = await Promise.all([
+    Promise.all(
+      services.map(async (svc) => {
+        const installment = await getInstallment(svc.id || "", dueMonth);
+        return [svc.id || "", installment] as const;
+      }),
+    ),
+  ]);
+
+  const installmentsByServiceId: Record<string, ServiceInstallment | null> = {};
   for (const [id, installment] of installmentEntries) {
     installmentsByServiceId[id] = installment;
   }
 
-  const text = buildServiceViewText(services, installmentsByServiceId);
-  await replyOrEdit(ctx, text, { parse_mode: "Markdown" });
+  const breadcrumb = buildBreadcrumb(["Servicios", "Listar servicios"]);
+
+  const backKeyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("\u2190 Volver", "svc_my_services")],
+  ]);
+
+  const text =
+    breadcrumb + buildServiceViewText(services, installmentsByServiceId);
+  await replyOrEdit(ctx, text, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: backKeyboard.reply_markup as any,
+  });
+}
+
+/**
+ * Shows  "Mis servicios" submenu with list and upcoming options.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleMyServices(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  const breadcrumb = buildBreadcrumb(["Servicios", "Mis servicios"]);
+  await replyOrEdit(ctx, breadcrumb + "*Selecciona una opción*", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: buildMyServicesSubmenuKeyboard().reply_markup as any,
+  });
+}
+
+/**
+ * Shows upcoming unpaid installments for the next 7 days, grouped into
+ * three bands: 1-3 days, 4-5 days, and 6-7 days.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleShowUpcoming(ctx: Context): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  await ctx.answerCbQuery();
+
+  const installments = await getUpcomingUnpaidInstallments(telegramUserId, 7);
+
+  const breadcrumb = buildBreadcrumb(["Servicios", "Próximos vencimientos"]);
+  const backKeyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("\u2190 Volver", "svc_my_services")],
+  ]);
+
+  if (installments.length === 0) {
+    await replyOrEdit(
+      ctx,
+      breadcrumb + "*Sin vencimientos en los próximos 7 días*",
+      {
+        parse_mode: "Markdown",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reply_markup: backKeyboard.reply_markup as any,
+      },
+    );
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cutoff3 = new Date(today);
+  cutoff3.setDate(cutoff3.getDate() + 3);
+  const cutoff5 = new Date(today);
+  cutoff5.setDate(cutoff5.getDate() + 5);
+
+  const groups: Record<string, ServiceInstallment[]> = {
+    "3": [],
+    "5": [],
+    "7": [],
+  };
+  for (const inst of installments) {
+    const due = inst.dueDate.toDate();
+    if (due <= cutoff3) groups["3"].push(inst);
+    else if (due <= cutoff5) groups["5"].push(inst);
+    else groups["7"].push(inst);
+  }
+
+  const lines: string[] = [breadcrumb];
+
+  const bands: Array<[string, ServiceInstallment[]]> = [
+    ["3", groups["3"]],
+    ["5", groups["5"]],
+    ["7", groups["7"]],
+  ];
+
+  for (const [days, items] of bands) {
+    if (items.length === 0) continue;
+    lines.push(`*Vencimientos en los próximos ${days} días:*`);
+    for (const inst of items) {
+      const dueDate = inst.dueDate.toDate();
+      const day = String(dueDate.getDate()).padStart(2, "0");
+      const instMonth = String(dueDate.getMonth() + 1).padStart(2, "0");
+      lines.push(
+        `  • ${inst.serviceName}  ${day}/${instMonth}  ${formatARS(inst.amount)}`,
+      );
+    }
+    lines.push("");
+  }
+
+  await replyOrEdit(ctx, lines.join("\n").trimEnd(), {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: backKeyboard.reply_markup as any,
+  });
 }
 
 async function handlePickServiceForAction(ctx: Context): Promise<void> {
@@ -358,7 +467,7 @@ async function handleReplaceDuplicate(ctx: Context): Promise<void> {
   const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
     await ctx.editMessageText(
-      `Día inválido. Ingresá un número entre 1 y ${maxDay}.`
+      `Día inválido. Ingresá un número entre 1 y ${maxDay}.`,
     );
     return;
   }
@@ -506,7 +615,7 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
     hasReceipt,
     hasInvoice,
     `svc_back_svc:${serviceId}`,
-    `Volver a ${serviceName}`,
+    `\u2190 Volver a ${serviceName}`,
   );
   await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
@@ -582,7 +691,9 @@ async function handleSkipReceipt(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.editMessageText("Podes adjuntar el comprobante luego desde /servicios.");
+  await ctx.editMessageText(
+    "Podes adjuntar el comprobante luego desde /servicios.",
+  );
 }
 
 async function handleAttachInvoice(ctx: Context): Promise<void> {
@@ -930,7 +1041,7 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     !!installment.receiptUrl,
     !!installment.invoiceUrl,
     `svc_cuotas:${installment.serviceId}`,
-    "Volver al historial",
+    "\u2190 Volver al historial",
   );
 
   await ctx.editMessageText(breadcrumb + text, {
