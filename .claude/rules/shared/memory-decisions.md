@@ -1,5 +1,12 @@
 # Decisions Log
 
+## 2026-03-30: Session data reuse rule
+- New rule: `shared/session-data-reuse.md`
+- Principle: never re-fetch from Firestore what a previous flow step already knows
+- Entry points fetch + store in session; downstream handlers read from session with Firestore fallback
+- Independent reads must use `Promise.all`, not sequential awaits
+- Applied pattern: `getServiceNameCached()` in service.ts (9 handlers), `Promise.all` in 5 locations
+
 ## 2026-03-08: JSDoc required on all functions
 - Scope expanded: JSDoc now required on ALL functions (new or modified), not just exported ones
 - Single-line summary is enough for self-explanatory signatures

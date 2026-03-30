@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
 import { Service, ServiceInstallment } from "../types/index";
+import { getDaysInMonth } from "../helpers/format";
 
 export async function createService(
   telegramUserId: string,
@@ -160,21 +161,37 @@ export async function updateInstallmentAmount(
     .update({ amount });
 }
 
+/**
+ * Updates the due day of an installment. Validates the day against the
+ * installment's month before applying.
+ *
+ * @param {string} installmentId - Firestore document ID
+ * @param {number} newDay - New day of month (1-28/29/30/31)
+ * @return {boolean} True if updated, false if installment not found or day invalid
+ */
 export async function updateInstallmentDueDay(
   installmentId: string,
   newDay: number
-): Promise<void> {
+): Promise<boolean> {
   const doc = await getDb()
     .collection("service_installments")
     .doc(installmentId)
     .get();
 
   if (!doc.exists) {
-    return;
+    return false;
   }
 
   const data = doc.data() as ServiceInstallment;
   const currentDueDate = data.dueDate.toDate();
+  const monthStr = String(currentDueDate.getMonth() + 1).padStart(2, "0");
+  const yearMonth = `${currentDueDate.getFullYear()}-${monthStr}`;
+  const maxDay = getDaysInMonth(yearMonth);
+
+  if (newDay < 1 || newDay > maxDay) {
+    return false;
+  }
+
   const newDueDate = new Date(
     currentDueDate.getFullYear(),
     currentDueDate.getMonth(),
@@ -187,6 +204,8 @@ export async function updateInstallmentDueDay(
     .update({
       dueDate: admin.firestore.Timestamp.fromDate(newDueDate),
     });
+
+  return true;
 }
 
 export async function saveReceiptUrl(

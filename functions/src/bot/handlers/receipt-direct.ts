@@ -1,6 +1,6 @@
 import { Telegraf, Context } from "telegraf";
 import {
-  getSession, setSession, clearSession, emptySessionForPartial,
+  getSession, setSession, clearSession,
 } from "../../services/session.service";
 import {
   getServicesByUser,
@@ -15,6 +15,9 @@ import {
   buildReceiptServiceListKeyboard,
   buildReceiptMonthKeyboard,
 } from "../keyboards/invoice";
+import { replyOrEdit } from "../../helpers/telegram";
+import { buildBreadcrumb } from "../../helpers/breadcrumb";
+import { MONTH_NAMES } from "../../helpers/format";
 
 export function registerReceiptDirectHandler(bot: Telegraf<Context>): void {
   bot.action("doc_type_receipt", handleDocTypeReceipt);
@@ -33,12 +36,16 @@ async function handleDocTypeReceipt(ctx: Context): Promise<void> {
 
   if (services.length === 0) {
     await setSession(telegramUserId, {
-      ...await getSession(telegramUserId) as ReturnType<typeof emptySessionForPartial>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...await getSession(telegramUserId) as any,
       state: "comp_awaiting_name",
     });
-    await ctx.reply(
-      "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
-      "_Enviá la palabra cancelar para salir._",
+    const breadcrumb = buildBreadcrumb(["Comprobante"]);
+    await replyOrEdit(
+      ctx,
+      breadcrumb
+      + "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n"
+      + "_Enviá la palabra cancelar para salir._",
       { parse_mode: "Markdown" }
     );
     return;
@@ -52,8 +59,17 @@ async function handleDocTypeReceipt(ctx: Context): Promise<void> {
     });
   }
 
+  const breadcrumb = buildBreadcrumb(["Comprobante"]);
   const keyboard = buildReceiptServiceListKeyboard(services);
-  await ctx.reply("¿A qué servicio corresponde este comprobante?", keyboard);
+  await replyOrEdit(
+    ctx,
+    breadcrumb + "¿A qué servicio corresponde este comprobante?",
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    }
+  );
 }
 
 async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
@@ -64,17 +80,19 @@ async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await replyOrEdit(ctx, "Error: no se encontró el archivo pendiente.");
     return;
   }
-
-  const service = await getServiceById(serviceId);
-  const serviceName = service?.name || "";
 
   const now = new Date();
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${monthStr}`;
-  const installment = await getInstallment(serviceId, dueMonth);
+
+  const [service, installment] = await Promise.all([
+    getServiceById(serviceId),
+    getInstallment(serviceId, dueMonth),
+  ]);
+  const serviceName = service?.name || "";
 
   if (installment) {
     await attachReceiptToInstallment(
@@ -90,8 +108,17 @@ async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
     serviceName,
   });
 
+  const pickBreadcrumb = buildBreadcrumb(["Comprobante", serviceName]);
   const keyboard = buildReceiptMonthKeyboard(serviceId);
-  await ctx.reply("¿A qué mes corresponde el comprobante?", keyboard);
+  await replyOrEdit(
+    ctx,
+    pickBreadcrumb + "¿A qué mes corresponde el comprobante?",
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    }
+  );
 }
 
 async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
@@ -104,7 +131,7 @@ async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await replyOrEdit(ctx, "Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -123,9 +150,15 @@ async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.reply(
-    "¿Cuál es el día de vencimiento? (1-31)\n" +
-    "_Enviá la palabra cancelar para salir._",
+  const [, monthNum] = dueMonth.split("-");
+  const monthName = MONTH_NAMES[parseInt(monthNum, 10) - 1];
+  const monthBreadcrumb = buildBreadcrumb([
+    "Comprobante", session.serviceName || "", monthName,
+  ]);
+  await replyOrEdit(
+    ctx,
+    monthBreadcrumb
+    + "¿Cuándo vence la cuota?\n_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" }
   );
 }
@@ -136,7 +169,7 @@ async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.reply("Error: no se encontró el archivo pendiente.");
+    await replyOrEdit(ctx, "Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -145,9 +178,12 @@ async function handleNewServiceForReceipt(ctx: Context): Promise<void> {
     state: "comp_awaiting_name",
   });
 
-  await ctx.reply(
-    "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n" +
-    "_Enviá la palabra cancelar para salir._",
+  const newSvcBreadcrumb = buildBreadcrumb(["Comprobante", "Nuevo servicio"]);
+  await replyOrEdit(
+    ctx,
+    newSvcBreadcrumb
+    + "¿Cómo se llama el servicio?\nEj: Expensas, Gas, Flow, Netflix\n"
+    + "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" }
   );
 }
@@ -170,7 +206,7 @@ async function handleReceiptCancel(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.reply("Carga de comprobante cancelada.");
+  await replyOrEdit(ctx, "Carga de comprobante cancelada.");
 }
 
 export async function attachReceiptToInstallment(
@@ -199,9 +235,9 @@ export async function attachReceiptToInstallment(
     await markInstallmentAsPaid(installmentId);
     await saveReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
-    await ctx.reply(successMessage);
+    await replyOrEdit(ctx, successMessage);
   } catch (error) {
     console.error("Error uploading receipt:", error);
-    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+    await replyOrEdit(ctx, "Error al guardar el comprobante. Intentá de nuevo.");
   }
 }

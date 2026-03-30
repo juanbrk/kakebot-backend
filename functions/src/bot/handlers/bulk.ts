@@ -2,6 +2,7 @@ import { Telegraf, Context } from "telegraf";
 import { getSession, clearSession } from "../../services/session.service";
 import { saveBulkExpenses } from "../../services/expense.service";
 import { buildBulkSummaryText } from "../../helpers/bulk-parse";
+import { replyOrEdit } from "../../helpers/telegram";
 
 export function registerBulkHandler(bot: Telegraf<Context>): void {
   bot.action("bulk_confirm", async (ctx) => {
@@ -13,7 +14,8 @@ export function registerBulkHandler(bot: Telegraf<Context>): void {
     if (
       !session || session.state !== "bulk_pending" || !session.bulkExpenses
     ) {
-      await ctx.editMessageText(
+      await replyOrEdit(
+        ctx,
         "La sesión expiró. Enviá los gastos de nuevo."
       );
       return;
@@ -21,7 +23,7 @@ export function registerBulkHandler(bot: Telegraf<Context>): void {
 
     await saveBulkExpenses(telegramUserId, session.bulkExpenses);
     await clearSession(telegramUserId);
-    await ctx.editMessageText(buildBulkSummaryText(session.bulkExpenses));
+    await replyOrEdit(ctx, buildBulkSummaryText(session.bulkExpenses));
   });
 
   bot.action("bulk_cancel", async (ctx) => {
@@ -29,6 +31,6 @@ export function registerBulkHandler(bot: Telegraf<Context>): void {
 
     const telegramUserId = ctx.from?.id.toString() || "";
     await clearSession(telegramUserId);
-    await ctx.editMessageText("Carga masiva cancelada.");
+    await replyOrEdit(ctx, "Carga masiva cancelada.");
   });
 }

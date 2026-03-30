@@ -8,15 +8,16 @@ export const INSTALLMENTS_PER_PAGE = 6;
 export function buildServicesSubmenuKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Añadir servicio", "svc_add")],
-    [Markup.button.callback("Ver servicios", "svc_view")],
-    [Markup.button.callback("Listar servicios", "svc_list")],
+    [Markup.button.callback("Seleccionar servicio", "svc_view")],
+    [Markup.button.callback("Listar mis servicios", "svc_list")],
+    [Markup.button.callback("\u2190 Volver al menú", "menu_back")],
   ]);
 }
 
 export function buildServiceListKeyboard(
   services: Service[],
   page: number,
-  callbackPrefix: string
+  callbackPrefix: string,
 ) {
   const start = page * SERVICES_PER_PAGE;
   const end = start + SERVICES_PER_PAGE;
@@ -29,12 +30,15 @@ export function buildServiceListKeyboard(
     const row = [];
     const service1 = pageServices[i];
     row.push(
-      Markup.button.callback(service1.name, `${callbackPrefix}:${service1.id}`)
+      Markup.button.callback(service1.name, `${callbackPrefix}:${service1.id}`),
     );
     if (i + 1 < pageServices.length) {
       const service2 = pageServices[i + 1];
       row.push(
-        Markup.button.callback(service2.name, `${callbackPrefix}:${service2.id}`)
+        Markup.button.callback(
+          service2.name,
+          `${callbackPrefix}:${service2.id}`,
+        ),
       );
     }
     rows.push(row);
@@ -43,17 +47,21 @@ export function buildServiceListKeyboard(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const navRow: any[] = [];
   if (page > 0) {
-    navRow.push(Markup.button.callback("← Anterior", `svc_pg:${page - 1}`));
+    navRow.push(
+      Markup.button.callback("← Página anterior", `svc_pg:${page - 1}`),
+    );
   }
   if (end < services.length) {
-    navRow.push(Markup.button.callback("Más →", `svc_pg:${page + 1}`));
+    navRow.push(
+      Markup.button.callback("Página siguiente →", `svc_pg:${page + 1}`),
+    );
   }
 
   if (navRow.length > 0) {
     rows.push(navRow);
   }
 
-  rows.push([Markup.button.callback("Volver", "svc_back")]);
+  rows.push([Markup.button.callback("\u2190 Volver a servicios", "svc_back")]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -61,7 +69,7 @@ export function buildServiceListKeyboard(
 export function buildServiceActionKeyboard(
   serviceId: string,
   hasInstallment: boolean,
-  isPaid: boolean
+  isPaid: boolean,
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: any[][] = [];
@@ -79,15 +87,23 @@ export function buildServiceActionKeyboard(
     Markup.button.callback("Modificar", `svc_edit:${serviceId}`),
   ]);
 
-  rows.push([Markup.button.callback("Volver", "svc_view")]);
+  rows.push([Markup.button.callback("\u2190 Volver a selección", "svc_view")]);
   return Markup.inlineKeyboard(rows);
 }
 
-export function buildServiceEditKeyboard(serviceId: string) {
+export function buildServiceEditKeyboard(
+  serviceId: string,
+  serviceName: string,
+) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Cambiar nombre", `svc_edit_name:${serviceId}`)],
     [Markup.button.callback("Eliminar", `svc_delete:${serviceId}`)],
-    [Markup.button.callback("Volver", "svc_back")],
+    [
+      Markup.button.callback(
+        `Volver a ${serviceName}`,
+        `svc_back_svc:${serviceId}`,
+      ),
+    ],
   ]);
 }
 
@@ -107,21 +123,25 @@ export function buildMonthKeyboard(serviceId: string) {
     ]);
   }
 
-  months.push([Markup.button.callback("Volver", "svc_back")]);
+  months.push([
+    Markup.button.callback("\u2190 Volver a servicios", "svc_back"),
+  ]);
 
   return Markup.inlineKeyboard(months);
 }
 
 export function buildFilteredMonthKeyboard(
   availableMonths: string[],
-  serviceId: string
+  serviceId: string,
 ) {
   const rows = availableMonths.map((dueMonth) => {
     const [year, month] = dueMonth.split("-");
     const label = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-    return [Markup.button.callback(label, `svc_month:${serviceId}:${dueMonth}`)];
+    return [
+      Markup.button.callback(label, `svc_month:${serviceId}:${dueMonth}`),
+    ];
   });
-  rows.push([Markup.button.callback("Volver", "svc_back")]);
+  rows.push([Markup.button.callback("\u2190 Volver a servicios", "svc_back")]);
   return Markup.inlineKeyboard(rows);
 }
 
@@ -145,7 +165,7 @@ export function buildDeleteConfirmKeyboard(serviceId: string) {
 
 export function buildServiceViewText(
   services: Service[],
-  installmentsByServiceId: Record<string, ServiceInstallment | null>
+  installmentsByServiceId: Record<string, ServiceInstallment | null>,
 ): string {
   if (services.length === 0) {
     return "No hay servicios registrados.\nUsa /servicios para crear uno.";
@@ -159,9 +179,9 @@ export function buildServiceViewText(
       const dueDate = installment.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
       const month = String(dueDate.getMonth() + 1).padStart(2, "0");
-      const dueLine = installment.isPaid ?
-        `• ${service.name}  ${formatARS(installment.amount)} (Pagado) ✅` :
-        `• ${service.name}  ${formatARS(installment.amount)} (vence ${day}/${month})`;
+      const dueLine = installment.isPaid
+        ? `• ${service.name}  ${formatARS(installment.amount)} (Pagado) ✅`
+        : `• ${service.name}  ${formatARS(installment.amount)} (vence ${day}/${month})`;
       lines.push(dueLine);
     } else {
       lines.push(`• ${service.name}  Sin cuota este mes`);
@@ -171,11 +191,15 @@ export function buildServiceViewText(
   return lines.join("\n");
 }
 
-export function buildInstallmentDetailText(installment: ServiceInstallment): string {
+export function buildInstallmentDetailText(
+  installment: ServiceInstallment,
+): string {
   const dueDate = installment.dueDate.toDate();
   const day = String(dueDate.getDate()).padStart(2, "0");
   const month = String(dueDate.getMonth() + 1).padStart(2, "0");
-  const statusLine = installment.isPaid ? "Estado: ✅ Pagado" : "Estado: Pendiente";
+  const statusLine = installment.isPaid
+    ? "Estado: ✅ Pagado"
+    : "Estado: Pendiente";
 
   return (
     `*Cuota: ${installment.serviceName}*\n\n` +
@@ -190,14 +214,18 @@ export function buildInstallmentDetailKeyboard(
   isPaid: boolean,
   hasReceipt: boolean,
   hasInvoice: boolean,
-  backCallback = "svc_back"
+  backCallback = "svc_back",
+  backLabel = "Volver",
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: any[][] = [];
 
   rows.push([
     Markup.button.callback("Modificar monto", `svc_edit_amt:${installmentId}`),
-    Markup.button.callback("Cambiar vencimiento", `svc_edit_day:${installmentId}`),
+    Markup.button.callback(
+      "Cambiar vencimiento",
+      `svc_edit_day:${installmentId}`,
+    ),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -205,19 +233,25 @@ export function buildInstallmentDetailKeyboard(
 
   if (!isPaid) {
     conditionalBtns.push(
-      Markup.button.callback("Marcar como pagado", `svc_pay:${installmentId}`)
+      Markup.button.callback("Marcar como pagado", `svc_pay:${installmentId}`),
     );
   }
 
   if (!hasInvoice) {
     conditionalBtns.push(
-      Markup.button.callback("Agregar factura", `svc_attach_inv:${installmentId}`)
+      Markup.button.callback(
+        "Agregar factura",
+        `svc_attach_inv:${installmentId}`,
+      ),
     );
   }
 
   if (!hasReceipt) {
     conditionalBtns.push(
-      Markup.button.callback("Agregar comprobante", `svc_attach:${installmentId}`)
+      Markup.button.callback(
+        "Agregar comprobante",
+        `svc_attach:${installmentId}`,
+      ),
     );
   }
 
@@ -227,15 +261,15 @@ export function buildInstallmentDetailKeyboard(
     rows.push(row);
   }
 
-  rows.push([Markup.button.callback("Volver", backCallback)]);
+  rows.push([Markup.button.callback(backLabel, backCallback)]);
   return Markup.inlineKeyboard(rows);
 }
-
 
 export function buildInstallmentListKeyboard(
   installments: ServiceInstallment[],
   page: number,
-  serviceId: string
+  serviceId: string,
+  serviceName: string,
 ) {
   const start = page * INSTALLMENTS_PER_PAGE;
   const end = start + INSTALLMENTS_PER_PAGE;
@@ -264,19 +298,30 @@ export function buildInstallmentListKeyboard(
   const navRow: any[] = [];
   if (page > 0) {
     navRow.push(
-      Markup.button.callback("← Anterior", `svc_cuotas_pg:${serviceId}:${page - 1}`)
+      Markup.button.callback(
+        "← Página anterior",
+        `svc_cuotas_pg:${serviceId}:${page - 1}`,
+      ),
     );
   }
   if (end < installments.length) {
     navRow.push(
-      Markup.button.callback("Más →", `svc_cuotas_pg:${serviceId}:${page + 1}`)
+      Markup.button.callback(
+        "Página siguiente →",
+        `svc_cuotas_pg:${serviceId}:${page + 1}`,
+      ),
     );
   }
   if (navRow.length > 0) {
     rows.push(navRow);
   }
 
-  rows.push([Markup.button.callback("Volver a Servicio", `svc_back_svc:${serviceId}`)]);
+  rows.push([
+    Markup.button.callback(
+      `Volver a ${serviceName}`,
+      `svc_back_svc:${serviceId}`,
+    ),
+  ]);
   return Markup.inlineKeyboard(rows);
 }
 

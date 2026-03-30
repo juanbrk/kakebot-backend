@@ -2,16 +2,25 @@ import { Telegraf, Markup, Context } from "telegraf";
 import { Expense, Session, PendingDescEntry } from "../../types/index";
 import { getDb } from "../../services/db";
 import {
-  getSession, setSession, clearSession,
+  getSession,
+  setSession,
+  clearSession,
 } from "../../services/session.service";
 import {
-  fetchExpenseCategories, assignCategoryToDesc, advanceOrFinish,
+  fetchExpenseCategories,
+  assignCategoryToDesc,
+  advanceOrFinish,
 } from "../../services/category.service";
-import { buildCategoryKeyboard, buildExpensePromptText } from "../keyboards/category";
+import {
+  buildCategoryKeyboard,
+  buildExpensePromptText,
+} from "../keyboards/category";
+import { replyOrEdit } from "../../helpers/telegram";
+import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 async function startCategorizationFlow(
   ctx: Context,
-  telegramUserId: string
+  telegramUserId: string,
 ): Promise<void> {
   const uncategorizedSnapshot = await getDb()
     .collection("expenses")
@@ -20,7 +29,9 @@ async function startCategorizationFlow(
     .get();
 
   if (uncategorizedSnapshot.empty) {
-    await ctx.reply("No tenés gastos sin categorizar. 🎉");
+    await ctx.reply("No tenés gastos sin categorizar.", {
+      parse_mode: "Markdown",
+    });
     return;
   }
 
@@ -45,7 +56,8 @@ async function startCategorizationFlow(
   const firstDescKey = pendingDescsKeys[0];
   const firstDescData = groupedDescs[firstDescKey];
 
-  const pendingDescsData: PendingDescEntry[] = pendingDescsKeys.slice(1)
+  const pendingDescsData: PendingDescEntry[] = pendingDescsKeys
+    .slice(1)
     .map((key) => ({
       normalizedDesc: key,
       displayName: groupedDescs[key].displayName,
@@ -59,7 +71,7 @@ async function startCategorizationFlow(
     firstDescData.displayName,
     firstDescData.totalAmount,
     1,
-    total
+    total,
   );
 
   const sentMessage = await ctx.reply(messageText, {
@@ -105,8 +117,9 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
 
     const session = await getSession(telegramUserId);
     if (!session) {
-      await ctx.editMessageText(
-        "Esta sesión ya no está activa. Usá /categorizar para empezar."
+      await replyOrEdit(
+        ctx,
+        "Esta sesión ya no está activa. Usá /categorizar para empezar.",
       );
       return;
     }
@@ -115,9 +128,9 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
       .collection("categories")
       .doc(categoryId)
       .get();
-    const categoryName = categoryDoc.exists ?
-      (categoryDoc.data()?.name as string) :
-      categoryId;
+    const categoryName = categoryDoc.exists
+      ? (categoryDoc.data()?.name as string)
+      : categoryId;
 
     const updatedSession = await assignCategoryToDesc(
       telegramUserId,
@@ -125,7 +138,7 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
       session.currentDisplayName,
       categoryId,
       categoryName,
-      session
+      session,
     );
 
     await advanceOrFinish(ctx, updatedSession);
@@ -139,8 +152,9 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
 
     const session = await getSession(telegramUserId);
     if (!session) {
-      await ctx.editMessageText(
-        "Esta sesión ya no está activa. Usá /categorizar para empezar."
+      await replyOrEdit(
+        ctx,
+        "Esta sesión ya no está activa. Usá /categorizar para empezar.",
       );
       return;
     }
@@ -160,8 +174,9 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
     const session = await getSession(telegramUserId);
 
     if (!session) {
-      await ctx.editMessageText(
-        "Esta sesión ya no está activa. Usá /categorizar para empezar."
+      await replyOrEdit(
+        ctx,
+        "Esta sesión ya no está activa. Usá /categorizar para empezar.",
       );
       return;
     }
@@ -171,16 +186,19 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
       state: "awaiting_new_category_name",
     });
 
-    await ctx.editMessageText(
-      `Nueva categoría para "${session.currentDisplayName}":\n\n` +
-      "Escribí el nombre de la nueva categoría.\n" +
-      "_Enviá la palabra cancelar para salir._",
+    const breadcrumb = buildBreadcrumb(["Gasto", "Nueva categoría"]);
+    await replyOrEdit(
+      ctx,
+      breadcrumb +
+        `*Nueva categoría para "${session.currentDisplayName}"*:\n\n` +
+        "Escribí el nombre de la nueva categoría.\n" +
+        "_Enviá la palabra cancelar para salir._",
       {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([
           [Markup.button.callback("Cancelar", "cat_cancel")],
         ]),
-      }
+      },
     );
   });
 
@@ -190,9 +208,10 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
     const telegramUserId = ctx.from?.id.toString() || "";
     await clearSession(telegramUserId);
 
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       "Categorización cancelada." +
-      " Los gastos sin categorizar quedan para después."
+        " Los gastos sin categorizar quedan para después.",
     );
   });
 }
