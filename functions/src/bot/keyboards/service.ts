@@ -9,8 +9,21 @@ export function buildServicesSubmenuKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Añadir servicio", "svc_add")],
     [Markup.button.callback("Seleccionar servicio", "svc_view")],
-    [Markup.button.callback("Listar mis servicios", "svc_list")],
+    [Markup.button.callback("Mis servicios", "svc_my_services")],
     [Markup.button.callback("\u2190 Volver al menú", "menu_back")],
+  ]);
+}
+
+/**
+ * Builds the "Mis servicios" submenu keyboard with list and upcoming options.
+ *
+ * @return {Markup} Inline keyboard markup
+ */
+export function buildMyServicesSubmenuKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Listar servicios", "svc_list")],
+    [Markup.button.callback("Próximos vencimientos", "svc_upcoming")],
+    [Markup.button.callback("\u2190 Volver a servicios", "menu_servicios")],
   ]);
 }
 
@@ -100,7 +113,7 @@ export function buildServiceEditKeyboard(
     [Markup.button.callback("Eliminar", `svc_delete:${serviceId}`)],
     [
       Markup.button.callback(
-        `Volver a ${serviceName}`,
+        `\u2190 Volver a ${serviceName}`,
         `svc_back_svc:${serviceId}`,
       ),
     ],
@@ -141,7 +154,6 @@ export function buildFilteredMonthKeyboard(
       Markup.button.callback(label, `svc_month:${serviceId}:${dueMonth}`),
     ];
   });
-  rows.push([Markup.button.callback("\u2190 Volver a servicios", "svc_back")]);
   return Markup.inlineKeyboard(rows);
 }
 
@@ -318,7 +330,7 @@ export function buildInstallmentListKeyboard(
 
   rows.push([
     Markup.button.callback(
-      `Volver a ${serviceName}`,
+      `\u2190 Volver a ${serviceName}`,
       `svc_back_svc:${serviceId}`,
     ),
   ]);
