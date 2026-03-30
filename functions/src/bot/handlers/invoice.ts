@@ -18,6 +18,8 @@ import {
   buildInvoiceMonthKeyboard,
 } from "../keyboards/invoice";
 import { MONTH_NAMES } from "../../helpers/format";
+import { replyOrEdit } from "../../helpers/telegram";
+import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 export function registerInvoiceHandler(bot: Telegraf<Context>): void {
   bot.action("doc_type_invoice", handleDocTypeInvoice);
@@ -41,7 +43,10 @@ async function handleDocTypeInvoice(ctx: Context): Promise<void> {
       >),
       state: "invoice_awaiting_name",
     });
-    await ctx.editMessageText(
+    const breadcrumb = buildBreadcrumb(["Factura"]);
+    await replyOrEdit(
+      ctx,
+      breadcrumb +
       "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
         "_Enviá la palabra cancelar para salir._",
       { parse_mode: "Markdown" },
@@ -57,11 +62,13 @@ async function handleDocTypeInvoice(ctx: Context): Promise<void> {
     });
   }
 
+  const breadcrumb = buildBreadcrumb(["Factura"]);
   const keyboard = buildInvoiceServiceListKeyboard(services);
-  await ctx.editMessageText(
-    "¿A qué servicio corresponde esta factura?",
-    keyboard,
-  );
+  await replyOrEdit(ctx, breadcrumb + "¿A qué servicio corresponde esta factura?", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
@@ -72,17 +79,19 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
+    await replyOrEdit(ctx, "Error: no se encontró el archivo pendiente.");
     return;
   }
-
-  const service = await getServiceById(serviceId);
-  const serviceName = service?.name || "";
 
   const now = new Date();
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${monthStr}`;
-  const installment = await getInstallment(serviceId, dueMonth);
+
+  const [service, installment] = await Promise.all([
+    getServiceById(serviceId),
+    getInstallment(serviceId, dueMonth),
+  ]);
+  const serviceName = service?.name || "";
 
   if (installment) {
     await attachInvoiceToInstallment(
@@ -101,8 +110,13 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
     serviceName,
   });
 
+  const invBreadcrumb = buildBreadcrumb(["Factura", serviceName]);
   const keyboard = buildInvoiceMonthKeyboard(serviceId);
-  await ctx.editMessageText("¿A qué mes corresponde la factura?", keyboard);
+  await replyOrEdit(ctx, invBreadcrumb + "¿A qué mes corresponde la factura?", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
@@ -115,7 +129,7 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
+    await replyOrEdit(ctx, "Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -137,8 +151,13 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
-  await ctx.editMessageText(
-    "¿Qué día vence ? (1-31)\n" + "_Enviá la palabra cancelar para salir._",
+  const monthBreadcrumb = buildBreadcrumb([
+    "Factura", session.serviceName || "", getMonthLabel(dueMonth, true),
+  ]);
+  await replyOrEdit(
+    ctx,
+    monthBreadcrumb +
+    "¿Qué día vence?\n_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 }
@@ -149,7 +168,7 @@ async function handleNewServiceForInvoice(ctx: Context): Promise<void> {
 
   const session = await getSession(telegramUserId);
   if (!session?.pendingFileId) {
-    await ctx.editMessageText("Error: no se encontró el archivo pendiente.");
+    await replyOrEdit(ctx, "Error: no se encontró el archivo pendiente.");
     return;
   }
 
@@ -158,9 +177,12 @@ async function handleNewServiceForInvoice(ctx: Context): Promise<void> {
     state: "invoice_awaiting_name",
   });
 
-  await ctx.editMessageText(
-    "¿Cómo se llama el servicio?\n_Ej: Expensas, Gas, Flow, Netflix_\n" +
-      "_Enviá la palabra cancelar para salir._",
+  const newSvcBreadcrumb = buildBreadcrumb(["Factura", "Nuevo servicio"]);
+  await replyOrEdit(
+    ctx,
+    newSvcBreadcrumb
+    + "¿Cómo se llama el servicio?\n_Ej: Expensas, Gas, Flow, Netflix_\n"
+    + "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 }
@@ -183,7 +205,7 @@ async function handleInvoiceCancel(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
   await clearSession(telegramUserId);
-  await ctx.editMessageText("Carga de factura cancelada.");
+  await replyOrEdit(ctx, "Carga de factura cancelada.");
 }
 
 export async function attachInvoiceToInstallment(
@@ -217,10 +239,10 @@ export async function attachInvoiceToInstallment(
 
     await saveInvoiceUrl(installmentId, invoiceUrl);
     await clearSession(telegramUserId);
-    await ctx.editMessageText(successMessage);
+    await replyOrEdit(ctx, successMessage);
   } catch (error) {
     console.error("Error uploading invoice:", error);
-    await ctx.editMessageText("Error al guardar la factura. Intentá de nuevo.");
+    await replyOrEdit(ctx, "Error al guardar la factura. Intentá de nuevo.");
   }
 }
 

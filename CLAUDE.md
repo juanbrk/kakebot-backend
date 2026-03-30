@@ -34,6 +34,7 @@ firebase deploy --only functions  # Deploy to production
 | `shared/code-docs.md` | Documentation philosophy, naming conventions |
 | `shared/guard-conditions.md` | Guard clauses, named preconditions pattern |
 | `shared/firestore-indexes.md` | Composite index creation & verification for Firestore |
+| `shared/session-data-reuse.md` | Avoid redundant Firestore reads; cache in session, use Promise.all |
 | `shared/memory-decisions.md` | Past decisions for consistency |
 | `shared/memory-sessions.md` | Rolling summary of recent work |
 

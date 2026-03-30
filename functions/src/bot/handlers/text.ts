@@ -5,7 +5,7 @@ import {
 } from "../../services/session.service";
 import { handleNewCategoryInput, advanceOrFinish } from "../../services/category.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
-import { formatARS } from "../../helpers/format";
+import { formatARS, getDaysInMonth } from "../../helpers/format";
 import {
   isBulkMessage, parseBulkLines, buildBulkConfirmText, MAX_BULK_LINES,
 } from "../../helpers/bulk-parse";
@@ -449,9 +449,11 @@ async function handleServiceDay(
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  const selectedMonth = session.selectedMonth || "";
+  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
     return;
   }
 
@@ -521,9 +523,11 @@ async function handleEditServiceDayText(
   const day = parseInt(dayStr, 10);
   const installmentId = session.installmentId || "";
 
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  const selectedMonth = session.selectedMonth || "";
+  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
     return;
   }
 
@@ -571,9 +575,11 @@ async function handleInvoiceDay(
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  const selectedMonth = session.selectedMonth || "";
+  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
     return;
   }
 
@@ -671,9 +677,11 @@ async function handleCompDay(
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  const selectedMonth = session.selectedMonth || "";
+  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
     return;
   }
 

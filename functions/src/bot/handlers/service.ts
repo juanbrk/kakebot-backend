@@ -30,10 +30,29 @@ import {
   buildFilteredMonthKeyboard,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { getMonthLabel } from "./invoice";
+
+/**
+ * Gets the service name from session cache, falling back to Firestore.
+ *
+ * @param {string} telegramUserId - User's Telegram ID
+ * @param {string} serviceId - Service document ID
+ * @return {string | null} Service name, or null if not found
+ */
+async function getServiceNameCached(
+  telegramUserId: string,
+  serviceId: string
+): Promise<string | null> {
+  const session = await getSession(telegramUserId);
+  if (session?.serviceId === serviceId && session?.serviceName) {
+    return session.serviceName;
+  }
+  const service = await getServiceById(serviceId);
+  return service?.name || null;
+}
 
 export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.command("servicios", openServicesMenu);
@@ -164,13 +183,18 @@ async function handleListServices(ctx: Context): Promise<void> {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${month}`;
 
+  const installmentEntries = await Promise.all(
+    services.map(async (svc) => {
+      const installment = await getInstallment(svc.id || "", dueMonth);
+      return [svc.id || "", installment] as const;
+    })
+  );
   const installmentsByServiceId: Record<
     string,
     import("../../types/index").ServiceInstallment | null
   > = {};
-  for (const service of services) {
-    const installment = await getInstallment(service.id || "", dueMonth);
-    installmentsByServiceId[service.id || ""] = installment;
+  for (const [id, installment] of installmentEntries) {
+    installmentsByServiceId[id] = installment;
   }
 
   const text = buildServiceViewText(services, installmentsByServiceId);
@@ -180,19 +204,29 @@ async function handleListServices(ctx: Context): Promise<void> {
 async function handlePickServiceForAction(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const service = await getServiceById(serviceId);
+  const now = new Date();
+  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${monthStr}`;
+
+  const [service, installment] = await Promise.all([
+    getServiceById(serviceId),
+    getInstallment(serviceId, dueMonth),
+  ]);
+
   if (!service) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
-  const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const dueMonth = `${now.getFullYear()}-${monthStr}`;
-  const installment = await getInstallment(serviceId, dueMonth);
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    serviceId,
+    serviceName: service.name,
+  });
 
   let title = `*${service.name}*`;
   if (installment) {
@@ -281,9 +315,10 @@ async function handleMonthSelected(ctx: Context): Promise<void> {
     selectedMonth: dueMonth,
   });
 
+  const maxDay = getDaysInMonth(dueMonth);
   await replyOrEdit(
     ctx,
-    `*¿Qué día de ${getMonthLabel(dueMonth, true)} vence el servicio? (1-31)*`,
+    `*¿Qué día de ${getMonthLabel(dueMonth, true)} vence el servicio? (1-${maxDay})*`,
     {
       parse_mode: "Markdown",
     },
@@ -317,14 +352,18 @@ async function handleReplaceDuplicate(ctx: Context): Promise<void> {
   const dayStr = (session.partialDescription || "").trim();
   const day = parseInt(dayStr, 10);
 
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const selectedMonth = session.selectedMonth!;
+  const maxDay = getDaysInMonth(selectedMonth);
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
-    await ctx.editMessageText("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.editMessageText(
+      `Día inválido. Ingresá un número entre 1 y ${maxDay}.`
+    );
     return;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const [year, month] = session.selectedMonth!.split("-");
+  const [year, month] = selectedMonth.split("-");
   const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
 
   await replaceInstallment(installmentId, amount, dueDate);
@@ -342,20 +381,21 @@ async function handleReplaceDuplicate(ctx: Context): Promise<void> {
 async function handleEditService(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const service = await getServiceById(serviceId);
-  if (!service) {
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  if (!serviceName) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
-  const breadcrumb = buildBreadcrumb(["Servicios", service.name, "Modificar"]);
-  const keyboard = buildServiceEditKeyboard(serviceId, service.name);
+  const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Modificar"]);
+  const keyboard = buildServiceEditKeyboard(serviceId, serviceName);
   await replyOrEdit(
     ctx,
-    breadcrumb + `¿Qué deseas hacer con *${service.name}*?`,
+    breadcrumb + `¿Qué deseas hacer con *${serviceName}*?`,
     {
       parse_mode: "Markdown",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -371,8 +411,8 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 
   await ctx.answerCbQuery();
 
-  const service = await getServiceById(serviceId);
-  if (!service) {
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  if (!serviceName) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
@@ -409,11 +449,11 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     ...emptySessionForPartial(telegramUserId),
     state: "svc_awaiting_amount",
     serviceId,
-    serviceName: service.name,
+    serviceName,
   });
 
   await ctx.editMessageText(
-    `*Vas a agregar una nueva cuota para ${service.name}*\n` +
+    `*Vas a agregar una nueva cuota para ${serviceName}*\n` +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
@@ -429,11 +469,12 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 async function handleEditInstallment(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const service = await getServiceById(serviceId);
-  if (!service) {
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  if (!serviceName) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
@@ -446,14 +487,14 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
   if (!installment) {
     await replyOrEdit(
       ctx,
-      `No hay cuota registrada para ${service.name} este mes.`,
+      `No hay cuota registrada para ${serviceName} este mes.`,
     );
     return;
   }
 
   const breadcrumb = buildBreadcrumb([
     "Servicios",
-    service.name,
+    serviceName,
     "Cuota detalle",
   ]);
   const text = buildInstallmentDetailText(installment);
@@ -465,7 +506,7 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
     hasReceipt,
     hasInvoice,
     `svc_back_svc:${serviceId}`,
-    `Volver a ${service.name}`,
+    `Volver a ${serviceName}`,
   );
   await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
@@ -592,7 +633,7 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
   const telegramUserId = ctx.from?.id.toString() || "";
-  const service = await getServiceById(serviceId);
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
 
   await ctx.answerCbQuery();
 
@@ -603,7 +644,7 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
   });
 
   await ctx.editMessageText(
-    `*Vas a cambiar el nombre de ${service?.name}*\n 
+    `*Vas a cambiar el nombre de ${serviceName}*\n
       "_Escribí cancelar en cualquier momento para salir._`,
     { parse_mode: "Markdown" },
   );
@@ -616,19 +657,20 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
 async function handleDeleteService(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const service = await getServiceById(serviceId);
-  if (!service) {
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  if (!serviceName) {
     await ctx.editMessageText("Servicio no encontrado.");
     return;
   }
 
-  const breadcrumb = buildBreadcrumb(["Servicios", service.name, "Eliminar"]);
+  const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Eliminar"]);
   const keyboard = buildDeleteConfirmKeyboard(serviceId);
   await ctx.editMessageText(
-    breadcrumb + `*¿Eliminar ${service.name}?*\nSe borrarán todas sus cuotas.`,
+    breadcrumb + `*¿Eliminar ${serviceName}?*\nSe borrarán todas sus cuotas.`,
     { parse_mode: "Markdown", ...keyboard },
   );
 }
@@ -636,13 +678,15 @@ async function handleDeleteService(ctx: Context): Promise<void> {
 async function handleConfirmDelete(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const service = await getServiceById(serviceId);
-  if (service) {
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  if (serviceName) {
     await deleteService(serviceId);
-    await ctx.editMessageText(`✅ Servicio '${service.name}' eliminado.`);
+    await clearSession(telegramUserId);
+    await ctx.editMessageText(`✅ Servicio '${serviceName}' eliminado.`);
   }
 }
 
@@ -675,10 +719,14 @@ async function handleEditInstallmentDay(ctx: Context): Promise<void> {
 
   await ctx.answerCbQuery();
 
+  const installment = await getInstallmentById(installmentId);
+  const selectedMonth = installment?.dueMonth || "";
+
   await setSession(telegramUserId, {
     ...emptySessionForPartial(telegramUserId),
     state: "svc_awaiting_edit_day",
     installmentId,
+    selectedMonth,
   });
 
   await ctx.editMessageText(
@@ -745,8 +793,8 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
-  const [service, installments] = await Promise.all([
-    getServiceById(serviceId),
+  const [serviceName, installments] = await Promise.all([
+    getServiceNameCached(telegramUserId, serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
 
@@ -760,27 +808,31 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
     installments,
     0,
     serviceId,
-    service?.name || serviceId,
+    serviceName || serviceId,
   );
 }
 
 async function handleBackToServiceAction(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
+  const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
-
-  const service = await getServiceById(serviceId);
-  if (!service) {
-    await ctx.editMessageText("Servicio no encontrado.");
-    return;
-  }
 
   const now = new Date();
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${monthStr}`;
-  const installment = await getInstallment(serviceId, dueMonth);
 
-  let title = `*${service.name}*`;
+  const [serviceName, installment] = await Promise.all([
+    getServiceNameCached(telegramUserId, serviceId),
+    getInstallment(serviceId, dueMonth),
+  ]);
+
+  if (!serviceName) {
+    await ctx.editMessageText("Servicio no encontrado.");
+    return;
+  }
+
+  let title = `*${serviceName}*`;
   if (installment) {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
@@ -788,10 +840,10 @@ async function handleBackToServiceAction(ctx: Context): Promise<void> {
     const dueSuffix = installment.isPaid
       ? "(Pagado) ✅"
       : `(vence ${day}/${mo})`;
-    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
+    title = `*${serviceName}* ${formatARS(installment.amount)} ${dueSuffix}`;
   }
 
-  const breadcrumb = buildBreadcrumb(["Servicios", service.name]);
+  const breadcrumb = buildBreadcrumb(["Servicios", serviceName]);
   const hasInstallment = installment !== null;
   const isPaid = installment?.isPaid ?? false;
   const keyboard = buildServiceActionKeyboard(
@@ -814,8 +866,8 @@ async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
-  const [service, installments] = await Promise.all([
-    getServiceById(serviceId),
+  const [serviceName, installments] = await Promise.all([
+    getServiceNameCached(telegramUserId, serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
   await renderInstallmentsList(
@@ -823,7 +875,7 @@ async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
     installments,
     page,
     serviceId,
-    service?.name || serviceId,
+    serviceName || serviceId,
   );
 }
 

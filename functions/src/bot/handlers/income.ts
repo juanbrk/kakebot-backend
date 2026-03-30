@@ -1,9 +1,13 @@
 import { Telegraf, Context } from "telegraf";
 import {
-  getSession, clearSession, setSession, emptySessionForPartial,
+  getSession,
+  clearSession,
+  setSession,
+  emptySessionForPartial,
 } from "../../services/session.service";
 import { saveIncome } from "../../services/income.service";
 import { formatARS } from "../../helpers/format";
+import { replyOrEdit } from "../../helpers/telegram";
 
 /**
  * Registers all income-related handlers.
@@ -31,9 +35,9 @@ async function handleIncomeCommand(ctx: Context): Promise<void> {
   });
 
   await ctx.reply(
-    "*Ingresa el monto percibido*\n" +
-    "_Escribí \"cancelar\" o \"salir\" para anular._",
-    { parse_mode: "Markdown" }
+    `*Ingresa el monto percibido* 
+      _Escribí "cancelar" o "salir" para anular._`,
+    { parse_mode: "Markdown" },
   );
 }
 
@@ -52,10 +56,12 @@ async function handleIncomeFromMenu(ctx: Context): Promise<void> {
   });
 
   await ctx.editMessageText(
-    "*Ingresa el monto percibido*\n" +
-    "_Escribí \"cancelar\" o \"salir\" para anular._",
-    { parse_mode: "Markdown" }
+    "*Estás registrando un nuevo ingreso*\n" +
+      "_Escribí cancelar en cualquier momento para salir._",
+    { parse_mode: "Markdown" },
   );
+
+  await ctx.reply("*Ingresa el monto percibido*", { parse_mode: "Markdown" });
 }
 
 /**
@@ -69,12 +75,10 @@ async function handleIncomeConfirm(ctx: Context): Promise<void> {
   const session = await getSession(telegramUserId);
 
   const hasRequiredIncomeData =
-    session &&
-    session.partialAmount &&
-    session.partialDescription;
+    session && session.partialAmount && session.partialDescription;
 
   if (!hasRequiredIncomeData) {
-    await ctx.editMessageText("Error: datos de sesión incompletos.");
+    await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
     return;
   }
 
@@ -84,8 +88,9 @@ async function handleIncomeConfirm(ctx: Context): Promise<void> {
   await clearSession(telegramUserId);
   await saveIncome(telegramUserId, amount, reason);
 
-  await ctx.editMessageText(
-    `✅ Ingreso registrado: ${reason}  ${formatARS(amount)}`
+  await replyOrEdit(
+    ctx,
+    `✅ Ingreso registrado: ${reason}  ${formatARS(amount)}`,
   );
 }
 
@@ -99,5 +104,5 @@ async function handleIncomeCancel(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
 
   await clearSession(telegramUserId);
-  await ctx.editMessageText("Ingreso anulado.");
+  await replyOrEdit(ctx, "Ingreso anulado.");
 }

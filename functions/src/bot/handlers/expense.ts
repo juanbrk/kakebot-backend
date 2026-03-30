@@ -1,6 +1,7 @@
 import { Telegraf, Context } from "telegraf";
 import { saveExpense } from "../../services/expense.service";
 import { formatARS } from "../../helpers/format";
+import { replyOrEdit } from "../../helpers/telegram";
 
 export function registerExpenseHandler(bot: Telegraf<Context>): void {
   bot.action(/^confirm:(.+):(.+)$/, async (ctx) => {
@@ -18,13 +19,14 @@ export function registerExpenseHandler(bot: Telegraf<Context>): void {
       ` (${categoryId})` :
       "";
 
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       `Gasto registrado: ${description} ${formatARS(amount)}${categoryLabel}`
     );
   });
 
   bot.action("cancel", async (ctx) => {
     await ctx.answerCbQuery();
-    await ctx.editMessageText("Gasto anulado.");
+    await replyOrEdit(ctx, "Gasto anulado.");
   });
 }
