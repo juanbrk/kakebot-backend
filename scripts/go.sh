@@ -29,7 +29,8 @@ select ENV in "Test (botitio_testitoBot)" "Prod (kakebot)" "Salir"; do
             cd "$FUNCTIONS_DIR" || exit 1
             "$FUNCTIONS_DIR/node_modules/.bin/concurrently" \
               "firebase emulators:start --only firestore,storage --import=../emulator-data --export-on-exit=../emulator-data" \
-              "node -r dotenv/config lib/dev.js"
+              "./node_modules/.bin/tsc --watch --preserveWatchOutput" \
+              "node --watch -r dotenv/config lib/dev.js"
             break
             ;;
 
