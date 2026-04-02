@@ -78,8 +78,7 @@ export function buildCardListKeyboard(cards: CreditCard[], page: number) {
     rows.push(navRow);
   }
 
-  rows.push([Markup.button.callback("Agregar tarjeta", "card_add")]);
-  rows.push([Markup.button.callback("← Volver al menú", "menu_back")]);
+  rows.push([Markup.button.callback("← Volver", "menu_tarjetas")]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -230,8 +229,8 @@ export function buildCardDetailText(
   const lines = [
     `*${label}*`,
     "",
-    `Vencimiento tarjeta: ${expiryStr}`,
-    `Procesador: ${card.processor}`,
+    `*Vencimiento tarjeta*: ${expiryStr}`,
+    `*Procesador*: ${card.processor}`,
   ];
 
   const now = new Date();
@@ -286,6 +285,33 @@ export function buildCardConfirmText({
     `Procesador: ${processor}\n` +
     `Vencimiento: ${expiry}`
   );
+}
+
+/**
+ * Hub keyboard for the cards main menu.
+ *
+ * @return {object} Inline keyboard markup
+ */
+export function buildCardsHubKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Mis tarjetas", "card_select"),
+      Markup.button.callback("Ver como listado", "card_list_view"),
+    ],
+    [Markup.button.callback("Añadir tarjeta", "card_add")],
+    [Markup.button.callback("← Volver al menú", "menu_back")],
+  ]);
+}
+
+/**
+ * Back keyboard for the card list view screen.
+ *
+ * @return {object} Inline keyboard markup
+ */
+export function buildCardListViewKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("← Volver a tarjetas", "menu_tarjetas")],
+  ]);
 }
 
 /**

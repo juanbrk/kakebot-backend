@@ -1,11 +1,8 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { formatARS, formatUSD, MONTH_NAMES } from "../helpers/format";
+import { formatARS, MONTH_NAMES } from "../helpers/format";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
-import {
-  getCardsByUser, getStatementsByUserAndMonth,
-} from "./card.service";
 
 export interface MonthlyReport {
   detail: string;
@@ -35,7 +32,7 @@ export async function generateMonthlyReport(
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${monthStr}`;
 
-  const [expensesSnapshot, services, installments, incomes, cards, cardStatements] =
+  const [expensesSnapshot, services, installments, incomes] =
     await Promise.all([
       getDb()
         .collection("expenses")
@@ -46,15 +43,12 @@ export async function generateMonthlyReport(
       getServicesByUser(telegramUserId),
       getInstallmentsForMonth(telegramUserId, dueMonth),
       getMonthlyIncomes(telegramUserId, startOfMonth, endOfMonth),
-      getCardsByUser(telegramUserId),
-      getStatementsByUserAndMonth(telegramUserId, dueMonth),
     ]);
 
   const hasNoData =
     expensesSnapshot.empty &&
     services.length === 0 &&
-    incomes.length === 0 &&
-    cards.length === 0;
+    incomes.length === 0;
   if (hasNoData) {
     return null;
   }
@@ -95,45 +89,6 @@ export async function generateMonthlyReport(
   detailLines.push(
     `*Reporte ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}*\n`,
   );
-
-  // --- TARJETAS section ---
-  let cardsTotalARS = 0;
-  let cardsTotalUSD = 0;
-
-  if (cards.length > 0) {
-    const statementByCardId = new Map(
-      cardStatements.map((stmt) => [stmt.cardId, stmt]),
-    );
-
-    const cardLines: string[] = [];
-
-    for (const card of cards) {
-      const stmt = statementByCardId.get(card.id || "");
-      const arsAmount = stmt?.amountARS ?? 0;
-      const usdAmount = stmt?.amountUSD ?? 0;
-      cardsTotalARS += arsAmount;
-      cardsTotalUSD += usdAmount;
-
-      const processorLabel = card.processor === "VISA" ? "Visa" : "Master";
-      const cardLabel =
-        `${processorLabel} ${card.lastFourDigits} - ${card.bank}`;
-
-      let cardLine = `  - ${cardLabel}: ${formatARS(arsAmount)}`;
-      if (usdAmount > 0) {
-        cardLine += ` + ${formatUSD(usdAmount)}`;
-      }
-      cardLines.push(cardLine);
-    }
-
-    let cardsSectionHeader = `*TARJETAS* ${formatARS(cardsTotalARS)}`;
-    if (cardsTotalUSD > 0) {
-      cardsSectionHeader += ` + ${formatUSD(cardsTotalUSD)}`;
-    }
-
-    detailLines.push(cardsSectionHeader);
-    detailLines.push(...cardLines);
-    detailLines.push("");
-  }
 
   const categoryTotals: { label: string; total: number }[] = [];
 
@@ -201,7 +156,7 @@ export async function generateMonthlyReport(
   }
 
   // --- Balance message ---
-  const egresosTotal = expensesTotal + servicesTotal + cardsTotalARS;
+  const egresosTotal = expensesTotal + servicesTotal;
   const balanceResult = incomesTotal - egresosTotal;
   const balanceEmoji = balanceResult >= 0 ? "🟢" : "🔴";
 
@@ -213,13 +168,6 @@ export async function generateMonthlyReport(
   balanceLines.push("");
   balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}`);
 
-  if (cardsTotalARS > 0) {
-    let tarjetasLine = ` • Tarjetas  ${formatARS(cardsTotalARS)}`;
-    if (cardsTotalUSD > 0) {
-      tarjetasLine += ` + ${formatUSD(cardsTotalUSD)}`;
-    }
-    balanceLines.push(tarjetasLine);
-  }
   if (servicesTotal > 0) {
     balanceLines.push(` • Servicios  ${formatARS(servicesTotal)}`);
   }

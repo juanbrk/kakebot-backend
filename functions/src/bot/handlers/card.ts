@@ -2,13 +2,18 @@ import { Telegraf, Context } from "telegraf";
 import { CreditCardProcessor, StatementCurrency } from "../../types/index";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { MONTH_NAMES } from "../../helpers/format";
-import { getSession, setSession, clearSession, emptySessionForPartial }
-  from "../../services/session.service";
+import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
+import {
+  getSession,
+  setSession,
+  clearSession,
+  emptySessionForPartial,
+} from "../../services/session.service";
 import {
   getCardsByUser,
   getCardById,
   getStatementByCardAndMonth,
+  getStatementsByUserAndMonth,
   createCard,
   createStatement,
 } from "../../services/card.service";
@@ -21,7 +26,21 @@ import {
   buildCardCurrencyKeyboard,
   buildCardStmtAfterCreateKeyboard,
   buildCardLabel,
+  buildCardsHubKeyboard,
+  buildCardListViewKeyboard,
 } from "../keyboards/card";
+
+async function handleCardsHub(ctx: Context): Promise<void> {
+  if (ctx.callbackQuery) {
+    await ctx.answerCbQuery();
+  }
+  const breadcrumb = buildBreadcrumb(["Tarjetas"]);
+
+  await replyOrEdit(ctx, `${breadcrumb}¿Qué querés hacer con tus tarjetas?`, {
+    parse_mode: "Markdown",
+    ...buildCardsHubKeyboard(),
+  });
+}
 
 async function handleOpenCards(ctx: Context): Promise<void> {
   if (ctx.callbackQuery) {
@@ -29,11 +48,12 @@ async function handleOpenCards(ctx: Context): Promise<void> {
   }
   const telegramUserId = String(ctx.from!.id);
   const cards = await getCardsByUser(telegramUserId);
-  const breadcrumb = buildBreadcrumb(["Tarjetas"]);
+  const breadcrumb = buildBreadcrumb(["Tarjetas", "Listado"]);
 
-  const text = cards.length > 0 ?
-    `${breadcrumb}Seleccioná una tarjeta:` :
-    `${breadcrumb}No hay tarjetas registradas.`;
+  const text =
+    cards.length > 0
+      ? `${breadcrumb}Seleccioná una tarjeta:`
+      : `${breadcrumb}No hay tarjetas registradas.`;
 
   await replyOrEdit(ctx, text, {
     parse_mode: "Markdown",
@@ -95,7 +115,7 @@ async function handleAddCard(ctx: Context): Promise<void> {
 
   await ctx.editMessageText(
     "*Vas a registrar una nueva tarjeta de crédito*\n" +
-    "_Enviá la palabra cancelar para salir._",
+      "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 
@@ -120,11 +140,9 @@ async function handleProcessorSelected(ctx: Context): Promise<void> {
     cardProcessor: processor,
   });
 
-  await replyOrEdit(
-    ctx,
-    "*Ingresá los últimos 4 dígitos de la tarjeta*",
-    { parse_mode: "Markdown" },
-  );
+  await replyOrEdit(ctx, "*Ingresá los últimos 4 dígitos de la tarjeta*", {
+    parse_mode: "Markdown",
+  });
 }
 
 async function handleCardConfirm(ctx: Context): Promise<void> {
@@ -133,11 +151,11 @@ async function handleCardConfirm(ctx: Context): Promise<void> {
   const session = await getSession(telegramUserId);
 
   const hasCardCreationData =
-    session
-    && session.partialDescription
-    && session.serviceName
-    && session.cardProcessor
-    && session.selectedMonth;
+    session &&
+    session.partialDescription &&
+    session.serviceName &&
+    session.cardProcessor &&
+    session.selectedMonth;
 
   if (!hasCardCreationData) {
     await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
@@ -152,7 +170,12 @@ async function handleCardConfirm(ctx: Context): Promise<void> {
   const expiryYear = 2000 + parseInt(yyStr, 10);
 
   const cardId = await createCard({
-    telegramUserId, lastFourDigits: digits, bank, processor, expiryMonth, expiryYear,
+    telegramUserId,
+    lastFourDigits: digits,
+    bank,
+    processor,
+    expiryMonth,
+    expiryYear,
   });
 
   await clearSession(telegramUserId);
@@ -160,10 +183,9 @@ async function handleCardConfirm(ctx: Context): Promise<void> {
   const processorLabel = processor === "VISA" ? "Visa" : "Master";
   const cardLabel = `${processorLabel} ${digits} - ${bank}`;
 
-  await ctx.reply(
-    `✅ Tarjeta *${cardLabel}* registrada.`,
-    { parse_mode: "Markdown" },
-  );
+  await ctx.reply(`✅ Tarjeta *${cardLabel}* registrada.`, {
+    parse_mode: "Markdown",
+  });
 
   await ctx.reply(
     "¿Deseas añadir un resumen mensual?",
@@ -201,17 +223,14 @@ async function handleStartStatement(ctx: Context): Promise<void> {
 
   await ctx.editMessageText(
     `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
-    "_Enviá la palabra cancelar para salir._",
+      "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 
-  await ctx.reply(
-    "*Seleccioná el mes del resumen*",
-    {
-      parse_mode: "Markdown",
-      ...buildCardStmtMonthKeyboard(cardId),
-    },
-  );
+  await ctx.reply("*Seleccioná el mes del resumen*", {
+    parse_mode: "Markdown",
+    ...buildCardStmtMonthKeyboard(cardId),
+  });
 }
 
 async function handleSkipStatement(ctx: Context): Promise<void> {
@@ -219,9 +238,7 @@ async function handleSkipStatement(ctx: Context): Promise<void> {
   const telegramUserId = String(ctx.from!.id);
   await clearSession(telegramUserId);
 
-  await ctx.reply(
-    "Podés agregar un resumen desde el detalle de la tarjeta.",
-  );
+  await ctx.reply("Podés agregar un resumen desde el detalle de la tarjeta.");
 }
 
 async function handleStatementMonthSelected(ctx: Context): Promise<void> {
@@ -248,17 +265,14 @@ async function handleStatementMonthSelected(ctx: Context): Promise<void> {
 
   await ctx.editMessageText(
     `*Vas a subir un resumen para ${monthLabel} de la tarjeta ${cardLabel}*\n` +
-    "_Enviá la palabra cancelar para salir._",
+      "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 
-  await ctx.reply(
-    "*¿El resumen tiene consumos en pesos, dólares o ambos?*",
-    {
-      parse_mode: "Markdown",
-      ...buildCardCurrencyKeyboard(),
-    },
-  );
+  await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
+    parse_mode: "Markdown",
+    ...buildCardCurrencyKeyboard(),
+  });
 }
 
 async function handleCurrencySelected(ctx: Context): Promise<void> {
@@ -276,11 +290,9 @@ async function handleCurrencySelected(ctx: Context): Promise<void> {
       statementCurrency: "ars",
       state: "card_stmt_awaiting_ars",
     });
-    await replyOrEdit(
-      ctx,
-      "*Ingresá el monto de los consumos en pesos*",
-      { parse_mode: "Markdown" },
-    );
+    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en pesos*", {
+      parse_mode: "Markdown",
+    });
   } else if (currency === "usd") {
     await setSession(telegramUserId, {
       ...session,
@@ -288,22 +300,18 @@ async function handleCurrencySelected(ctx: Context): Promise<void> {
       partialAmount: 0,
       state: "card_stmt_awaiting_usd",
     });
-    await replyOrEdit(
-      ctx,
-      "*Ingresá el monto de los consumos en dólares*",
-      { parse_mode: "Markdown" },
-    );
+    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en dólares*", {
+      parse_mode: "Markdown",
+    });
   } else {
     await setSession(telegramUserId, {
       ...session,
       statementCurrency: "both",
       state: "card_stmt_awaiting_ars",
     });
-    await replyOrEdit(
-      ctx,
-      "*Ingresá el monto de los consumos en pesos*",
-      { parse_mode: "Markdown" },
-    );
+    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en pesos*", {
+      parse_mode: "Markdown",
+    });
   }
 }
 
@@ -312,7 +320,9 @@ async function handleStatementCancel(ctx: Context): Promise<void> {
   const telegramUserId = String(ctx.from!.id);
   await clearSession(telegramUserId);
 
-  await ctx.reply("*Cancelaste la subida del resumen*.", { parse_mode: "Markdown" });
+  await ctx.reply("*Cancelaste la subida del resumen*.", {
+    parse_mode: "Markdown",
+  });
 }
 
 async function handleStatementConfirm(ctx: Context): Promise<void> {
@@ -321,11 +331,11 @@ async function handleStatementConfirm(ctx: Context): Promise<void> {
   const session = await getSession(telegramUserId);
 
   const hasStatementData =
-    session
-    && session.cardId
-    && session.statementMonth
-    && session.partialAmount !== undefined
-    && session.partialDescription;
+    session &&
+    session.cardId &&
+    session.statementMonth &&
+    session.partialAmount !== undefined &&
+    session.partialDescription;
 
   if (!hasStatementData) {
     await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
@@ -341,12 +351,15 @@ async function handleStatementConfirm(ctx: Context): Promise<void> {
   const cardLabel = session!.cardLabel || "";
 
   const [year, month] = stmtMonth.split("-");
-  const dueDate = new Date(
-    parseInt(year, 10), parseInt(month, 10) - 1, day,
-  );
+  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
 
   const statementId = await createStatement({
-    cardId, telegramUserId, month: stmtMonth, amountARS, amountUSD, dueDate,
+    cardId,
+    telegramUserId,
+    month: stmtMonth,
+    amountARS,
+    amountUSD,
+    dueDate,
   });
 
   await setSession(telegramUserId, {
@@ -384,13 +397,13 @@ async function handleAttachStatementReceipt(ctx: Context): Promise<void> {
   });
 
   const [year, month] = stmtMonth.split("-");
-  const monthLabel = stmtMonth ?
-    `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}` :
-    "";
+  const monthLabel = stmtMonth
+    ? `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`
+    : "";
 
   await ctx.reply(
     `*Vas a adjuntar el PDF del resumen del mes ${monthLabel} de la tarjeta ${cardLabel}*\n` +
-    "_Enviá la palabra cancelar para salir._",
+      "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 
@@ -402,9 +415,82 @@ async function handleSkipStatementReceipt(ctx: Context): Promise<void> {
   const telegramUserId = String(ctx.from!.id);
   await clearSession(telegramUserId);
 
-  await ctx.reply(
-    "Podés adjuntar el resumen luego desde /tarjetas.",
+  await ctx.reply("Podés adjuntar el resumen luego desde /tarjetas.");
+}
+
+async function handleListAllCards(ctx: Context): Promise<void> {
+  if (ctx.callbackQuery) {
+    await ctx.answerCbQuery();
+  }
+  const telegramUserId = String(ctx.from!.id);
+
+  const now = new Date();
+  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const currentMonth = `${now.getFullYear()}-${monthStr}`;
+  const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+
+  const [cards, statements] = await Promise.all([
+    getCardsByUser(telegramUserId),
+    getStatementsByUserAndMonth(telegramUserId, currentMonth),
+  ]);
+
+  const breadcrumb = buildBreadcrumb(["Tarjetas", "Lista"]);
+
+  if (cards.length === 0) {
+    await replyOrEdit(ctx, `${breadcrumb}No hay tarjetas registradas.`, {
+      parse_mode: "Markdown",
+      ...buildCardListViewKeyboard(),
+    });
+    return;
+  }
+
+  const statementByCardId = new Map(
+    statements.map((stmt) => [stmt.cardId, stmt]),
   );
+
+  const totalARS = statements.reduce((sum, stmt) => sum + stmt.amountARS, 0);
+
+  const lines: string[] = [];
+  lines.push(`*${breadcrumb}Tarjetas ${monthLabel}*`);
+  lines.push("");
+
+  for (const card of cards) {
+    const stmt = statementByCardId.get(card.id || "");
+    const label = `  •${buildCardLabel(card)}`;
+    if (stmt) {
+      let cardLine = `${label}: ${formatARS(stmt.amountARS)}`;
+      if (stmt.amountUSD > 0) {
+        cardLine += ` + ${formatUSD(stmt.amountUSD)}`;
+      }
+      lines.push(cardLine);
+    } else {
+      lines.push(`${label}: sin resumen`);
+    }
+  }
+
+  lines.push("");
+  lines.push(`*Total*: ${formatARS(totalARS)}`);
+
+  lines.push("");
+  lines.push("*Vencimientos*");
+
+  for (const card of cards) {
+    const stmt = statementByCardId.get(card.id || "");
+    const label = `  •${buildCardLabel(card)}`;
+    if (stmt) {
+      const dueDate = stmt.dueDate.toDate();
+      const day = String(dueDate.getDate()).padStart(2, "0");
+      const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+      lines.push(`${label}: ${day}/${mo}`);
+    } else {
+      lines.push(`${label}: -`);
+    }
+  }
+
+  await replyOrEdit(ctx, lines.join("\n"), {
+    parse_mode: "Markdown",
+    ...buildCardListViewKeyboard(),
+  });
 }
 
 /**
@@ -413,9 +499,11 @@ async function handleSkipStatementReceipt(ctx: Context): Promise<void> {
  * @param {Telegraf<Context>} bot
  */
 export function registerCardHandler(bot: Telegraf<Context>): void {
-  bot.command("tarjetas", handleOpenCards);
-  bot.action("menu_tarjetas", handleOpenCards);
+  bot.command("tarjetas", handleCardsHub);
+  bot.action("menu_tarjetas", handleCardsHub);
+  bot.action("card_select", handleOpenCards);
   bot.action("card_list", handleOpenCards);
+  bot.action("card_list_view", handleListAllCards);
 
   bot.action("card_add", handleAddCard);
   bot.action(/^card_pick:(.+)$/, handlePickCard);
@@ -426,7 +514,10 @@ export function registerCardHandler(bot: Telegraf<Context>): void {
 
   bot.action(/^card_stmt_reg:(.+)$/, handleStartStatement);
   bot.action("card_stmt_no", handleSkipStatement);
-  bot.action(/^card_stmt_month:(.+):(\d{4}-\d{2})$/, handleStatementMonthSelected);
+  bot.action(
+    /^card_stmt_month:(.+):(\d{4}-\d{2})$/,
+    handleStatementMonthSelected,
+  );
   bot.action(/^card_stmt_currency:(ars|usd|both)$/, handleCurrencySelected);
   bot.action("card_stmt_confirm", handleStatementConfirm);
   bot.action("card_stmt_cancel", handleStatementCancel);
