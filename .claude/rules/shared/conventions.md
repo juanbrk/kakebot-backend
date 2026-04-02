@@ -46,7 +46,6 @@
 - `Session.state` uses `SessionState`, which is a union of flow-specific sub-types:
   `ExpenseSessionState | CategorySessionState | ServiceSessionState | DocSessionState | InvoiceSessionState | ReceiptSessionState | IncomeSessionState | CardSessionState`
 - When adding a new flow, add a new `XxxSessionState` sub-type and include it in `SessionState`.
-- Use the exported type guard functions (`isCardSessionState`, `isServiceSessionState`, etc.) when you need to check state group membership in a dispatcher.
 - When adding a new session field that holds a domain value (e.g. a processor, a currency), add a named type for it alongside the field.
 
 ## ESLint Rules
