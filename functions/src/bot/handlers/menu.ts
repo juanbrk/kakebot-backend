@@ -3,6 +3,7 @@ import { Telegraf, Markup, Context } from "telegraf";
 const MAIN_MENU_KEYBOARD = Markup.inlineKeyboard([
   [Markup.button.callback("Ver Reporte", "menu_reporte")],
   [Markup.button.callback("Servicios", "menu_servicios")],
+  [Markup.button.callback("Tarjetas", "menu_tarjetas")],
   [
     Markup.button.callback("Categorizar gastos", "menu_categorizar"),
     Markup.button.callback("Nuevo ingreso", "menu_ingreso"),

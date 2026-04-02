@@ -18,10 +18,12 @@ export interface SubcategoryMapping {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
+export type CategoryType = "income" | "expense" | "both";
+
 export interface Category {
   id: string;
   name: string;
-  type: "income" | "expense" | "both";
+  type: CategoryType;
   icon?: string;
   color?: string;
   subcategories?: string[];
@@ -78,35 +80,94 @@ export interface Income {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
+export type PendingFileType = "photo" | "pdf";
+export type CreditCardProcessor = "VISA" | "MASTERCARD";
+export type StatementCurrency = "ars" | "usd" | "both";
+
+export interface CreditCard {
+  id?: string;
+  telegramUserId: string;
+  lastFourDigits: string;
+  bank: string;
+  processor: CreditCardProcessor;
+  expiryMonth: number;
+  expiryYear: number;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
+export interface CardStatement {
+  id?: string;
+  cardId: string;
+  telegramUserId: string;
+  month: string;
+  amountARS: number;
+  amountUSD: number;
+  dueDate: FirebaseFirestore.Timestamp;
+  receiptUrl?: string;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
+export type ExpenseSessionState =
+  | "awaiting_amount"
+  | "awaiting_description"
+  | "bulk_pending";
+
+export type CategorySessionState =
+  | "categorizing"
+  | "awaiting_new_category_name";
+
+export type ServiceSessionState =
+  | "svc_awaiting_name"
+  | "svc_awaiting_amount"
+  | "svc_awaiting_day"
+  | "svc_awaiting_edit_name"
+  | "svc_awaiting_edit_amount"
+  | "svc_awaiting_edit_day"
+  | "svc_awaiting_receipt"
+  | "svc_awaiting_invoice";
+
+export type DocSessionState = "doc_awaiting_type";
+
+export type InvoiceSessionState =
+  | "invoice_awaiting_service"
+  | "invoice_awaiting_name"
+  | "invoice_awaiting_month"
+  | "invoice_awaiting_day"
+  | "invoice_awaiting_amount";
+
+export type ReceiptSessionState =
+  | "comp_awaiting_service"
+  | "comp_awaiting_name"
+  | "comp_awaiting_month"
+  | "comp_awaiting_day"
+  | "comp_awaiting_amount";
+
+export type IncomeSessionState =
+  | "inc_awaiting_amount"
+  | "inc_awaiting_reason";
+
+export type CardSessionState =
+  | "card_awaiting_digits"
+  | "card_awaiting_bank"
+  | "card_awaiting_expiry"
+  | "card_stmt_awaiting_ars"
+  | "card_stmt_awaiting_usd"
+  | "card_stmt_awaiting_day"
+  | "card_awaiting_receipt";
+
+export type SessionState =
+  | ExpenseSessionState
+  | CategorySessionState
+  | ServiceSessionState
+  | DocSessionState
+  | InvoiceSessionState
+  | ReceiptSessionState
+  | IncomeSessionState
+  | CardSessionState;
+
 export interface Session {
   telegramUserId: string;
-  state:
-    | "categorizing"
-    | "awaiting_new_category_name"
-    | "awaiting_amount"
-    | "awaiting_description"
-    | "bulk_pending"
-    | "svc_awaiting_name"
-    | "svc_awaiting_amount"
-    | "svc_awaiting_day"
-    | "svc_awaiting_edit_name"
-    | "svc_awaiting_edit_amount"
-    | "svc_awaiting_edit_day"
-    | "svc_awaiting_receipt"
-    | "svc_awaiting_invoice"
-    | "doc_awaiting_type"
-    | "invoice_awaiting_service"
-    | "invoice_awaiting_name"
-    | "invoice_awaiting_month"
-    | "invoice_awaiting_day"
-    | "invoice_awaiting_amount"
-    | "comp_awaiting_service"
-    | "comp_awaiting_name"
-    | "comp_awaiting_month"
-    | "comp_awaiting_day"
-    | "comp_awaiting_amount"
-    | "inc_awaiting_amount"
-    | "inc_awaiting_reason";
+  state: SessionState;
   pendingDescs: PendingDescEntry[];
   currentDesc: string;
   currentDisplayName: string;
@@ -123,6 +184,83 @@ export interface Session {
   installmentId?: string;
   selectedMonth?: string;
   pendingFileId?: string;
-  pendingFileType?: "photo" | "pdf";
+  pendingFileType?: PendingFileType;
   isNewService?: boolean;
+  cardId?: string;
+  cardLabel?: string;
+  cardProcessor?: CreditCardProcessor;
+  statementId?: string;
+  statementMonth?: string;
+  partialAmountUSD?: number;
+  statementCurrency?: StatementCurrency;
+}
+
+/**
+ * Returns true if the state belongs to the expense flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is an ExpenseSessionState
+ */
+export function isExpenseSessionState(state: SessionState): state is ExpenseSessionState {
+  return state === "awaiting_amount" || state === "awaiting_description" || state === "bulk_pending";
+}
+
+/**
+ * Returns true if the state belongs to the category assignment flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is a CategorySessionState
+ */
+export function isCategorySessionState(state: SessionState): state is CategorySessionState {
+  return state === "categorizing" || state === "awaiting_new_category_name";
+}
+
+/**
+ * Returns true if the state belongs to the service management flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is a ServiceSessionState
+ */
+export function isServiceSessionState(state: SessionState): state is ServiceSessionState {
+  return (state as string).startsWith("svc_");
+}
+
+/**
+ * Returns true if the state belongs to the invoice flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is an InvoiceSessionState
+ */
+export function isInvoiceSessionState(state: SessionState): state is InvoiceSessionState {
+  return (state as string).startsWith("invoice_");
+}
+
+/**
+ * Returns true if the state belongs to the receipt (comprobante) flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is a ReceiptSessionState
+ */
+export function isReceiptSessionState(state: SessionState): state is ReceiptSessionState {
+  return (state as string).startsWith("comp_");
+}
+
+/**
+ * Returns true if the state belongs to the income flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is an IncomeSessionState
+ */
+export function isIncomeSessionState(state: SessionState): state is IncomeSessionState {
+  return state === "inc_awaiting_amount" || state === "inc_awaiting_reason";
+}
+
+/**
+ * Returns true if the state belongs to the credit card flow.
+ *
+ * @param {SessionState} state - The session state to check
+ * @return {boolean} Whether the state is a CardSessionState
+ */
+export function isCardSessionState(state: SessionState): state is CardSessionState {
+  return (state as string).startsWith("card_");
 }

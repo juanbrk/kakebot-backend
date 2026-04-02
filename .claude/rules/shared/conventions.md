@@ -5,6 +5,49 @@
 - Target: ES2017, Module: CommonJS
 - JSDoc only for exported functions (see code-docs.md)
 - Use `process.env` for config, never `functions.config()`
+- **All imports must be at the top of the file** — never use `await import()` or dynamic imports inside functions.
+  If a symbol is missing from the static imports, add it there. Dynamic imports mid-function are a sign of a forgotten import, not a valid pattern.
+- **Functions with more than 3 parameters must accept a single object** instead of positional args:
+  ```typescript
+  // ❌ WRONG
+  buildStmtConfirmText(cardLabel, monthLabel, amountARS, amountUSD, dueDay, stmtMonth)
+  // ✅ RIGHT
+  buildStmtConfirmText({ cardLabel, monthLabel, amountARS, amountUSD, dueDay, stmtMonth })
+  ```
+  Benefits: explicit typing, argument order is irrelevant, avoids positional mistakes.
+
+### Type Assertions (`as`)
+- **Avoid `as` casts whenever possible.** A cast silences TypeScript without adding safety.
+- When a cast is unavoidable (e.g. extracting a value from an untyped Telegraf regex match), cast at the point of extraction — not at the point of use:
+  ```typescript
+  // ❌ WRONG — cast buried inside the handler, repeated across callers
+  const processor = session!.cardLabel! as "VISA" | "MASTERCARD";
+
+  // ✅ RIGHT — cast once at the extraction boundary
+  const processor = ((ctx as any).match as string[])[1] as CreditCardProcessor;
+  ```
+- Never use `session: any`. Always type session parameters as `Session` from `types/index.ts`.
+- Never use `// eslint-disable @typescript-eslint/no-explicit-any` to suppress a `session: any` parameter. Fix the type instead.
+
+### Named Types for Domain Values
+- **All domain-specific literal unions must be exported as named types from `types/index.ts`.** Never inline a union in a function signature or interface field if it represents a business concept.
+  ```typescript
+  // ❌ WRONG — inline union, repeated in every signature that uses it
+  function handleCurrencySelected(currency: "ars" | "usd" | "both") { ... }
+  pendingFileType?: "photo" | "pdf";
+
+  // ✅ RIGHT — named type, defined once, referenced everywhere
+  export type StatementCurrency = "ars" | "usd" | "both";
+  export type PendingFileType = "photo" | "pdf";
+  ```
+- Current named types in `types/index.ts`: `CategoryType`, `PendingFileType`, `CreditCardProcessor`, `StatementCurrency`, `SessionState` (and its sub-types per flow).
+
+### Session State Typing
+- `Session.state` uses `SessionState`, which is a union of flow-specific sub-types:
+  `ExpenseSessionState | CategorySessionState | ServiceSessionState | DocSessionState | InvoiceSessionState | ReceiptSessionState | IncomeSessionState | CardSessionState`
+- When adding a new flow, add a new `XxxSessionState` sub-type and include it in `SessionState`.
+- Use the exported type guard functions (`isCardSessionState`, `isServiceSessionState`, etc.) when you need to check state group membership in a dispatcher.
+- When adding a new session field that holds a domain value (e.g. a processor, a currency), add a named type for it alongside the field.
 
 ## ESLint Rules
 - Double quotes

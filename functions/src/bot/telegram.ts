@@ -10,6 +10,7 @@ import { registerBulkHandler } from "./handlers/bulk";
 import { registerIncomeHandler } from "./handlers/income";
 import { registerInvoiceHandler } from "./handlers/invoice";
 import { registerReceiptDirectHandler } from "./handlers/receipt-direct";
+import { registerCardHandler } from "./handlers/card";
 import { registerPhotoHandler } from "./handlers/photo";
 import { registerTextHandler } from "./handlers/text";
 
@@ -29,6 +30,7 @@ registerBulkHandler(telegramBot);
 registerIncomeHandler(telegramBot);
 registerInvoiceHandler(telegramBot);
 registerReceiptDirectHandler(telegramBot);
+registerCardHandler(telegramBot);
 registerPhotoHandler(telegramBot);
 registerTextHandler(telegramBot);
 

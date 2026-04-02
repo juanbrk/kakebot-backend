@@ -1,4 +1,5 @@
 import { Telegraf, Context } from "telegraf";
+import { Session } from "../../types/index";
 import {
   getSession, setSession, clearSession,
 } from "../../services/session.service";
@@ -213,12 +214,16 @@ export async function attachReceiptToInstallment(
   ctx: Context,
   telegramUserId: string,
   installmentId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  session: any,
+  session: Session,
   successMessage: string = "✅ Comprobante adjunto. Cuota marcada como pagada."
 ): Promise<void> {
+  const fileId = session.pendingFileId;
+  if (!fileId) {
+    await ctx.reply("Error: no se encontró el archivo adjunto.");
+    return;
+  }
+
   try {
-    const fileId = session.pendingFileId;
     const fileType = session.pendingFileType || "photo";
 
     const fileLink = await ctx.telegram.getFileLink(fileId);
