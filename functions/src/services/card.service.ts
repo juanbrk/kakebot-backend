@@ -43,22 +43,30 @@ export async function getCardById(cardId: string): Promise<CreditCard | null> {
 /**
  * Creates a new credit card document.
  *
- * @param {string} telegramUserId
- * @param {string} lastFourDigits - Exactly 4 numeric characters
- * @param {string} bank - Bank name
- * @param {"VISA" | "MASTERCARD"} processor
- * @param {number} expiryMonth - 1-12
- * @param {number} expiryYear - 4-digit year
- * @return {string} New Firestore document ID
+ * @param {object} params
+ * @param {string} params.telegramUserId
+ * @param {string} params.lastFourDigits - Exactly 4 numeric characters
+ * @param {string} params.bank - Bank name
+ * @param {CreditCardProcessor} params.processor
+ * @param {number} params.expiryMonth - 1-12
+ * @param {number} params.expiryYear - 4-digit year
+ * @return {Promise<string>} New Firestore document ID
  */
-export async function createCard(
-  telegramUserId: string,
-  lastFourDigits: string,
-  bank: string,
-  processor: CreditCardProcessor,
-  expiryMonth: number,
-  expiryYear: number,
-): Promise<string> {
+export async function createCard({
+  telegramUserId,
+  lastFourDigits,
+  bank,
+  processor,
+  expiryMonth,
+  expiryYear,
+}: {
+  telegramUserId: string;
+  lastFourDigits: string;
+  bank: string;
+  processor: CreditCardProcessor;
+  expiryMonth: number;
+  expiryYear: number;
+}): Promise<string> {
   const docRef = await getDb().collection("credit_cards").add({
     telegramUserId,
     lastFourDigits,
@@ -146,22 +154,30 @@ export async function getStatementsByUserAndMonth(
 /**
  * Creates a new card statement document.
  *
- * @param {string} cardId
- * @param {string} telegramUserId
- * @param {string} month - YYYY-MM format
- * @param {number} amountARS
- * @param {number} amountUSD - 0 if no USD charge
- * @param {Date} dueDate
- * @return {string} New Firestore document ID
+ * @param {object} params
+ * @param {string} params.cardId
+ * @param {string} params.telegramUserId
+ * @param {string} params.month - YYYY-MM format
+ * @param {number} params.amountARS
+ * @param {number} params.amountUSD - 0 if no USD charge
+ * @param {Date} params.dueDate
+ * @return {Promise<string>} New Firestore document ID
  */
-export async function createStatement(
-  cardId: string,
-  telegramUserId: string,
-  month: string,
-  amountARS: number,
-  amountUSD: number,
-  dueDate: Date,
-): Promise<string> {
+export async function createStatement({
+  cardId,
+  telegramUserId,
+  month,
+  amountARS,
+  amountUSD,
+  dueDate,
+}: {
+  cardId: string;
+  telegramUserId: string;
+  month: string;
+  amountARS: number;
+  amountUSD: number;
+  dueDate: Date;
+}): Promise<string> {
   const docRef = await getDb()
     .collection("card_statements")
     .add({

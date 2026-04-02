@@ -9,6 +9,7 @@ import {
   getCardsByUser,
   getCardById,
   getStatementByCardAndMonth,
+  createCard,
   createStatement,
 } from "../../services/card.service";
 import {
@@ -150,10 +151,9 @@ async function handleCardConfirm(ctx: Context): Promise<void> {
   const expiryMonth = parseInt(mmStr, 10);
   const expiryYear = 2000 + parseInt(yyStr, 10);
 
-  const { createCard } = await import("../../services/card.service");
-  const cardId = await createCard(
-    telegramUserId, digits, bank, processor, expiryMonth, expiryYear,
-  );
+  const cardId = await createCard({
+    telegramUserId, lastFourDigits: digits, bank, processor, expiryMonth, expiryYear,
+  });
 
   await clearSession(telegramUserId);
 
@@ -345,9 +345,9 @@ async function handleStatementConfirm(ctx: Context): Promise<void> {
     parseInt(year, 10), parseInt(month, 10) - 1, day,
   );
 
-  const statementId = await createStatement(
-    cardId, telegramUserId, stmtMonth, amountARS, amountUSD, dueDate,
-  );
+  const statementId = await createStatement({
+    cardId, telegramUserId, month: stmtMonth, amountARS, amountUSD, dueDate,
+  });
 
   await setSession(telegramUserId, {
     ...emptySessionForPartial(telegramUserId),
