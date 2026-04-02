@@ -1,5 +1,14 @@
 # Decisions Log
 
+## 2026-04-02: Type safety — named types and no session: any
+- All domain literal unions must be exported as named types from `types/index.ts` (never inline)
+- Current named types: `CategoryType`, `PendingFileType`, `CreditCardProcessor`, `StatementCurrency`
+- `SessionState` is a union of flow-specific sub-types (one per feature domain)
+- Type guards exported from `types/index.ts`: `isCardSessionState`, `isServiceSessionState`, etc.
+- `session: any` is forbidden — always type as `Session`; removing `any` revealed two latent bugs (missing `pendingFileId` null checks in invoice.ts and receipt-direct.ts)
+- `as` casts are allowed only at extraction boundaries (Telegraf regex match), never at point of use
+- Rules codified in `shared/conventions.md` under "Type Assertions" and "Named Types for Domain Values"
+
 ## 2026-03-30: Session data reuse rule
 - New rule: `shared/session-data-reuse.md`
 - Principle: never re-fetch from Firestore what a previous flow step already knows

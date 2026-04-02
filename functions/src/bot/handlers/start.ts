@@ -13,6 +13,7 @@ export function registerStartHandler(bot: Telegraf<Context>): void {
       "/reporte - Resumen del mes actual\n" +
       "/categorizar - Asignar categorías a gastos sin categorizar\n" +
       "/servicios - Gestionar servicios fijos (Expensas, Gas, etc.)\n" +
+      "/tarjetas - Gestionar tarjetas de crédito\n" +
       "/ingreso - Registrar un ingreso"
     );
   });

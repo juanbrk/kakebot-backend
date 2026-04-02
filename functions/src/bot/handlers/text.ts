@@ -5,7 +5,7 @@ import {
 } from "../../services/session.service";
 import { handleNewCategoryInput, advanceOrFinish } from "../../services/category.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
-import { formatARS, getDaysInMonth } from "../../helpers/format";
+import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import {
   isBulkMessage, parseBulkLines, buildBulkConfirmText, MAX_BULK_LINES,
 } from "../../helpers/bulk-parse";
@@ -25,6 +25,13 @@ import { showInstallmentDetail } from "./service";
 import { buildInvoiceMonthKeyboard, buildReceiptMonthKeyboard } from "../keyboards/invoice";
 import { attachInvoiceToInstallment } from "./invoice";
 import { attachReceiptToInstallment } from "./receipt-direct";
+import {
+  buildCardProcessorKeyboard,
+  buildCardConfirmText,
+  buildCardConfirmKeyboard,
+  buildStmtConfirmText,
+  buildCardStmtConfirmKeyboard,
+} from "../keyboards/card";
 
 const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
 
@@ -138,6 +145,36 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "comp_awaiting_amount") {
       await handleCompAmount(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "card_awaiting_digits") {
+      await handleCardDigits(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "card_awaiting_bank") {
+      await handleCardBank(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "card_awaiting_expiry") {
+      await handleCardExpiry(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "card_stmt_awaiting_ars") {
+      await handleCardStmtArs(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "card_stmt_awaiting_usd") {
+      await handleCardStmtUsd(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "card_stmt_awaiting_day") {
+      await handleCardStmtDay(ctx, session, telegramUserId, messageText);
       return;
     }
 
@@ -819,5 +856,217 @@ async function handleIncomeReason(
   await ctx.reply(
     buildIncomeConfirmText(amount, reason),
     buildIncomeConfirmKeyboard()
+  );
+}
+
+async function handleCardDigits(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const digits = messageText.trim();
+  const isValidDigits = /^\d{4}$/.test(digits);
+
+  if (!isValidDigits) {
+    await ctx.reply(
+      "Los dígitos deben ser exactamente 4 números (Ej: 5477)."
+    );
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "card_awaiting_expiry",
+    partialDescription: digits,
+  });
+
+  await ctx.reply(
+    "*Ingresá la fecha de vencimiento de la tarjeta*\n_Formato MM/AA (Ej: 03/28)_",
+    { parse_mode: "Markdown" }
+  );
+}
+
+async function handleCardBank(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const bank = messageText.trim();
+
+  if (bank.length === 0) {
+    await ctx.reply("El nombre del banco no puede estar vacío.");
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "card_awaiting_digits",
+    serviceName: bank,
+  });
+
+  await ctx.reply(
+    "*Seleccioná el procesador:*",
+    {
+      parse_mode: "Markdown",
+      ...buildCardProcessorKeyboard(),
+    }
+  );
+}
+
+async function handleCardExpiry(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const expiry = messageText.trim();
+  const isValidExpiry = /^(0[1-9]|1[0-2])\/(\d{2})$/.test(expiry);
+
+  if (!isValidExpiry) {
+    await ctx.reply(
+      "Formato inválido. Ingresá el vencimiento como MM/AA (Ej: 03/28)"
+    );
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    selectedMonth: expiry,
+  });
+
+  const digits = session.partialDescription || "";
+  const bank = session.serviceName || "";
+  const processor = session.cardProcessor || "";
+
+  await ctx.reply(
+    buildCardConfirmText({ digits, bank, processor, expiry }),
+    {
+      parse_mode: "Markdown",
+      ...buildCardConfirmKeyboard(),
+    }
+  );
+}
+
+async function handleCardStmtArs(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const amount = parseArgentineAmount(messageText.trim());
+
+  const isValidAmount = amount !== null && amount > 0;
+  if (!isValidAmount) {
+    await ctx.reply(
+      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
+    );
+    return;
+  }
+
+  const stmtMonth = session.statementMonth || "";
+  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
+
+  if (session.statementCurrency === "both") {
+    await setSession(telegramUserId, {
+      ...session,
+      partialAmount: amount,
+      state: "card_stmt_awaiting_usd",
+    });
+    await ctx.reply(
+      "*Ingresá el monto de los consumos en dólares*",
+      { parse_mode: "Markdown" }
+    );
+  } else {
+    await setSession(telegramUserId, {
+      ...session,
+      partialAmount: amount,
+      partialAmountUSD: 0,
+      state: "card_stmt_awaiting_day",
+    });
+    await ctx.reply(
+      `*¿Qué día vence el resumen?* (1-${maxDay})`,
+      { parse_mode: "Markdown" }
+    );
+  }
+}
+
+async function handleCardStmtUsd(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const amount = parseArgentineAmount(messageText.trim());
+
+  const isValidAmount = amount !== null && amount > 0;
+  if (!isValidAmount) {
+    await ctx.reply(
+      "No entendí el monto. Ingresá solo el número:\nEj: 49,47"
+    );
+    return;
+  }
+
+  const stmtMonth = session.statementMonth || "";
+  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "card_stmt_awaiting_day",
+    partialAmountUSD: amount,
+  });
+
+  await ctx.reply(
+    `*¿Qué día vence el resumen?* (1-${maxDay})`,
+    { parse_mode: "Markdown" }
+  );
+}
+
+async function handleCardStmtDay(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string
+): Promise<void> {
+  const dayStr = messageText.trim();
+  const day = parseInt(dayStr, 10);
+
+  const stmtMonth = session.statementMonth || "";
+  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
+
+  if (!isValidDay) {
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "card_stmt_awaiting_day",
+    partialDescription: dayStr,
+  });
+
+  const cardLabel = session.cardLabel || "";
+  const amountARS = session.partialAmount || 0;
+  const amountUSD = session.partialAmountUSD || 0;
+
+  const [year, month] = stmtMonth.split("-");
+  const monthLabel =
+    `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  await ctx.reply(
+    buildStmtConfirmText({
+      cardLabel,
+      monthLabel,
+      amountARS,
+      amountUSD,
+      dueDay: day,
+      stmtMonth,
+    }),
+    {
+      parse_mode: "Markdown",
+      ...buildCardStmtConfirmKeyboard(),
+    }
   );
 }

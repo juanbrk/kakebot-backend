@@ -21,3 +21,16 @@ export function formatARS(amount: number): string {
     maximumFractionDigits: 2,
   });
 }
+
+/**
+ * Formats a number as USD currency string using Argentine locale conventions.
+ *
+ * @param {number} amount - Dollar amount to format
+ * @return {string} Formatted string, e.g. "U$S 49,47"
+ */
+export function formatUSD(amount: number): string {
+  return "U$S " + amount.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}

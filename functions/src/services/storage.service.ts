@@ -57,3 +57,23 @@ export async function uploadInvoice(
 ): Promise<string> {
   return uploadFile("invoices", telegramUserId, installmentId, fileBuffer, mimeType);
 }
+
+/**
+ * Uploads a card statement receipt to GCS under the "card_statements/" folder.
+ *
+ * @param {string} telegramUserId
+ * @param {string} statementId - Firestore statement document ID
+ * @param {Buffer} fileBuffer
+ * @param {string} mimeType
+ * @return {string} Public URL of the uploaded file
+ */
+export async function uploadStatementReceipt(
+  telegramUserId: string,
+  statementId: string,
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  return uploadFile(
+    "card_statements", telegramUserId, statementId, fileBuffer, mimeType,
+  );
+}

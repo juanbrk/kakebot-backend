@@ -32,8 +32,8 @@ export async function generateMonthlyReport(
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${monthStr}`;
 
-  const [expensesSnapshot, services, installments, incomes] = await Promise.all(
-    [
+  const [expensesSnapshot, services, installments, incomes] =
+    await Promise.all([
       getDb()
         .collection("expenses")
         .where("telegramUserId", "==", telegramUserId)
@@ -43,11 +43,12 @@ export async function generateMonthlyReport(
       getServicesByUser(telegramUserId),
       getInstallmentsForMonth(telegramUserId, dueMonth),
       getMonthlyIncomes(telegramUserId, startOfMonth, endOfMonth),
-    ],
-  );
+    ]);
 
   const hasNoData =
-    expensesSnapshot.empty && services.length === 0 && incomes.length === 0;
+    expensesSnapshot.empty &&
+    services.length === 0 &&
+    incomes.length === 0;
   if (hasNoData) {
     return null;
   }

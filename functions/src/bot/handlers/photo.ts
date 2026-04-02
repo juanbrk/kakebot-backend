@@ -1,10 +1,15 @@
 import { Telegraf, Context } from "telegraf";
+import { Session, PendingFileType } from "../../types/index";
 import https from "https";
+import { MONTH_NAMES } from "../../helpers/format";
 import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
-import { uploadReceipt, uploadInvoice } from "../../services/storage.service";
+import {
+  uploadReceipt, uploadInvoice, uploadStatementReceipt,
+} from "../../services/storage.service";
 import { saveReceiptUrl, saveInvoiceUrl } from "../../services/service.service";
+import { saveStatementReceiptUrl } from "../../services/card.service";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
 
 export function registerPhotoHandler(bot: Telegraf<Context>): void {
@@ -23,6 +28,11 @@ async function handlePhoto(ctx: Context): Promise<void> {
 
   if (session?.state === "svc_awaiting_invoice") {
     await handleInvoiceUpload(ctx, telegramUserId, session, "photo");
+    return;
+  }
+
+  if (session?.state === "card_awaiting_receipt") {
+    await handleCardReceiptUpload(ctx, telegramUserId, session, "photo");
     return;
   }
 
@@ -69,6 +79,13 @@ async function handleDocument(ctx: Context): Promise<void> {
     return;
   }
 
+  if (session?.state === "card_awaiting_receipt") {
+    await handleCardReceiptUpload(
+      ctx, telegramUserId, session, "pdf", document.file_id,
+    );
+    return;
+  }
+
   await startDocTypeFlow(ctx, telegramUserId, document.file_id, "pdf");
 }
 
@@ -76,7 +93,7 @@ async function startDocTypeFlow(
   ctx: Context,
   telegramUserId: string,
   fileId: string,
-  fileType: "photo" | "pdf"
+  fileType: PendingFileType
 ): Promise<void> {
   await setSession(telegramUserId, {
     ...emptySessionForPartial(telegramUserId),
@@ -92,12 +109,10 @@ async function startDocTypeFlow(
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleReceiptUpload(
   ctx: Context,
   telegramUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  session: any
+  session: Session
 ): Promise<void> {
   const installmentId = session.installmentId || "";
   if (!installmentId) {
@@ -138,8 +153,7 @@ async function handleReceiptUpload(
 async function handleReceiptUploadFromDocument(
   ctx: Context,
   telegramUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  session: any,
+  session: Session,
   documentFileId: string
 ): Promise<void> {
   const installmentId = session.installmentId || "";
@@ -168,9 +182,8 @@ async function handleReceiptUploadFromDocument(
 async function handleInvoiceUpload(
   ctx: Context,
   telegramUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  session: any,
-  fileType: "photo" | "pdf",
+  session: Session,
+  fileType: PendingFileType,
   documentFileId?: string
 ): Promise<void> {
   const installmentId = session.installmentId || "";
@@ -215,6 +228,69 @@ async function handleInvoiceUpload(
   } catch (error) {
     console.error("Error uploading invoice:", error);
     await ctx.reply("Error al guardar la factura. Intentá de nuevo.");
+  }
+}
+
+async function handleCardReceiptUpload(
+  ctx: Context,
+  telegramUserId: string,
+  session: Session,
+  fileType: PendingFileType,
+  documentFileId?: string
+): Promise<void> {
+  const statementId = session.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  let fileId: string;
+
+  if (fileType === "pdf" && documentFileId) {
+    fileId = documentFileId;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const photos = (ctx.message as any).photo as Array<{
+      file_id: string;
+    }>;
+
+    if (!photos || photos.length === 0) {
+      await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
+      return;
+    }
+
+    fileId = photos[photos.length - 1].file_id;
+  }
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const fileBuffer = await downloadFile(fileLink.href);
+
+    const mimeType = fileType === "pdf" ?
+      "application/pdf" :
+      (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
+
+    const receiptUrl = await uploadStatementReceipt(
+      telegramUserId, statementId, fileBuffer, mimeType
+    );
+
+    await saveStatementReceiptUrl(statementId, receiptUrl);
+
+    const stmtMonth = session.statementMonth || "";
+    const cardLabel = session.cardLabel || "";
+    const [year, month] = stmtMonth.split("-");
+    const monthLabel = stmtMonth ?
+      `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}` :
+      "el mes seleccionado";
+
+    await clearSession(telegramUserId);
+    await ctx.reply(
+      `Se subió correctamente el resumen del mes de *${monthLabel}* de la tarjeta *${cardLabel}*.`,
+      { parse_mode: "Markdown" },
+    );
+  } catch (error) {
+    console.error("Error uploading card statement receipt:", error);
+    await ctx.reply("Error al guardar el resumen. Intentá de nuevo.");
   }
 }
 
