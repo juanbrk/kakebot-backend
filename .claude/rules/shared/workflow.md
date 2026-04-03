@@ -30,7 +30,13 @@ gcloud functions logs read bot --limit 100 --project kakebot-972c2 2>&1 | grep "
 - Re-test affected features locally before deploying
 - **DO NOT deploy to production if index errors exist**
 
-### 4. Deploy to kakebot (production)
+### 4. Verify & Sync Environment Secrets (production only)
+- If `.env.prod` was modified, check if `scripts/.pending-secrets` exists
+- If present: run `npm run go → Prod → Sync secrets` to apply changes to Google Cloud Secret Manager
+- **DO NOT deploy to production if environment secrets are pending** (they'll fail silently with 404/auth errors in prod)
+- See `core/hard-walls.md` section "Environment Secrets" for details
+
+### 5. Deploy to kakebot (production)
 
 **Functions & Indexes**: Deployed automatically via GitHub Actions on push/merge to `main`.
 - `deploy-functions.yml`: runs on every push to `main` — deploys functions + sets webhook

@@ -22,6 +22,14 @@ Constraints that must never be violated.
   - See `shared/firestore-indexes.md` for index creation & verification procedure
   - Failure to create indexes = silent bot failures in production
 
+## Environment Secrets
+- **NEVER forget to update `.pending-secrets` after changing `.env.prod`**
+  - When Claude modifies an environment variable, register it immediately in `scripts/.pending-secrets`
+  - Forgetting this step = silent failures in production (local works, prod fails with auth/bucket errors)
+  - Real example: changed `GCS_BUCKET` to correct value locally, forgot to register — production returned 404 (bucket not found)
+  - Procedure: `echo "VAR_NAME" >> scripts/.pending-secrets`
+  - Sync with: `npm run go → Prod → Sync secrets` (executed automatically with user confirmation)
+
 ## Git
 - NEVER create commits — Juan handles all commits manually
 - When asked for a commit message: provide a non-technical, coarse-grained description
