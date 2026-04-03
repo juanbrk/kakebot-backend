@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { Service, ServiceInstallment } from "../types/index";
+import { Service, ServiceInstallment, ServicePaymentMethod } from "../types/index";
 import { getDaysInMonth } from "../helpers/format";
 
 export async function createService(
@@ -48,6 +48,22 @@ export async function getServiceById(serviceId: string): Promise<Service | null>
     id: doc.id,
     ...(doc.data() as Omit<Service, "id">),
   };
+}
+
+/**
+ * Updates the payment method of a service document.
+ *
+ * @param {string} serviceId - The service document ID
+ * @param {ServicePaymentMethod} paymentMethod - The new payment method
+ */
+export async function updateServicePaymentMethod(
+  serviceId: string,
+  paymentMethod: ServicePaymentMethod
+): Promise<void> {
+  await getDb()
+    .collection("services")
+    .doc(serviceId)
+    .update({ paymentMethod });
 }
 
 export async function updateServiceName(

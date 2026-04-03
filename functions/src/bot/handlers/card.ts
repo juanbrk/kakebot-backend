@@ -261,13 +261,10 @@ async function handleStatementMonthSelected(ctx: Context): Promise<void> {
 
   const [year, month] = stmtMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-  const cardLabel = session.cardLabel || "";
 
-  await ctx.editMessageText(
-    `*Vas a subir un resumen para ${monthLabel} de la tarjeta ${cardLabel}*\n` +
-      "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
-  );
+  await ctx.editMessageText(`*Seleccionaste ${monthLabel}*\n`, {
+    parse_mode: "Markdown",
+  });
 
   await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
     parse_mode: "Markdown",
