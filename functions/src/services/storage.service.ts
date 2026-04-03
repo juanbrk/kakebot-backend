@@ -27,17 +27,16 @@ async function uploadFile(
     metadata: { contentType: mimeType },
   });
 
-  const isEmulator = !!process.env.FIREBASE_STORAGE_EMULATOR_HOST;
-  if (!isEmulator) {
-    await file.makePublic();
-  }
-
   const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
   if (emulatorHost) {
     return `http://${emulatorHost}/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
   }
 
-  return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+  const [metadata] = await file.getMetadata();
+  const token = (metadata.metadata as Record<string, string>)?.firebaseStorageDownloadTokens;
+  const encodedPath = encodeURIComponent(filePath);
+  const baseUrl = "https://firebasestorage.googleapis.com/v0/b";
+  return `${baseUrl}/${bucket.name}/o/${encodedPath}?alt=media&token=${token}`;
 }
 
 export async function uploadReceipt(

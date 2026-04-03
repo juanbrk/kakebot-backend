@@ -31,12 +31,15 @@ gcloud functions logs read bot --limit 100 --project kakebot-972c2 2>&1 | grep "
 - **DO NOT deploy to production if index errors exist**
 
 ### 4. Deploy to kakebot (production)
+
+**Functions & Indexes**: Deployed automatically via GitHub Actions on push/merge to `main`.
+- `deploy-functions.yml`: runs on every push to `main` — deploys functions + sets webhook
+- `deploy-indexes.yml`: runs on push to `main` when `firestore.indexes.json` changes
+
+**Storage Rules**: No GitHub Action — deploy manually after merging to main:
 ```bash
-npm run deploy:prod   # Switches to prod .env + deploys
+firebase deploy --only storage
 ```
-- Only after:
-  - Testing passes on botitio_testitoBot ✅
-  - All Firestore indexes are created and enabled ✅
 
 ## Environment Switching
 ```bash
