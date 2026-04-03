@@ -54,6 +54,7 @@ export interface Service {
   name: string;
   normalizedName: string;
   createdAt: FirebaseFirestore.Timestamp;
+  paymentMethod?: ServicePaymentMethod;
 }
 
 export interface ServiceInstallment {
@@ -83,6 +84,7 @@ export interface Income {
 export type PendingFileType = "photo" | "pdf";
 export type CreditCardProcessor = "VISA" | "MASTERCARD";
 export type StatementCurrency = "ars" | "usd" | "both";
+export type ServicePaymentMethod = "credit_card" | "auto_debit" | "manual";
 
 export interface CreditCard {
   id?: string;

@@ -1,5 +1,5 @@
 import { Telegraf, Context, Markup } from "telegraf";
-import { ServiceInstallment } from "../../types/index";
+import { ServiceInstallment, ServicePaymentMethod } from "../../types/index";
 import {
   getSession,
   setSession,
@@ -16,6 +16,7 @@ import {
   deleteService,
   markInstallmentAsPaid,
   getUpcomingUnpaidInstallments,
+  updateServicePaymentMethod,
 } from "../../services/service.service";
 import {
   buildServicesSubmenuKeyboard,
@@ -31,6 +32,8 @@ import {
   buildReceiptPromptKeyboard,
   buildInstallmentListKeyboard,
   buildFilteredMonthKeyboard,
+  buildPaymentMethodKeyboard,
+  PAYMENT_METHOD_LABELS,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
 import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
@@ -55,6 +58,68 @@ async function getServiceNameCached(
   }
   const service = await getServiceById(serviceId);
   return service?.name || null;
+}
+
+/**
+ * Renders the service action view (detail + action keyboard) for a given service.
+ * Fetches service and current-month installment, then edits/replies with the result.
+ *
+ * @param {Context} ctx - Telegraf context
+ * @param {string} serviceId - Service document ID
+ */
+async function showServiceActionView(
+  ctx: Context,
+  serviceId: string,
+): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  const now = new Date();
+  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const dueMonth = `${now.getFullYear()}-${monthStr}`;
+
+  const [service, installment] = await Promise.all([
+    getServiceById(serviceId),
+    getInstallment(serviceId, dueMonth),
+  ]);
+
+  if (!service) {
+    await replyOrEdit(ctx, "Servicio no encontrado.");
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    serviceId,
+    serviceName: service.name,
+  });
+
+  let title = `*${service.name}*`;
+  if (installment) {
+    const dueDate = installment.dueDate.toDate();
+    const day = String(dueDate.getDate()).padStart(2, "0");
+    const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+    const dueSuffix = installment.isPaid
+      ? "(Pagado) ✅"
+      : `(vence ${day}/${mo})`;
+    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
+  }
+  if (service.paymentMethod) {
+    title += `\n*Método de pago*: ${PAYMENT_METHOD_LABELS[service.paymentMethod]}`;
+  }
+
+  const breadcrumb = buildBreadcrumb(["Servicios", service.name]);
+  const hasInstallment = installment !== null;
+  const isPaid = installment?.isPaid ?? false;
+  const keyboard = buildServiceActionKeyboard(
+    serviceId,
+    hasInstallment,
+    isPaid,
+  );
+
+  await replyOrEdit(ctx, breadcrumb + title, {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 export function registerServiceHandler(bot: Telegraf<Context>): void {
@@ -102,6 +167,10 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action(/^svc_cuotas_pg:(.+):(\d+)$/, handleInstallmentsListPagination);
   bot.action(/^svc_cuota_detail:(.+)$/, handleInstallmentDetailFromHistory);
   bot.action(/^svc_back_svc:(.+)$/, handleBackToServiceAction);
+
+  bot.action(/^svc_pm_new:([^:]+):([^:]+)$/, handleSetPaymentMethod);
+  bot.action(/^svc_edit_pm:(.+)$/, handleEditPaymentMethod);
+  bot.action(/^svc_pm_edit:([^:]+):([^:]+)$/, handleUpdatePaymentMethod);
 }
 
 async function openServicesMenu(ctx: Context): Promise<void> {
@@ -313,54 +382,8 @@ async function handleShowUpcoming(ctx: Context): Promise<void> {
 async function handlePickServiceForAction(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
   await ctx.answerCbQuery();
-
-  const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const dueMonth = `${now.getFullYear()}-${monthStr}`;
-
-  const [service, installment] = await Promise.all([
-    getServiceById(serviceId),
-    getInstallment(serviceId, dueMonth),
-  ]);
-
-  if (!service) {
-    await replyOrEdit(ctx, "Servicio no encontrado.");
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    serviceId,
-    serviceName: service.name,
-  });
-
-  let title = `*${service.name}*`;
-  if (installment) {
-    const dueDate = installment.dueDate.toDate();
-    const day = String(dueDate.getDate()).padStart(2, "0");
-    const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-    const dueSuffix = installment.isPaid
-      ? "(Pagado) ✅"
-      : `(vence ${day}/${mo})`;
-    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
-  }
-
-  const breadcrumb = buildBreadcrumb(["Servicios", service.name]);
-  const hasInstallment = installment !== null;
-  const isPaid = installment?.isPaid ?? false;
-  const keyboard = buildServiceActionKeyboard(
-    serviceId,
-    hasInstallment,
-    isPaid,
-  );
-  await replyOrEdit(ctx, breadcrumb + title, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
+  await showServiceActionView(ctx, serviceId);
 }
 
 async function handleBackToMenu(ctx: Context): Promise<void> {
@@ -737,7 +760,9 @@ async function handleSkipInstallmentAfterCreate(ctx: Context): Promise<void> {
   const serviceName = session?.serviceName || "servicio";
   await clearSession(telegramUserId);
 
-  await ctx.editMessageText(`✅ Servicio '${serviceName}' creado.`);
+  await ctx.editMessageText(
+    `✅ Servicio '${serviceName}' creado sin cuota. Podés agregarla luego desde /servicios`
+  );
 }
 
 async function handleEditServiceName(ctx: Context): Promise<void> {
@@ -926,47 +951,8 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
 async function handleBackToServiceAction(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
-
-  const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const dueMonth = `${now.getFullYear()}-${monthStr}`;
-
-  const [serviceName, installment] = await Promise.all([
-    getServiceNameCached(telegramUserId, serviceId),
-    getInstallment(serviceId, dueMonth),
-  ]);
-
-  if (!serviceName) {
-    await ctx.editMessageText("Servicio no encontrado.");
-    return;
-  }
-
-  let title = `*${serviceName}*`;
-  if (installment) {
-    const dueDate = installment.dueDate.toDate();
-    const day = String(dueDate.getDate()).padStart(2, "0");
-    const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-    const dueSuffix = installment.isPaid
-      ? "(Pagado) ✅"
-      : `(vence ${day}/${mo})`;
-    title = `*${serviceName}* ${formatARS(installment.amount)} ${dueSuffix}`;
-  }
-
-  const breadcrumb = buildBreadcrumb(["Servicios", serviceName]);
-  const hasInstallment = installment !== null;
-  const isPaid = installment?.isPaid ?? false;
-  const keyboard = buildServiceActionKeyboard(
-    serviceId,
-    hasInstallment,
-    isPaid,
-  );
-  await ctx.editMessageText(breadcrumb + title, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
+  await showServiceActionView(ctx, serviceId);
 }
 
 async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
@@ -1049,4 +1035,94 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
+}
+
+/**
+ * Handles payment method selection during service creation.
+ * Saves the selected method and shows the installment prompt.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleSetPaymentMethod(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const serviceId = match[1];
+  const method = match[2] as ServicePaymentMethod;
+  const telegramUserId = ctx.from?.id.toString() || "";
+
+  await updateServicePaymentMethod(serviceId, method);
+  await ctx.answerCbQuery("✅ Método de pago guardado.");
+
+  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    serviceId,
+    serviceName: serviceName || "",
+  });
+
+  await ctx.editMessageText(
+    `✅ Servicio '${serviceName || ""}' creado.\n\n¿Deseas agregar una cuota ahora?`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: Markup.inlineKeyboard([
+        [
+          Markup.button.callback("Cancelar", "svc_no_cuota"),
+          Markup.button.callback("Aceptar", `svc_reg:${serviceId}`),
+        ],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]).reply_markup as any,
+    },
+  );
+}
+
+/**
+ * Shows the payment method selection keyboard for editing an existing service.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleEditPaymentMethod(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceId = ((ctx as any).match as string[])[1];
+  await ctx.answerCbQuery();
+
+  const service = await getServiceById(serviceId);
+  if (!service) {
+    await replyOrEdit(ctx, "Servicio no encontrado.");
+    return;
+  }
+
+  const currentLabel = service.paymentMethod
+    ? PAYMENT_METHOD_LABELS[service.paymentMethod]
+    : "Sin configurar";
+
+  await ctx.reply(`Vas a modificar el método de pago para *${service.name}*`, {
+    parse_mode: "Markdown",
+  });
+
+  const keyboard = buildPaymentMethodKeyboard(serviceId, "edit");
+  await ctx.reply(
+    `Método actual: ${currentLabel}\n\n*Seleccioná el método de pago*`,
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    },
+  );
+}
+
+/**
+ * Handles payment method update from the service edit submenu.
+ * Saves the new method and returns to the service action view.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleUpdatePaymentMethod(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const serviceId = match[1];
+  const method = match[2] as ServicePaymentMethod;
+
+  await updateServicePaymentMethod(serviceId, method);
+  await ctx.answerCbQuery("✅ Método de pago actualizado.");
+  await showServiceActionView(ctx, serviceId);
 }

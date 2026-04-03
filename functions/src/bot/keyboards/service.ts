@@ -1,6 +1,12 @@
 import { Markup } from "telegraf";
-import { Service, ServiceInstallment } from "../../types/index";
+import { Service, ServiceInstallment, ServicePaymentMethod } from "../../types/index";
 import { formatARS, MONTH_NAMES } from "../../helpers/format";
+
+export const PAYMENT_METHOD_LABELS: Record<ServicePaymentMethod, string> = {
+  credit_card: "Tarjeta de Crédito",
+  auto_debit: "Débito Automático",
+  manual: "Pago Manual",
+};
 
 const SERVICES_PER_PAGE = 6;
 export const INSTALLMENTS_PER_PAGE = 6;
@@ -110,6 +116,7 @@ export function buildServiceEditKeyboard(
 ) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Cambiar nombre", `svc_edit_name:${serviceId}`)],
+    [Markup.button.callback("Cambiar método de pago", `svc_edit_pm:${serviceId}`)],
     [Markup.button.callback("Eliminar", `svc_delete:${serviceId}`)],
     [
       Markup.button.callback(
@@ -118,6 +125,39 @@ export function buildServiceEditKeyboard(
       ),
     ],
   ]);
+}
+
+/**
+ * Builds the payment method selection keyboard.
+ * In "new" context (service creation): no cancel button, method is required.
+ * In "edit" context (from service detail): includes a back button.
+ *
+ * @param {string} serviceId - The service document ID
+ * @param {string} context - "new" (creation flow) or "edit" (modification flow)
+ * @return {Markup} Inline keyboard markup
+ */
+export function buildPaymentMethodKeyboard(
+  serviceId: string,
+  context: "new" | "edit",
+) {
+  const methods: ServicePaymentMethod[] = ["credit_card", "auto_debit", "manual"];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[][] = methods.map((method) => [
+    Markup.button.callback(
+      PAYMENT_METHOD_LABELS[method],
+      context === "new"
+        ? `svc_pm_new:${serviceId}:${method}`
+        : `svc_pm_edit:${serviceId}:${method}`,
+    ),
+  ]);
+
+  if (context === "edit") {
+    rows.push([
+      Markup.button.callback("\u2190 Volver", `svc_back_svc:${serviceId}`),
+    ]);
+  }
+
+  return Markup.inlineKeyboard(rows);
 }
 
 export function buildMonthKeyboard(serviceId: string) {

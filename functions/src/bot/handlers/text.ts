@@ -17,7 +17,11 @@ import {
   updateInstallmentAmount,
   updateInstallmentDueDay,
 } from "../../services/service.service";
-import { buildDuplicateKeyboard, buildInvoicePromptKeyboard } from "../keyboards/service";
+import {
+  buildDuplicateKeyboard,
+  buildInvoicePromptKeyboard,
+  buildPaymentMethodKeyboard,
+} from "../keyboards/service";
 import {
   buildIncomeConfirmKeyboard, buildIncomeConfirmText,
 } from "../keyboards/income";
@@ -389,23 +393,13 @@ async function handleServiceName(
   }
 
   const serviceId = await createService(telegramUserId, name);
+  await clearSession(telegramUserId);
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_amount",
-    serviceId,
-    serviceName: name,
+  const keyboard = buildPaymentMethodKeyboard(serviceId, "new");
+  await ctx.reply("Seleccioná el método de pago", {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
   });
-
-  await ctx.reply(
-    `✅ Servicio '${name}' creado.\n\n¿Deseas agregar una cuota ahora?`,
-    Markup.inlineKeyboard([
-      [
-        Markup.button.callback("Cancelar", "svc_no_cuota"),
-        Markup.button.callback("Aceptar", `svc_reg:${serviceId}`),
-      ],
-    ])
-  );
 }
 
 async function handleServiceAmount(

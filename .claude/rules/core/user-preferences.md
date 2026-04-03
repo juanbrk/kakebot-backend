@@ -7,6 +7,17 @@ When presenting multiple action buttons in an inline keyboard row:
 - **Left**: negative/dismissive actions (Cancelar, Volver, Salir, Anterior)
 - **Right**: positive/affirmative actions (Confirmar, Continuar, Crear, Siguiente)
 
+### Emoji Usage
+Only use emojis in:
+- **Success confirmations**: e.g., `✅ Guardado.`, `✅ Actualizado.`
+- **Error messages**: e.g., `❌ Error al guardar.`
+- **Explicit user request**: when the user explicitly asks for an emoji
+
+Never use emojis in:
+- Button labels
+- Descriptive UI text (titles, prompts, field labels)
+- Status text that is not a direct action result (e.g., "Método de pago: Tarjeta de Crédito")
+
 ## Ticket Format
 
 When requesting improvements (bug), bugs (error), or features (feature), use the templates below. Provide ONLY the information defined in each template — no additions, no omissions.
