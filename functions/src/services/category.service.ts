@@ -49,7 +49,7 @@ export async function assignCategoryToDesc(
     batch.update(doc.ref, { categoryId });
   });
 
-  const mappingId = `${telegramUserId}_${normalizedDesc}`;
+  const mappingId = `${telegramUserId}_${normalizedDesc.replace(/ /g, "_")}`;
   batch.set(
     db.collection("subcategory_mappings").doc(mappingId),
     {
