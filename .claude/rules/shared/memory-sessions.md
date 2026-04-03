@@ -269,3 +269,40 @@
 - Deploy a botitio_testitoBot
 - Verificar Firestore indexes antes de deploy a producción
 
+## 2026-04-03: File upload bug fix + Automated secrets sync via .pending-secrets
+
+### Bug Identificado y Resuelto
+- **Problema**: Carga de comprobantes fallaba en producción con error "The specified bucket does not exist"
+- **Causa raíz**: `GCS_BUCKET=kakebot-972c2.firebasestorage.app` (incorrecto) en lugar de `kakebot-972c2` (correcto)
+- **Por qué no se detectó localmente**: Emulador no valida nombres de bucket
+- **Solución**: Cambio en `.env.prod` + `.env.test`: `GCS_BUCKET=kakebot-972c2`
+
+### Automatización de Secrets Sync — Implementada Completa
+- **Problema anterior**: Cambios de variables de env eran fáciles de olvidar sincronizar → silenciosas fallos en prod
+- **Solución**: Registro de estado + integración en `npm run go` (sin nuevos scripts)
+
+**Archivos creados/modificados:**
+- ✅ Creado `scripts/.pending-secrets` — registro simple de variables a sincronizar (contiene `GCS_BUCKET`)
+- ✅ Modificado `scripts/go.sh` — nuevo submenu `Sync secrets` en bloque PROD (automático, sin interacción adicional)
+  - Lee `.pending-secrets`, aplica `gcloud secrets versions add/create` para cada variable, borra archivo si todo OK
+  - Si hay `.pending-secrets` pero no hay archivo: muestra "No hay secrets pendientes"
+- ✅ Actualizado `core/hard-walls.md` — nueva sección "Environment Secrets" (hard wall: NEVER forget `.pending-secrets`)
+- ✅ Actualizado `shared/workflow.md` — paso 4 nuevo: "Verify & Sync Environment Secrets" (BEFORE deploy to prod)
+- ✅ Actualizado `memory-decisions.md` — documentado el diseño (registry approach vs. live detection)
+
+**Procedimiento para futuras sesiones:**
+1. Claude modifica `.env.prod` → escribe nombre de variable en `scripts/.pending-secrets` → informa en commit message
+2. Usuario ejecuta `npm run go → Prod → Sync secrets` → aplicación automática del cambio, borra archivo
+3. Luego procede con deploy normal
+
+**Diseño elegido:**
+- Registry file (`.pending-secrets`) en lugar de live GCloud detection
+- Solo nombres de variables, no valores (seguro, trackeable en git)
+- Automático sin más pasos al elegir la opción en `go.sh`
+
+### Status Final
+- Build + lint: ✅ clean
+- `.pending-secrets` contiene `GCS_BUCKET` — usuario debe ejecutar sync antes o después del deploy
+- Cambios listos para commit + push
+- Próximo: Verificar que sync funciona en producción y que comprobantes se suben correctamente
+

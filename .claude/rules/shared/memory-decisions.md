@@ -100,3 +100,16 @@
 - New rule file: `shared/firestore-indexes.md` with creation/verification procedure
 - Updated `core/hard-walls.md` (Deployment section) and `shared/workflow.md` (step 3)
 - Added to CLAUDE.md rules table for visibility
+
+## 2026-04-03: Environment secrets automation — .pending-secrets registry
+- **Problem**: Changes to `.env.prod` variables are not automatically synced to Google Cloud Secrets Manager → silent failures in production
+- **Real bug**: `GCS_BUCKET=kakebot-972c2.firebasestorage.app` worked locally (emulator) but failed in prod (404 bucket not found)
+- **Solution**: File-based state registry + integrated sync in `npm run go`:
+  - New file: `scripts/.pending-secrets` — lists variable names pending sync (no values, so safe to git-track)
+  - When Claude changes `.env.prod`, immediately append variable name to `.pending-secrets` + inform in commit message
+  - When user runs `npm run go → Prod → Sync secrets`: reads `.pending-secrets`, applies `gcloud secrets versions add/create` automatically, deletes file when done
+  - No manual commands needed; entire process automated via `go.sh`
+- **Archival approach** vs. live detection: chose registry (faster, no GCloud queries, deterministic)
+- New hard wall: "NEVER forget to update `.pending-secrets` after changing `.env.prod`" (see `core/hard-walls.md`)
+- New workflow step: "Verify & Sync Environment Secrets" added to `shared/workflow.md` before deploy
+- Applies to: `TELEGRAM_BOT_TOKEN`, `AUTHORIZED_USER_ID`, `GCS_BUCKET`, (and future secrets)
