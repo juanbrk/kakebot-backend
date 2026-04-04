@@ -14,9 +14,11 @@ import {
   getCardById,
   getStatementByCardAndMonth,
   getStatementsByUserAndMonth,
+  getStatementById,
   createCard,
   createStatement,
 } from "../../services/card.service";
+import { downloadFromUrl } from "../../services/storage.service";
 import {
   buildCardListKeyboard,
   buildCardDetailText,
@@ -104,7 +106,7 @@ async function handlePickCard(ctx: Context): Promise<void> {
 
   await replyOrEdit(ctx, `${breadcrumb}${detailText}`, {
     parse_mode: "Markdown",
-    ...buildCardDetailBackKeyboard(cardId),
+    ...buildCardDetailBackKeyboard(cardId, statement),
   });
 }
 
@@ -419,6 +421,43 @@ async function handleSkipStatementReceipt(ctx: Context): Promise<void> {
   await ctx.reply("Podés adjuntar el resumen luego desde /tarjetas.");
 }
 
+/**
+ * Sends the statement file to the user with a descriptive filename.
+ * Downloads from GCS and forwards as a named document to avoid Telegram
+ * naming it "document.dat" when receiving a raw URL.
+ *
+ * @param {Context} ctx
+ */
+async function handleDownloadStatementPdf(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+
+  const statement = await getStatementById(statementId);
+
+  if (!statement?.receiptUrl) {
+    await ctx.reply("No hay PDF adjunto para este resumen.");
+    return;
+  }
+
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
+  const sanitizedLabel = cardLabel.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  try {
+    const { buffer, extension } = await downloadFromUrl(statement.receiptUrl);
+    const filename = `${statement.month}-resumen-tarjeta-${sanitizedLabel}.${extension}`;
+    await ctx.reply(`Acá tenés el resumen de ${monthLabel} para ${cardLabel} en formato PDF`);
+    await ctx.replyWithDocument({ source: buffer, filename });
+  } catch (error) {
+    console.error("[handleDownloadStatementPdf] Error:", error);
+    await ctx.reply("❌ No se pudo descargar el archivo. Intentá de nuevo.");
+  }
+}
+
 async function handleListAllCards(ctx: Context): Promise<void> {
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery();
@@ -457,7 +496,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
 
   for (const card of cards) {
     const stmt = statementByCardId.get(card.id || "");
-    const label = `  •${buildCardLabel(card)}`;
+    const label = `  • *${buildCardLabel(card)}*`;
     if (stmt) {
       let cardLine = `${label}: ${formatARS(stmt.amountARS)}`;
       if (stmt.amountUSD > 0) {
@@ -477,7 +516,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
 
   for (const card of cards) {
     const stmt = statementByCardId.get(card.id || "");
-    const label = `  •${buildCardLabel(card)}`;
+    const label = `  • *${buildCardLabel(card)}*`;
     if (stmt) {
       const dueDate = stmt.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
@@ -524,4 +563,5 @@ export function registerCardHandler(bot: Telegraf<Context>): void {
   bot.action("card_stmt_cancel", handleStatementCancel);
   bot.action(/^card_stmt_attach:(.+)$/, handleAttachStatementReceipt);
   bot.action("card_stmt_skip", handleSkipStatementReceipt);
+  bot.action(/^card_stmt_download:(.+)$/, handleDownloadStatementPdf);
 }

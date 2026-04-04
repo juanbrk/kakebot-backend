@@ -285,7 +285,7 @@ async function handleCardReceiptUpload(
 
     await clearSession(telegramUserId);
     await ctx.reply(
-      `Se subió correctamente el resumen del mes de *${monthLabel}* de la tarjeta *${cardLabel}*.`,
+      `✅ Se subió correctamente el resumen del mes de *${monthLabel}* de la tarjeta *${cardLabel}*.`,
       { parse_mode: "Markdown" },
     );
   } catch (error) {

@@ -51,7 +51,7 @@
 ## ESLint Rules
 - Double quotes
 - 2-space indent
-- Max line length: 100 (strings exempt)
+- Max line length: 120 (strings exempt)
 - Object curly spacing: always
 - Ternary operators: `?` and `:` at END of line, not start
 - `new-cap` disabled (for Express Router())
