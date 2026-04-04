@@ -7,6 +7,20 @@ When presenting multiple action buttons in an inline keyboard row:
 - **Left**: negative/dismissive actions (Cancelar, Volver, Salir, Anterior)
 - **Right**: positive/affirmative actions (Confirmar, Continuar, Crear, Siguiente)
 
+### Context Messages After Submenu Actions
+
+When the user selects a submenu option that triggers a delivery action (e.g., sending a file, a report, or a data export), send a brief context message **before** the payload:
+
+- Describe what is being sent, in plain language, without emojis
+- Include the relevant identifiers (month, card name, service name, etc.)
+- Use the format: `Acá tenés [el/los/la] [tipo de contenido] de [identificador] [complemento]`
+
+Examples:
+- `Acá tenés el resumen de Abril 2026 para Visa 5477 - Galicia en formato PDF`
+- `Acá tenés el comprobante de Mayo 2026 para Telecentro`
+
+This applies to: file downloads, report generation, document delivery.
+
 ### Emoji Usage
 Only use emojis in:
 - **Success confirmations**: e.g., `✅ Guardado.`, `✅ Actualizado.`

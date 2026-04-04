@@ -200,16 +200,27 @@ export function buildCardStmtAfterCreateKeyboard(cardId: string) {
 }
 
 /**
- * Card detail keyboard with back button and option to load a new statement.
+ * Card detail keyboard with conditional statement actions and back button.
+ * Shows different options depending on whether a statement and its PDF exist.
  *
  * @param {string} cardId
+ * @param {CardStatement | null} statement - Current month statement, if any
  * @return {object} Inline keyboard markup
  */
-export function buildCardDetailBackKeyboard(cardId: string) {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback("Cargar nuevo resumen", `card_stmt_reg:${cardId}`)],
-    [Markup.button.callback("← Volver a tarjetas", "card_list")],
-  ]);
+export function buildCardDetailBackKeyboard(cardId: string, statement: CardStatement | null) {
+  const rows: ReturnType<typeof Markup.button.callback>[][] = [];
+
+  if (!statement) {
+    rows.push([Markup.button.callback("Cargar nuevo resumen", `card_stmt_reg:${cardId}`)]);
+  } else if (!statement.receiptUrl) {
+    rows.push([Markup.button.callback("Adjuntar PDF resumen", `card_stmt_attach:${statement.id}`)]);
+  } else {
+    rows.push([Markup.button.callback("Descargar PDF resumen", `card_stmt_download:${statement.id}`)]);
+    rows.push([Markup.button.callback("Reemplazar PDF resumen", `card_stmt_attach:${statement.id}`)]);
+  }
+
+  rows.push([Markup.button.callback("← Volver a tarjetas", "card_list")]);
+  return Markup.inlineKeyboard(rows);
 }
 
 /**

@@ -76,3 +76,25 @@ export async function uploadStatementReceipt(
     "card_statements", telegramUserId, statementId, fileBuffer, mimeType,
   );
 }
+
+/**
+ * Downloads a stored file using the Admin SDK by extracting the GCS path from its Firebase Storage URL.
+ * Works in both emulator and production — Admin SDK bypasses storage security rules in both environments.
+ *
+ * URL format (emulator and production share the same path structure):
+ *   http(s)://host/v0/b/{bucket}/o/{encodedPath}?...
+ *
+ * @param {string} url - Firebase Storage URL as stored in Firestore (receiptUrl, invoiceUrl, etc.)
+ * @return {{ buffer: Buffer, extension: string }}
+ */
+export async function downloadFromUrl(
+  url: string
+): Promise<{ buffer: Buffer; extension: string }> {
+  const parsedUrl = new URL(url);
+  const encodedPath = parsedUrl.pathname.split("/o/")[1];
+  const filePath = decodeURIComponent(encodedPath);
+  const extension = filePath.split(".").pop() || "pdf";
+
+  const [fileBuffer] = await getBucket().file(filePath).download();
+  return { buffer: fileBuffer, extension };
+}
