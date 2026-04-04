@@ -61,3 +61,13 @@ gcloud secrets versions list GCS_BUCKET
 - Firebase Functions runtime needs access to these values
 - Forgetting to set the secret = runtime 404/access errors in production
 - Local dev works (emulator reads `.env`) but production fails silently
+
+## First-Time Setup
+
+The Secret Manager API is **not enabled by default** in new GCloud projects.
+The first time `go.sh → Prod → Sync secrets` runs on a new project, gcloud may ask:
+```
+API [secretmanager.googleapis.com] not enabled on project. Would you like to enable and retry?
+```
+Answer `y`. The API will be enabled and the operation will retry automatically.
+This only happens once per project.

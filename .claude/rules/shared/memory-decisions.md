@@ -103,7 +103,6 @@
 
 ## 2026-04-03: Environment secrets automation — .pending-secrets registry
 - **Problem**: Changes to `.env.prod` variables are not automatically synced to Google Cloud Secrets Manager → silent failures in production
-- **Real bug**: `GCS_BUCKET=kakebot-972c2.firebasestorage.app` worked locally (emulator) but failed in prod (404 bucket not found)
 - **Solution**: File-based state registry + integrated sync in `npm run go`:
   - New file: `scripts/.pending-secrets` — lists variable names pending sync (no values, so safe to git-track)
   - When Claude changes `.env.prod`, immediately append variable name to `.pending-secrets` + inform in commit message
@@ -113,3 +112,11 @@
 - New hard wall: "NEVER forget to update `.pending-secrets` after changing `.env.prod`" (see `core/hard-walls.md`)
 - New workflow step: "Verify & Sync Environment Secrets" added to `shared/workflow.md` before deploy
 - Applies to: `TELEGRAM_BOT_TOKEN`, `AUTHORIZED_USER_ID`, `GCS_BUCKET`, (and future secrets)
+
+## 2026-04-04: GCS_BUCKET root cause — correcto valor y flujo de deployment
+- **Causa raíz**: `GCS_BUCKET=kakebot-972c2` no es un bucket GCS válido. El nombre correcto es `kakebot-972c2.firebasestorage.app`
+- **Por qué fixes anteriores no funcionaron**: Se actualizó `.env.prod` local PERO no se actualizó el **GitHub Repository Secret `GCS_BUCKET`**
+- **Flujo de deployment**: GitHub Actions lee `${{ secrets.GCS_BUCKET }}` del repo → escribe `functions/.env` → Firebase CLI despliega. El `.env.prod` local NO es el que llega a producción.
+- **Lección**: Hay DOS lugares donde GCS_BUCKET vive: `functions/.env.prod` (referencia local) Y GitHub Repository Secret (lo que realmente usa el deploy). Ambos deben estar en sync.
+- **Google Cloud Secrets Manager**: Existe `GCS_BUCKET` ahí también, pero la función NO lo lee en runtime. Es solo por consistencia/documentación.
+- **Corrección aplicada**: `GCS_BUCKET=kakebot-972c2.firebasestorage.app` en `.env.prod`, `.env`, `.env.test` + usuario debe actualizar GitHub Secret manualmente.

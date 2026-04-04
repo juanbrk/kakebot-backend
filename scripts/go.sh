@@ -102,6 +102,17 @@ select ENV in "Test (botitio_testitoBot)" "Prod (kakebot)" "Salir"; do
 
           "Sync secrets")
             PENDING_FILE="$SCRIPT_DIR/.pending-secrets"
+            PROJECT_ID="kakebot-972c2"
+            CURRENT_PROJECT=$(gcloud config get-value project 2>/dev/null || echo "UNKNOWN")
+
+            echo "⚠️  Verificando proyecto GCloud..."
+            echo "   Proyecto requerido: $PROJECT_ID"
+            echo "   Proyecto actual en gcloud: $CURRENT_PROJECT"
+
+            if [ "$CURRENT_PROJECT" != "$PROJECT_ID" ]; then
+              echo "   (proyecto activo diferente — se operará explícitamente sobre $PROJECT_ID)"
+            fi
+            echo ""
 
             if [ ! -f "$PENDING_FILE" ] || ! grep -qv '^#' "$PENDING_FILE" 2>/dev/null; then
               echo "No hay secrets pendientes de sincronizar."
