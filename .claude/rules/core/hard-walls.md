@@ -23,12 +23,16 @@ Constraints that must never be violated.
   - Failure to create indexes = silent bot failures in production
 
 ## Environment Secrets
+- **WHENEVER `.env.prod` is modified (variable changed or added), ALWAYS remind the user to update the GitHub Repository Secret**
+  - Deployment reads from GitHub Secrets, NOT from `.env.prod` directly
+  - Path: GitHub Secret → `deploy-functions.yml` writes `functions/.env` → Firebase CLI deploys → function reads `process.env`
+  - Without updating the GitHub Secret, the fix is invisible in production
+  - Remind: "Acordate de actualizar el GitHub Repository Secret `VAR_NAME` en Settings → Secrets → Actions"
 - **NEVER forget to update `.pending-secrets` after changing `.env.prod`**
   - When Claude modifies an environment variable, register it immediately in `scripts/.pending-secrets`
-  - Forgetting this step = silent failures in production (local works, prod fails with auth/bucket errors)
-  - Real example: changed `GCS_BUCKET` to correct value locally, forgot to register — production returned 404 (bucket not found)
   - Procedure: `echo "VAR_NAME" >> scripts/.pending-secrets`
-  - Sync with: `npm run go → Prod → Sync secrets` (executed automatically with user confirmation)
+  - Sync with: `npm run go → Prod → Sync secrets` (updates Google Cloud Secrets Manager for consistency)
+- Real example: changed `GCS_BUCKET` locally 3 times — production kept failing because GitHub Secret was never updated
 
 ## Git
 - NEVER create commits — Juan handles all commits manually

@@ -28,6 +28,7 @@ import {
   buildCardLabel,
   buildCardsHubKeyboard,
   buildCardListViewKeyboard,
+  buildCardEmptyStateKeyboard,
 } from "../keyboards/card";
 
 async function handleCardsHub(ctx: Context): Promise<void> {
@@ -50,12 +51,15 @@ async function handleOpenCards(ctx: Context): Promise<void> {
   const cards = await getCardsByUser(telegramUserId);
   const breadcrumb = buildBreadcrumb(["Tarjetas", "Listado"]);
 
-  const text =
-    cards.length > 0
-      ? `${breadcrumb}Seleccioná una tarjeta:`
-      : `${breadcrumb}No hay tarjetas registradas.`;
+  if (cards.length === 0) {
+    await replyOrEdit(ctx, `${breadcrumb}No tenés tarjetas registradas.`, {
+      parse_mode: "Markdown",
+      ...buildCardEmptyStateKeyboard(),
+    });
+    return;
+  }
 
-  await replyOrEdit(ctx, text, {
+  await replyOrEdit(ctx, `${breadcrumb}Seleccioná una tarjeta:`, {
     parse_mode: "Markdown",
     ...buildCardListKeyboard(cards, 0),
   });

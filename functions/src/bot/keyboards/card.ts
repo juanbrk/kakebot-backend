@@ -315,6 +315,18 @@ export function buildCardListViewKeyboard() {
 }
 
 /**
+ * Keyboard shown when the user has no cards registered yet.
+ *
+ * @return {object} Inline keyboard markup
+ */
+export function buildCardEmptyStateKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Añadir tarjeta", "card_add")],
+    [Markup.button.callback("← Volver a tarjetas", "menu_tarjetas")],
+  ]);
+}
+
+/**
  * Builds the statement creation confirmation text.
  *
  * @param {object} params

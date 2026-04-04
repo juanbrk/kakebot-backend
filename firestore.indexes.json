@@ -42,6 +42,14 @@
       ]
     },
     {
+      "collectionGroup": "credit_cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "card_statements",
       "queryScope": "COLLECTION",
       "fields": [
