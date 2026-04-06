@@ -307,6 +307,24 @@ export function buildInstallmentDetailKeyboard(
     );
   }
 
+  if (hasInvoice) {
+    conditionalBtns.push(
+      Markup.button.callback(
+        "Descargar factura",
+        `svc_dl_inv:${installmentId}`,
+      ),
+    );
+  }
+
+  if (hasReceipt) {
+    conditionalBtns.push(
+      Markup.button.callback(
+        "Descargar comprobante",
+        `svc_dl_rec:${installmentId}`,
+      ),
+    );
+  }
+
   for (let i = 0; i < conditionalBtns.length; i += 2) {
     const row = [conditionalBtns[i]];
     if (i + 1 < conditionalBtns.length) row.push(conditionalBtns[i + 1]);
