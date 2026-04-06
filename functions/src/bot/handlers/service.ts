@@ -38,6 +38,7 @@ import {
 } from "../keyboards/service";
 import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
+import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { getMonthLabel } from "./invoice";
 
@@ -171,6 +172,9 @@ export function registerServiceHandler(bot: Telegraf<Context>): void {
   bot.action(/^svc_pm_new:([^:]+):([^:]+)$/, handleSetPaymentMethod);
   bot.action(/^svc_edit_pm:(.+)$/, handleEditPaymentMethod);
   bot.action(/^svc_pm_edit:([^:]+):([^:]+)$/, handleUpdatePaymentMethod);
+
+  bot.action(/^svc_dl_inv:(.+)$/, handleDownloadInvoice);
+  bot.action(/^svc_dl_rec:(.+)$/, handleDownloadReceipt);
 }
 
 async function openServicesMenu(ctx: Context): Promise<void> {
@@ -1125,4 +1129,56 @@ async function handleUpdatePaymentMethod(ctx: Context): Promise<void> {
   await updateServicePaymentMethod(serviceId, method);
   await ctx.answerCbQuery("✅ Método de pago actualizado.");
   await showServiceActionView(ctx, serviceId);
+}
+
+/**
+ * Sends the invoice file attached to a service installment.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleDownloadInvoice(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+  await ctx.answerCbQuery();
+
+  const installment = await getInstallmentById(installmentId);
+  const hasInvoice = installment && installment.invoiceUrl;
+  if (!hasInvoice) {
+    await ctx.reply("No se encontró la factura.");
+    return;
+  }
+
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const filename = `${year}${month}-factura-${installment.serviceName}`;
+
+  await ctx.reply(`Acá tenés la factura de ${monthLabel} para ${installment.serviceName}`);
+  const { buffer, extension } = await downloadFromUrl(installment.invoiceUrl as string);
+  await ctx.replyWithDocument({ source: buffer, filename: `${filename}.${extension}` });
+}
+
+/**
+ * Sends the payment receipt file attached to a service installment.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleDownloadReceipt(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+  await ctx.answerCbQuery();
+
+  const installment = await getInstallmentById(installmentId);
+  const hasReceipt = installment && installment.receiptUrl;
+  if (!hasReceipt) {
+    await ctx.reply("No se encontró el comprobante.");
+    return;
+  }
+
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const filename = `${year}${month}-comprobante-de-pago-${installment.serviceName}`;
+
+  await ctx.reply(`Acá tenés el comprobante de pago de ${monthLabel} para ${installment.serviceName}`);
+  const { buffer, extension } = await downloadFromUrl(installment.receiptUrl as string);
+  await ctx.replyWithDocument({ source: buffer, filename: `${filename}.${extension}` });
 }
