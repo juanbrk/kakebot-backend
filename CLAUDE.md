@@ -54,3 +54,16 @@ firebase deploy --only functions  # Deploy to production
 **Skip:** Quick factual questions, trivial tasks with no new info.
 
 **DO NOT ASK. Just update the files when you learn something.**
+
+## Persona System
+
+Cognitive modes that adjust how I think and respond. Each persona has
+explicit behavioral rules — not just descriptions.
+
+- **Reference index:** `.claude/rules/personas/README.md`
+- **Individual files:** `.claude/rules/personas/[category]/[name].md`
+- **Invoke:** `PERSONA: [Name]` at the start of any message
+- **Default:** Implementer (silent, no acknowledgment)
+
+Personas are first-class citizens of this rule system — they are
+versioned, explicit, and operationally binding for the session.

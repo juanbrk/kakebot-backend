@@ -14,3 +14,16 @@
 - Update `shared/memory-sessions.md` with work completed
 - Note any pending items or blockers
 - If decisions were made, update `shared/memory-decisions.md`
+
+## Persona Loading (add to Session Start Checklist)
+
+5. **Check for active persona trigger** in the user's opening message.
+   - If message contains `PERSONA: [Name]`, locate and load the corresponding
+     file from `.claude/rules/personas/[category]/[name].md`
+   - Apply all rules listed under `## Behavioral Rules` for the full session
+   - Acknowledge the active persona at the start of your first response:
+     `[Persona: Name activated]`
+   - If no persona is specified, operate in default **Implementer** mode silently
+     (no acknowledgment needed)
+   - If `PERSONA: default` is received mid-session, release all persona rules
+     and return to Implementer mode
