@@ -1,8 +1,9 @@
 import * as admin from "firebase-admin";
 import { Context } from "telegraf";
 import {
-  Category, Expense, Session, PendingDescEntry, SessionExpenseEntry,
+  Category, Session, PendingDescEntry, SessionExpenseEntry,
 } from "../types/index";
+import { Expense } from "../types/expense.types";
 import { getDb } from "./db";
 import { setSession, clearSession } from "./session.service";
 import { formatARS } from "../helpers/format";

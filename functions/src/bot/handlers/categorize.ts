@@ -1,5 +1,6 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { Expense, Session, PendingDescEntry } from "../../types/index";
+import { Session, PendingDescEntry } from "../../types/index";
+import { Expense } from "../../types/expense.types";
 import { getDb } from "../../services/db";
 import {
   getSession,

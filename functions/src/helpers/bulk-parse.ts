@@ -1,4 +1,4 @@
-import { BulkExpenseEntry } from "../types/index";
+import { BulkExpenseEntry } from "../types/expense.types";
 import { parseExpenseMessage } from "./parse-amount";
 import { formatARS } from "./format";
 

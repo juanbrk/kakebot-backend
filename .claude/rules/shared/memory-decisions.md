@@ -1,5 +1,30 @@
 # Decisions Log
 
+## 2026-04-06: Types per entity + param object convention enforced
+- Nueva arquitectura: cada entidad tiene `types/[entidad].types.ts`; `types/index.ts` congelado
+- Interfaces migradas esta sesión: `Expense`, `BulkExpenseEntry` → `expense.types.ts`; `Income` → `income.types.ts`; `MonthlyReport` → `report.types.ts`
+- Interfaces de parámetros siguen patrón `[Func]Params`: `SaveExpenseParams`, `SaveIncomeParams`, `ShowMonthSelectorParams`
+- 3 funciones corregidas: `saveExpense`, `saveIncome`, `showMonthSelector` (todas tenían 4 params posicionales)
+- Regla documentada en `shared/types-architecture.md` con tabla de pendientes de migración
+- Hook creado: `scripts/check-function-params.js` + `.claude/hooks/params-rule.json`
+  - PostToolUse en Edit|Write → detecta funciones con 4+ params posicionales en archivos .ts
+  - Exit 2 con mensaje de violación si detecta problemas
+  - Para activar: copiar bloque `"hooks"` de `params-rule.json` a `.claude/settings.json`
+
+## 2026-04-06: Report history + retroactive registration
+- New feature: Reportes menu → Mes actual | Ver anteriores → year/month selector → report/expense/income
+- Back navigation fix: when only 1 year has data, `showMonthSelector` receives `backCallback="menu_reportes"` to avoid infinite loop
+- `buildBackdatedTimestamp(yearMonth)` added to `helpers/format.ts` — last day of month at 20:00 UTC (17:00 ART)
+- `getPastMonthsWithData(userId)` in `report.service.ts` uses single-field Firestore queries (no new composite index needed)
+- `reportMonth?: string` field added to `Session` — preserved automatically through income flow via `{ ...session, ... }` spread
+- Breadcrumb bug: accidentally created a new `breadcrumb()` function instead of using existing `buildBreadcrumb()` — rule added to `shared/conventions.md` "Before Writing Any New Helper" with a lookup table of all known helpers
+
+## 2026-04-06: Never create duplicate helpers — mandatory pre-check rule
+- Rule added to `shared/conventions.md`: ALWAYS search `functions/src/helpers/` before writing any new helper
+- Known helpers table maintained in `shared/conventions.md` (must be updated when adding new helpers)
+- Root cause of violation: opened a new file and wrote logic without checking if equivalent already existed
+- Breadcrumb separator is ` / ` (not ` > `), output is `_path_\n\n` (italic Markdown) — requires `parse_mode: "Markdown"` on every message that uses it
+
 ## 2026-04-02: Type safety — named types and no session: any
 - All domain literal unions must be exported as named types from `types/index.ts` (never inline)
 - Current named types: `CategoryType`, `PendingFileType`, `CreditCardProcessor`, `StatementCurrency`

@@ -1,3 +1,5 @@
+import * as admin from "firebase-admin";
+
 export const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre",
@@ -20,6 +22,20 @@ export function formatARS(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/**
+ * Returns a Firestore Timestamp for the last day of a given month at 20:00 UTC
+ * (17:00 ART). Used for backdating expenses and incomes to closed past months.
+ *
+ * @param {string} yearMonth - Month in "YYYY-MM" format
+ * @return {FirebaseFirestore.Timestamp} Backdated timestamp
+ */
+export function buildBackdatedTimestamp(yearMonth: string): FirebaseFirestore.Timestamp {
+  const [year, month] = yearMonth.split("-").map(Number);
+  const lastDay = getDaysInMonth(yearMonth);
+  const date = new Date(Date.UTC(year, month - 1, lastDay, 20, 0, 0));
+  return admin.firestore.Timestamp.fromDate(date);
 }
 
 /**

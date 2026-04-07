@@ -92,6 +92,11 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
       return;
     }
 
+    if (session?.state === "rep_awaiting_expense") {
+      await handleRepAwaitingExpense(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
     if (session?.state === "svc_awaiting_name") {
       await handleServiceName(ctx, telegramUserId, messageText);
       return;
@@ -850,6 +855,52 @@ async function handleIncomeReason(
   await ctx.reply(
     buildIncomeConfirmText(amount, reason),
     buildIncomeConfirmKeyboard()
+  );
+}
+
+/**
+ * Handles expense input during retroactive registration for a past month.
+ * Requires the complete message with description and amount in one shot.
+ *
+ * @param {Context} ctx - Telegraf context
+ * @param {Session} session - Current user session (contains reportMonth)
+ * @param {string} telegramUserId - The user's Telegram ID
+ * @param {string} messageText - The raw message text
+ */
+async function handleRepAwaitingExpense(
+  ctx: Context,
+  session: Session,
+  telegramUserId: string,
+  messageText: string,
+): Promise<void> {
+  const expense = parseExpenseMessage(messageText);
+
+  if (!expense) {
+    await ctx.reply(
+      "No pude interpretar el mensaje. Necesito descripción y monto juntos.\n" +
+      "Ej: Panaderia 5000",
+    );
+    return;
+  }
+
+  const reportMonth = session.reportMonth as string;
+  const [year, month] = reportMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  await setSession(telegramUserId, {
+    ...session,
+    partialDescription: expense.description,
+    partialAmount: expense.amount,
+  });
+
+  await ctx.reply(
+    `Registrar gasto en ${monthLabel}?\n${expense.description}  ${formatARS(expense.amount)}`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback("Cancelar", "rep_exp_cancel"),
+        Markup.button.callback("Confirmar", "rep_exp_confirm"),
+      ],
+    ]),
   );
 }
 

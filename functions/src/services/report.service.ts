@@ -3,34 +3,63 @@ import { getDb } from "./db";
 import { formatARS, MONTH_NAMES } from "../helpers/format";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
+import { MonthlyReport } from "../types/report.types";
 
-export interface MonthlyReport {
-  detail: string;
-  balance: string;
+/**
+ * Returns a sorted list of "YYYY-MM" strings for months that have at least
+ * one expense or income, strictly before the current calendar month.
+ *
+ * @param {string} telegramUserId - The user's Telegram ID
+ * @return {Promise<string[]>} Sorted ascending array of "YYYY-MM" strings
+ */
+export async function getPastMonthsWithData(telegramUserId: string): Promise<string[]> {
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const [expensesSnap, incomesSnap] = await Promise.all([
+    getDb().collection("expenses").where("telegramUserId", "==", telegramUserId).get(),
+    getDb().collection("incomes").where("telegramUserId", "==", telegramUserId).get(),
+  ]);
+
+  const monthSet = new Set<string>();
+  for (const doc of [...expensesSnap.docs, ...incomesSnap.docs]) {
+    const date = (doc.data().date as admin.firestore.Timestamp).toDate();
+    const ym = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (ym < currentYearMonth) {
+      monthSet.add(ym);
+    }
+  }
+
+  return [...monthSet].sort();
 }
 
 /**
  * Generates a monthly report with detail and balance messages.
  *
  * @param {string} telegramUserId - The user's Telegram ID
+ * @param {string} [yearMonth] - Optional "YYYY-MM" string; defaults to current month
  * @return {MonthlyReport | null} Two-part report or null if no data
  */
 export async function generateMonthlyReport(
   telegramUserId: string,
+  yearMonth?: string,
 ): Promise<MonthlyReport | null> {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-  );
+  let year: number;
+  let month: number;
 
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const dueMonth = `${now.getFullYear()}-${monthStr}`;
+  if (yearMonth) {
+    const [y, m] = yearMonth.split("-");
+    year = parseInt(y, 10);
+    month = parseInt(m, 10) - 1;
+  } else {
+    const now = new Date();
+    year = now.getFullYear();
+    month = now.getMonth();
+  }
+
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+  const dueMonth = `${year}-${String(month + 1).padStart(2, "0")}`;
 
   const [expensesSnapshot, services, installments, incomes] =
     await Promise.all([
@@ -87,7 +116,7 @@ export async function generateMonthlyReport(
   // --- Detail message ---
   const detailLines: string[] = [];
   detailLines.push(
-    `*Reporte ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}*\n`,
+    `*Reporte ${MONTH_NAMES[month]} ${year}*\n`,
   );
 
   const categoryTotals: { label: string; total: number }[] = [];
@@ -162,7 +191,7 @@ export async function generateMonthlyReport(
 
   const balanceLines: string[] = [];
   balanceLines.push(
-    `*Balance ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}*\n`,
+    `*Balance ${MONTH_NAMES[month]} ${year}*\n`,
   );
   balanceLines.push(`*INGRESOS* ${formatARS(incomesTotal)}`);
   balanceLines.push("");

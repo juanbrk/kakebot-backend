@@ -1,12 +1,15 @@
 import * as admin from "firebase-admin";
-import { BulkExpenseEntry } from "../types/index";
+import { BulkExpenseEntry, SaveExpenseParams } from "../types/expense.types";
 import { getDb } from "./db";
 
-export async function saveExpense(
-  telegramUserId: string,
-  description: string,
-  amount: number
-): Promise<string | null> {
+/**
+ * Saves an expense record to Firestore.
+ *
+ * @param {SaveExpenseParams} params - Expense data
+ * @return {string | null} The categoryId if a mapping exists, otherwise null
+ */
+export async function saveExpense(params: SaveExpenseParams): Promise<string | null> {
+  const { telegramUserId, description, amount, date } = params;
   const normalizedDesc = description.toLowerCase().trim();
 
   const existingMapping = await getDb()
@@ -26,7 +29,7 @@ export async function saveExpense(
     normalizedDesc,
     amount,
     categoryId,
-    date: admin.firestore.Timestamp.now(),
+    date: date ?? admin.firestore.Timestamp.now(),
     createdAt: admin.firestore.Timestamp.now(),
   });
 
