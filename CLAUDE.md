@@ -7,7 +7,7 @@ Household finance management via Telegram bot, powered by Firebase Functions.
 - **Stack**: TypeScript, Firebase Functions, Firestore, Telegraf
 - **Entry point**: `functions/src/index.ts` → exports `bot` Cloud Function
 - **Bot logic**: `functions/src/bot/telegram.ts`
-- **Types**: `functions/src/types/index.ts`
+- **Types**: `functions/src/types/` (un archivo por entidad; ver `shared/types-architecture.md`)
 - **Deploy region**: `us-central1` (NOT southamerica-east1)
 - **Firebase project**: `kakebot-972c2`
 
@@ -36,6 +36,7 @@ firebase deploy --only functions  # Deploy to production
 | `shared/firestore-indexes.md` | Composite index creation & verification for Firestore |
 | `shared/session-data-reuse.md` | Avoid redundant Firestore reads; cache in session, use Promise.all |
 | `shared/environment-secrets.md` | Syncing `.env` changes to Google Cloud Secrets before deploy |
+| `shared/types-architecture.md` | Types per entity: file structure, migration rules, pending items |
 | `shared/memory-decisions.md` | Past decisions for consistency |
 | `shared/memory-sessions.md` | Rolling summary of recent work |
 

@@ -11,9 +11,7 @@ export function registerExpenseHandler(bot: Telegraf<Context>): void {
     const amount = parseFloat(ctx.match[2]);
     const telegramUserId = ctx.from?.id.toString() || "";
 
-    const categoryId = await saveExpense(
-      telegramUserId, description, amount
-    );
+    const categoryId = await saveExpense({ telegramUserId, description, amount });
 
     const categoryLabel = categoryId ?
       ` (${categoryId})` :

@@ -1,13 +1,4 @@
-export interface Expense {
-  id?: string;
-  telegramUserId: string;
-  description: string;
-  normalizedDesc: string;
-  amount: number;
-  categoryId: string | null;
-  date: FirebaseFirestore.Timestamp;
-  createdAt: FirebaseFirestore.Timestamp;
-}
+import { BulkExpenseEntry } from "./expense.types";
 
 export interface SubcategoryMapping {
   id?: string;
@@ -43,11 +34,6 @@ export interface SessionExpenseEntry {
   categoryName: string;
 }
 
-export interface BulkExpenseEntry {
-  description: string;
-  amount: number;
-}
-
 export interface Service {
   id?: string;
   telegramUserId: string;
@@ -69,15 +55,6 @@ export interface ServiceInstallment {
   paidAt?: FirebaseFirestore.Timestamp;
   receiptUrl?: string;
   invoiceUrl?: string;
-  createdAt: FirebaseFirestore.Timestamp;
-}
-
-export interface Income {
-  id?: string;
-  telegramUserId: string;
-  amount: number;
-  reason: string;
-  date: FirebaseFirestore.Timestamp;
   createdAt: FirebaseFirestore.Timestamp;
 }
 
@@ -112,7 +89,8 @@ export interface CardStatement {
 export type ExpenseSessionState =
   | "awaiting_amount"
   | "awaiting_description"
-  | "bulk_pending";
+  | "bulk_pending"
+  | "rep_awaiting_expense";
 
 export type CategorySessionState =
   | "categorizing"
@@ -195,4 +173,5 @@ export interface Session {
   statementMonth?: string;
   partialAmountUSD?: number;
   statementCurrency?: StatementCurrency;
+  reportMonth?: string;
 }

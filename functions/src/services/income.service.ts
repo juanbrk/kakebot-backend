@@ -1,27 +1,22 @@
 import * as admin from "firebase-admin";
-import { Income } from "../types/index";
+import { Income, SaveIncomeParams } from "../types/income.types";
 import { getDb } from "./db";
 
 /**
  * Saves an income record to Firestore.
  *
- * @param {string} telegramUserId - The user's Telegram ID
- * @param {number} amount - Income amount (always positive)
- * @param {string} reason - Free-text reason (max 30 chars)
+ * @param {SaveIncomeParams} params - Income data
  * @return {string} The new document ID
  */
-export async function saveIncome(
-  telegramUserId: string,
-  amount: number,
-  reason: string
-): Promise<string> {
+export async function saveIncome(params: SaveIncomeParams): Promise<string> {
+  const { telegramUserId, amount, reason, date } = params;
   const now = admin.firestore.Timestamp.now();
 
   const docRef = await getDb().collection("incomes").add({
     telegramUserId,
     amount,
     reason,
-    date: now,
+    date: date ?? now,
     createdAt: now,
   });
 

@@ -6,7 +6,7 @@ import {
   emptySessionForPartial,
 } from "../../services/session.service";
 import { saveIncome } from "../../services/income.service";
-import { formatARS } from "../../helpers/format";
+import { formatARS, buildBackdatedTimestamp } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 
 /**
@@ -84,13 +84,16 @@ async function handleIncomeConfirm(ctx: Context): Promise<void> {
 
   const amount = session.partialAmount as number;
   const reason = session.partialDescription as string;
+  const incomeDate = session.reportMonth ?
+    buildBackdatedTimestamp(session.reportMonth) :
+    undefined;
 
   await clearSession(telegramUserId);
-  await saveIncome(telegramUserId, amount, reason);
+  await saveIncome({ telegramUserId, amount, reason, date: incomeDate });
 
   await replyOrEdit(
     ctx,
-    `✅ Ingreso registrado: ${reason}  ${formatARS(amount)}`,
+    `✅ *Ingreso registrado*: ${reason}  ${formatARS(amount)}`,
   );
 }
 

@@ -91,21 +91,69 @@ functions/src/
 │   │   ├── expense.ts              # confirm/cancel actions (single expense)
 │   │   ├── bulk.ts                 # bulk_confirm/bulk_cancel actions
 │   │   ├── report.ts               # /reporte + menu_reporte action
+│   │   ├── report-history.ts       # report history nav + retroactive registration
+│   │   ├── income.ts               # income registration flow
 │   │   ├── categorize.ts           # /categorizar + menu_categorizar + cat_* actions
+│   │   ├── service.ts              # service CRUD + installment actions
+│   │   ├── invoice.ts              # invoice photo/PDF upload flow
+│   │   ├── receipt-direct.ts       # direct receipt attachment flow
+│   │   ├── card.ts                 # credit card + statement actions
+│   │   ├── photo.ts                # on("photo") / on("document") dispatcher
 │   │   └── text.ts                 # on("text") central dispatcher
 │   └── keyboards/
-│       └── category.ts             # buildCategoryKeyboard, buildExpensePromptText
+│       ├── category.ts             # buildCategoryKeyboard, buildExpensePromptText
+│       ├── service.ts              # service keyboards
+│       └── invoice.ts              # invoice + receipt keyboards
 ├── services/
 │   ├── db.ts                       # getDb() lazy Firestore getter
 │   ├── session.service.ts          # Session CRUD + emptySessionForPartial
 │   ├── expense.service.ts          # saveExpense, saveBulkExpenses
+│   ├── income.service.ts           # saveIncome, getMonthlyIncomes
 │   ├── category.service.ts         # Category CRUD, categorization flow logic
-│   └── report.service.ts           # generateMonthlyReport
+│   ├── service.service.ts          # Service + installment CRUD
+│   ├── card.service.ts             # Credit card + statement CRUD
+│   ├── storage.service.ts          # GCS file upload (receipts, statements)
+│   └── report.service.ts           # generateMonthlyReport, getPastMonthsWithData
 ├── helpers/
 │   ├── parse-amount.ts             # Argentine amount parsing + expense message parsing
-│   ├── format.ts                   # formatARS, MONTH_NAMES
+│   ├── format.ts                   # formatARS, MONTH_NAMES, buildBackdatedTimestamp
+│   ├── breadcrumb.ts               # buildBreadcrumb — navigation path display
+│   ├── telegram.ts                 # replyOrEdit — helper for ctx.editMessageText/ctx.reply
 │   └── bulk-parse.ts               # Bulk message parsing + text builders
 ├── types/index.ts                  # TypeScript interfaces
 ├── middleware/auth.ts               # Express auth middleware (unused by bot)
 └── routes/                          # API routes (reserved for future)
+```
+
+## Before Writing Any New Helper or Utility Function
+
+**ALWAYS search the existing codebase first.** This project has grown organically and already has helpers for many common operations. Creating a duplicate wastes effort and causes inconsistency.
+
+**Mandatory search before creating a new helper:**
+
+```bash
+grep -r "function buildBreadcrumb\|function formatARS\|function parseExpenseMessage\|function replyOrEdit" functions/src/helpers/
+```
+
+Or use Grep tool to search `functions/src/helpers/` for any function with a similar name or purpose.
+
+**Known helpers — use these, do NOT recreate:**
+
+| Function | File | Purpose |
+|---|---|---|
+| `buildBreadcrumb(segments)` | `helpers/breadcrumb.ts` | Italic nav path `_A / B / C_\n\n` with `parse_mode: "Markdown"` |
+| `formatARS(amount)` | `helpers/format.ts` | ARS currency formatting (dot thousands, comma decimal) |
+| `MONTH_NAMES` | `helpers/format.ts` | Spanish month name array (0-indexed) |
+| `buildBackdatedTimestamp(yearMonth)` | `helpers/format.ts` | Last day of month at 17:00 ART as Firestore Timestamp |
+| `parseArgentineAmount(input)` | `helpers/parse-amount.ts` | Argentine-format string → number |
+| `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` |
+| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message if possible, else reply |
+
+**Breadcrumb pattern** — every screen that uses `buildBreadcrumb` MUST use `parse_mode: "Markdown"`:
+```typescript
+await ctx.editMessageText(
+  buildBreadcrumb(["Section", "Subsection"]) + "Prompt text",
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+);
 ```
