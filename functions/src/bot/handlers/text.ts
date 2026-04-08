@@ -194,12 +194,12 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
     }
 
     if (session?.state === "tax_awaiting_day") {
-      await handleTaxDay(ctx, session, telegramUserId, messageText);
+      await handleTaxDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "tax_awaiting_amount") {
-      await handleTaxAmount(ctx, session, telegramUserId, messageText);
+      await handleTaxAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 

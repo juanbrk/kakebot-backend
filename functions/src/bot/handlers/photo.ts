@@ -28,12 +28,12 @@ async function handlePhoto(ctx: Context): Promise<void> {
   }
 
   if (session?.state === "svc_awaiting_invoice") {
-    await handleInvoiceUpload(ctx, telegramUserId, session, "photo");
+    await handleInvoiceUpload({ ctx, telegramUserId, session, fileType: "photo" });
     return;
   }
 
   if (session?.state === "card_awaiting_receipt") {
-    await handleCardReceiptUpload(ctx, telegramUserId, session, "photo");
+    await handleCardReceiptUpload({ ctx, telegramUserId, session, fileType: "photo" });
     return;
   }
 
@@ -52,7 +52,7 @@ async function handlePhoto(ctx: Context): Promise<void> {
   }
 
   const largestPhoto = photos[photos.length - 1];
-  await startDocTypeFlow(ctx, telegramUserId, largestPhoto.file_id, "photo");
+  await startDocTypeFlow({ ctx, telegramUserId, fileId: largestPhoto.file_id, fileType: "photo" });
 }
 
 async function handleDocument(ctx: Context): Promise<void> {
@@ -76,36 +76,39 @@ async function handleDocument(ctx: Context): Promise<void> {
   const session = await getSession(telegramUserId);
 
   if (session?.state === "svc_awaiting_receipt") {
-    await handleReceiptUploadFromDocument(ctx, telegramUserId, session, document.file_id);
+    await handleReceiptUploadFromDocument({ ctx, telegramUserId, session, documentFileId: document.file_id });
     return;
   }
 
   if (session?.state === "svc_awaiting_invoice") {
-    await handleInvoiceUpload(ctx, telegramUserId, session, "pdf", document.file_id);
+    await handleInvoiceUpload({ ctx, telegramUserId, session, fileType: "pdf", documentFileId: document.file_id });
     return;
   }
 
   if (session?.state === "card_awaiting_receipt") {
-    await handleCardReceiptUpload(
-      ctx, telegramUserId, session, "pdf", document.file_id,
-    );
+    await handleCardReceiptUpload({ ctx, telegramUserId, session, fileType: "pdf", documentFileId: document.file_id });
     return;
   }
 
   if (session?.state === "tax_awaiting_receipt") {
-    await handleTaxReceiptUploadFromDocument(ctx, telegramUserId, session, document.file_id);
+    await handleTaxReceiptUploadFromDocument({ ctx, telegramUserId, session, documentFileId: document.file_id });
     return;
   }
 
-  await startDocTypeFlow(ctx, telegramUserId, document.file_id, "pdf");
+  await startDocTypeFlow({ ctx, telegramUserId, fileId: document.file_id, fileType: "pdf" });
 }
 
-async function startDocTypeFlow(
-  ctx: Context,
-  telegramUserId: string,
-  fileId: string,
-  fileType: PendingFileType
-): Promise<void> {
+async function startDocTypeFlow({
+  ctx,
+  telegramUserId,
+  fileId,
+  fileType,
+}: {
+  ctx: Context;
+  telegramUserId: string;
+  fileId: string;
+  fileType: PendingFileType;
+}): Promise<void> {
   await setSession(telegramUserId, {
     ...emptySessionForPartial(telegramUserId),
     state: "doc_awaiting_type",
@@ -148,9 +151,7 @@ async function handleReceiptUpload(
     const fileBuffer = await downloadFile(fileLink.href);
 
     const mimeType = fileLink.href.includes(".png") ? "image/png" : "image/jpeg";
-    const receiptUrl = await uploadReceipt(
-      telegramUserId, installmentId, fileBuffer, mimeType
-    );
+    const receiptUrl = await uploadReceipt({ telegramUserId, installmentId, fileBuffer, mimeType });
 
     await saveReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
@@ -161,12 +162,17 @@ async function handleReceiptUpload(
   }
 }
 
-async function handleReceiptUploadFromDocument(
-  ctx: Context,
-  telegramUserId: string,
-  session: Session,
-  documentFileId: string
-): Promise<void> {
+async function handleReceiptUploadFromDocument({
+  ctx,
+  telegramUserId,
+  session,
+  documentFileId,
+}: {
+  ctx: Context;
+  telegramUserId: string;
+  session: Session;
+  documentFileId: string;
+}): Promise<void> {
   const installmentId = session.installmentId || "";
   if (!installmentId) {
     await ctx.reply("Error: datos de sesión incompletos.");
@@ -177,9 +183,7 @@ async function handleReceiptUploadFromDocument(
     const fileLink = await ctx.telegram.getFileLink(documentFileId);
     const fileBuffer = await downloadFile(fileLink.href);
 
-    const receiptUrl = await uploadReceipt(
-      telegramUserId, installmentId, fileBuffer, "application/pdf"
-    );
+    const receiptUrl = await uploadReceipt({ telegramUserId, installmentId, fileBuffer, mimeType: "application/pdf" });
 
     await saveReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
@@ -190,13 +194,19 @@ async function handleReceiptUploadFromDocument(
   }
 }
 
-async function handleInvoiceUpload(
-  ctx: Context,
-  telegramUserId: string,
-  session: Session,
-  fileType: PendingFileType,
-  documentFileId?: string
-): Promise<void> {
+async function handleInvoiceUpload({
+  ctx,
+  telegramUserId,
+  session,
+  fileType,
+  documentFileId,
+}: {
+  ctx: Context;
+  telegramUserId: string;
+  session: Session;
+  fileType: PendingFileType;
+  documentFileId?: string;
+}): Promise<void> {
   const installmentId = session.installmentId || "";
   if (!installmentId) {
     await ctx.reply("Error: datos de sesión incompletos.");
@@ -229,9 +239,7 @@ async function handleInvoiceUpload(
       "application/pdf" :
       (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
 
-    const invoiceUrl = await uploadInvoice(
-      telegramUserId, installmentId, fileBuffer, mimeType
-    );
+    const invoiceUrl = await uploadInvoice({ telegramUserId, installmentId, fileBuffer, mimeType });
 
     await saveInvoiceUrl(installmentId, invoiceUrl);
     await clearSession(telegramUserId);
@@ -242,13 +250,19 @@ async function handleInvoiceUpload(
   }
 }
 
-async function handleCardReceiptUpload(
-  ctx: Context,
-  telegramUserId: string,
-  session: Session,
-  fileType: PendingFileType,
-  documentFileId?: string
-): Promise<void> {
+async function handleCardReceiptUpload({
+  ctx,
+  telegramUserId,
+  session,
+  fileType,
+  documentFileId,
+}: {
+  ctx: Context;
+  telegramUserId: string;
+  session: Session;
+  fileType: PendingFileType;
+  documentFileId?: string;
+}): Promise<void> {
   const statementId = session.statementId || "";
   if (!statementId) {
     await ctx.reply("Error: datos de sesión incompletos.");
@@ -281,9 +295,7 @@ async function handleCardReceiptUpload(
       "application/pdf" :
       (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
 
-    const receiptUrl = await uploadStatementReceipt(
-      telegramUserId, statementId, fileBuffer, mimeType
-    );
+    const receiptUrl = await uploadStatementReceipt({ telegramUserId, statementId, fileBuffer, mimeType });
 
     await saveStatementReceiptUrl(statementId, receiptUrl);
 
@@ -329,7 +341,7 @@ async function handleTaxReceiptUpload(
     const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
     const fileBuffer = await downloadFile(fileLink.href);
     const mimeType = fileLink.href.includes(".png") ? "image/png" : "image/jpeg";
-    const receiptUrl = await uploadTaxReceipt(telegramUserId, installmentId, fileBuffer, mimeType);
+    const receiptUrl = await uploadTaxReceipt({ telegramUserId, installmentId, fileBuffer, mimeType });
     await saveTaxReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
@@ -339,12 +351,17 @@ async function handleTaxReceiptUpload(
   }
 }
 
-async function handleTaxReceiptUploadFromDocument(
-  ctx: Context,
-  telegramUserId: string,
-  session: Session,
-  documentFileId: string
-): Promise<void> {
+async function handleTaxReceiptUploadFromDocument({
+  ctx,
+  telegramUserId,
+  session,
+  documentFileId,
+}: {
+  ctx: Context;
+  telegramUserId: string;
+  session: Session;
+  documentFileId: string;
+}): Promise<void> {
   const installmentId = session.taxInstallmentId || "";
   if (!installmentId) {
     await ctx.reply("Error: datos de sesión incompletos.");
@@ -354,9 +371,7 @@ async function handleTaxReceiptUploadFromDocument(
   try {
     const fileLink = await ctx.telegram.getFileLink(documentFileId);
     const fileBuffer = await downloadFile(fileLink.href);
-    const receiptUrl = await uploadTaxReceipt(
-      telegramUserId, installmentId, fileBuffer, "application/pdf"
-    );
+    const receiptUrl = await uploadTaxReceipt({ telegramUserId, installmentId, fileBuffer, mimeType: "application/pdf" });
     await saveTaxReceiptUrl(installmentId, receiptUrl);
     await clearSession(telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");

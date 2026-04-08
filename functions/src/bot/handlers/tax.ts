@@ -593,18 +593,18 @@ export async function handleTaxName(
 /**
  * Handles estimated due day input during tax creation flow (state: tax_awaiting_day).
  * Creates the Tax document in Firestore and prompts for the first installment.
- *
- * @param {Context} ctx - Telegraf context
- * @param {Session} session - Current session (contains partialDescription = tax name)
- * @param {string} telegramUserId - User's Telegram ID
- * @param {string} messageText - Raw message text from the user
  */
-export async function handleTaxDay(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string,
-): Promise<void> {
+export async function handleTaxDay({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: {
+  ctx: Context;
+  session: Session;
+  telegramUserId: string;
+  messageText: string;
+}): Promise<void> {
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
@@ -637,18 +637,18 @@ export async function handleTaxDay(
 /**
  * Handles installment amount input during registration flow (state: tax_awaiting_amount).
  * Fetches the tax to get estimatedDueDay, saves the installment, and prompts whether to mark as paid.
- *
- * @param {Context} ctx - Telegraf context
- * @param {Session} session - Current session (contains taxId, taxName, selectedMonth)
- * @param {string} telegramUserId - User's Telegram ID
- * @param {string} messageText - Raw message text from the user
  */
-export async function handleTaxAmount(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string,
-): Promise<void> {
+export async function handleTaxAmount({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: {
+  ctx: Context;
+  session: Session;
+  telegramUserId: string;
+  messageText: string;
+}): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   const isValidAmount = amount !== null && amount > 0;

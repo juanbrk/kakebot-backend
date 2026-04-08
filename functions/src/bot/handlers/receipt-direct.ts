@@ -233,9 +233,7 @@ export async function attachReceiptToInstallment(
       "application/pdf" :
       (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
 
-    const receiptUrl = await uploadReceipt(
-      telegramUserId, installmentId, fileBuffer, mimeType
-    );
+    const receiptUrl = await uploadReceipt({ telegramUserId, installmentId, fileBuffer, mimeType });
 
     await markInstallmentAsPaid(installmentId);
     await saveReceiptUrl(installmentId, receiptUrl);
