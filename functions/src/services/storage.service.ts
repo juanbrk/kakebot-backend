@@ -78,6 +78,24 @@ export async function uploadStatementReceipt(
 }
 
 /**
+ * Uploads a tax installment receipt to GCS under the "tax_receipts/" folder.
+ *
+ * @param {string} telegramUserId
+ * @param {string} installmentId - Firestore tax installment document ID
+ * @param {Buffer} fileBuffer
+ * @param {string} mimeType
+ * @return {string} Public URL of the uploaded file
+ */
+export async function uploadTaxReceipt(
+  telegramUserId: string,
+  installmentId: string,
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  return uploadFile("tax_receipts", telegramUserId, installmentId, fileBuffer, mimeType);
+}
+
+/**
  * Downloads a stored file using the Admin SDK by extracting the GCS path from its Firebase Storage URL.
  * Works in both emulator and production — Admin SDK bypasses storage security rules in both environments.
  *

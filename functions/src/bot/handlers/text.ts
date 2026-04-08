@@ -36,6 +36,7 @@ import {
   buildStmtConfirmText,
   buildCardStmtConfirmKeyboard,
 } from "../keyboards/card";
+import { handleTaxName, handleTaxDay, handleTaxAmount } from "./tax";
 
 const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
 
@@ -184,6 +185,21 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "card_stmt_awaiting_day") {
       await handleCardStmtDay(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "tax_awaiting_name") {
+      await handleTaxName(ctx, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "tax_awaiting_day") {
+      await handleTaxDay(ctx, session, telegramUserId, messageText);
+      return;
+    }
+
+    if (session?.state === "tax_awaiting_amount") {
+      await handleTaxAmount(ctx, session, telegramUserId, messageText);
       return;
     }
 

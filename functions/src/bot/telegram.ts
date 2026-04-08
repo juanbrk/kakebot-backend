@@ -12,6 +12,7 @@ import { registerIncomeHandler } from "./handlers/income";
 import { registerInvoiceHandler } from "./handlers/invoice";
 import { registerReceiptDirectHandler } from "./handlers/receipt-direct";
 import { registerCardHandler } from "./handlers/card";
+import { registerTaxHandler } from "./handlers/tax";
 import { registerPhotoHandler } from "./handlers/photo";
 import { registerTextHandler } from "./handlers/text";
 
@@ -33,6 +34,7 @@ registerIncomeHandler(telegramBot);
 registerInvoiceHandler(telegramBot);
 registerReceiptDirectHandler(telegramBot);
 registerCardHandler(telegramBot);
+registerTaxHandler(telegramBot);
 registerPhotoHandler(telegramBot);
 registerTextHandler(telegramBot);
 

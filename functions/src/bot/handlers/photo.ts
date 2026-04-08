@@ -6,10 +6,11 @@ import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
 import {
-  uploadReceipt, uploadInvoice, uploadStatementReceipt,
+  uploadReceipt, uploadInvoice, uploadStatementReceipt, uploadTaxReceipt,
 } from "../../services/storage.service";
 import { saveReceiptUrl, saveInvoiceUrl } from "../../services/service.service";
 import { saveStatementReceiptUrl } from "../../services/card.service";
+import { saveTaxReceiptUrl } from "../../services/tax.service";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
 
 export function registerPhotoHandler(bot: Telegraf<Context>): void {
@@ -33,6 +34,11 @@ async function handlePhoto(ctx: Context): Promise<void> {
 
   if (session?.state === "card_awaiting_receipt") {
     await handleCardReceiptUpload(ctx, telegramUserId, session, "photo");
+    return;
+  }
+
+  if (session?.state === "tax_awaiting_receipt") {
+    await handleTaxReceiptUpload(ctx, telegramUserId, session);
     return;
   }
 
@@ -83,6 +89,11 @@ async function handleDocument(ctx: Context): Promise<void> {
     await handleCardReceiptUpload(
       ctx, telegramUserId, session, "pdf", document.file_id,
     );
+    return;
+  }
+
+  if (session?.state === "tax_awaiting_receipt") {
+    await handleTaxReceiptUploadFromDocument(ctx, telegramUserId, session, document.file_id);
     return;
   }
 
@@ -291,6 +302,67 @@ async function handleCardReceiptUpload(
   } catch (error) {
     console.error("Error uploading card statement receipt:", error);
     await ctx.reply("Error al guardar el resumen. Intentá de nuevo.");
+  }
+}
+
+async function handleTaxReceiptUpload(
+  ctx: Context,
+  telegramUserId: string,
+  session: Session
+): Promise<void> {
+  const installmentId = session.taxInstallmentId || "";
+  if (!installmentId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const photos = (ctx.message as any).photo as Array<{ file_id: string }>;
+  if (!photos || photos.length === 0) {
+    await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
+    return;
+  }
+
+  const largestPhoto = photos[photos.length - 1];
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
+    const fileBuffer = await downloadFile(fileLink.href);
+    const mimeType = fileLink.href.includes(".png") ? "image/png" : "image/jpeg";
+    const receiptUrl = await uploadTaxReceipt(telegramUserId, installmentId, fileBuffer, mimeType);
+    await saveTaxReceiptUrl(installmentId, receiptUrl);
+    await clearSession(telegramUserId);
+    await ctx.reply("✅ Comprobante guardado.");
+  } catch (error) {
+    console.error("Error uploading tax receipt:", error);
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+  }
+}
+
+async function handleTaxReceiptUploadFromDocument(
+  ctx: Context,
+  telegramUserId: string,
+  session: Session,
+  documentFileId: string
+): Promise<void> {
+  const installmentId = session.taxInstallmentId || "";
+  if (!installmentId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(documentFileId);
+    const fileBuffer = await downloadFile(fileLink.href);
+    const receiptUrl = await uploadTaxReceipt(
+      telegramUserId, installmentId, fileBuffer, "application/pdf"
+    );
+    await saveTaxReceiptUrl(installmentId, receiptUrl);
+    await clearSession(telegramUserId);
+    await ctx.reply("✅ Comprobante guardado.");
+  } catch (error) {
+    console.error("Error uploading tax receipt PDF:", error);
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }
 

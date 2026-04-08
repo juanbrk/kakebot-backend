@@ -64,6 +64,14 @@
         { "fieldPath": "telegramUserId", "order": "ASCENDING" },
         { "fieldPath": "month", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "tax_installments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "dueMonth", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

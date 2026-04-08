@@ -135,6 +135,12 @@ export type CardSessionState =
   | "card_stmt_awaiting_day"
   | "card_awaiting_receipt";
 
+export type TaxSessionState =
+  | "tax_awaiting_name"
+  | "tax_awaiting_day"
+  | "tax_awaiting_amount"
+  | "tax_awaiting_receipt";
+
 export type SessionState =
   | ExpenseSessionState
   | CategorySessionState
@@ -143,7 +149,8 @@ export type SessionState =
   | InvoiceSessionState
   | ReceiptSessionState
   | IncomeSessionState
-  | CardSessionState;
+  | CardSessionState
+  | TaxSessionState;
 
 export interface Session {
   telegramUserId: string;
@@ -174,4 +181,7 @@ export interface Session {
   partialAmountUSD?: number;
   statementCurrency?: StatementCurrency;
   reportMonth?: string;
+  taxId?: string;
+  taxName?: string;
+  taxInstallmentId?: string;
 }

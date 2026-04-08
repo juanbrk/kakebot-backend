@@ -3,6 +3,7 @@ import { getDb } from "./db";
 import { formatARS, MONTH_NAMES } from "../helpers/format";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
+import { getTaxInstallmentsForMonth } from "./tax.service";
 import { MonthlyReport } from "../types/report.types";
 
 /**
@@ -61,7 +62,7 @@ export async function generateMonthlyReport(
   const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
   const dueMonth = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  const [expensesSnapshot, services, installments, incomes] =
+  const [expensesSnapshot, services, installments, incomes, taxInstallments] =
     await Promise.all([
       getDb()
         .collection("expenses")
@@ -72,11 +73,13 @@ export async function generateMonthlyReport(
       getServicesByUser(telegramUserId),
       getInstallmentsForMonth(telegramUserId, dueMonth),
       getMonthlyIncomes(telegramUserId, startOfMonth, endOfMonth),
+      getTaxInstallmentsForMonth(telegramUserId, dueMonth),
     ]);
 
   const hasNoData =
     expensesSnapshot.empty &&
     services.length === 0 &&
+    taxInstallments.length === 0 &&
     incomes.length === 0;
   if (hasNoData) {
     return null;
@@ -174,6 +177,16 @@ export async function generateMonthlyReport(
     detailLines.push("");
   }
 
+  const taxesTotal = taxInstallments.reduce((sum, inst) => sum + inst.amount, 0);
+
+  if (taxInstallments.length > 0) {
+    detailLines.push(`*IMPUESTOS* ${formatARS(taxesTotal)}`);
+    for (const inst of taxInstallments) {
+      detailLines.push(` • ${inst.taxName}: ${formatARS(inst.amount)}`);
+    }
+    detailLines.push("");
+  }
+
   const incomesTotal = incomes.reduce((sum, income) => sum + income.amount, 0);
 
   if (incomes.length > 0) {
@@ -185,7 +198,7 @@ export async function generateMonthlyReport(
   }
 
   // --- Balance message ---
-  const egresosTotal = expensesTotal + servicesTotal;
+  const egresosTotal = expensesTotal + servicesTotal + taxesTotal;
   const balanceResult = incomesTotal - egresosTotal;
   const balanceEmoji = balanceResult >= 0 ? "🟢" : "🔴";
 
@@ -199,6 +212,9 @@ export async function generateMonthlyReport(
 
   if (servicesTotal > 0) {
     balanceLines.push(` • Servicios  ${formatARS(servicesTotal)}`);
+  }
+  if (taxesTotal > 0) {
+    balanceLines.push(` • Impuestos  ${formatARS(taxesTotal)}`);
   }
   for (const category of categoryTotals) {
     balanceLines.push(` • ${category.label}  ${formatARS(category.total)}`);
