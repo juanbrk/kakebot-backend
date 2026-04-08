@@ -11,13 +11,19 @@ const EXTENSION_MAP: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
-async function uploadFile(
-  folder: string,
-  telegramUserId: string,
-  installmentId: string,
-  fileBuffer: Buffer,
-  mimeType: string
-): Promise<string> {
+async function uploadFile({
+  folder,
+  telegramUserId,
+  installmentId,
+  fileBuffer,
+  mimeType,
+}: {
+  folder: string;
+  telegramUserId: string;
+  installmentId: string;
+  fileBuffer: Buffer;
+  mimeType: string;
+}): Promise<string> {
   const extension = EXTENSION_MAP[mimeType] || "jpg";
   const filePath = `${folder}/${telegramUserId}/${installmentId}.${extension}`;
 
@@ -39,42 +45,82 @@ async function uploadFile(
   return `${baseUrl}/${bucket.name}/o/${encodedPath}?alt=media&token=${token}`;
 }
 
-export async function uploadReceipt(
-  telegramUserId: string,
-  installmentId: string,
-  fileBuffer: Buffer,
-  mimeType: string
-): Promise<string> {
-  return uploadFile("receipts", telegramUserId, installmentId, fileBuffer, mimeType);
+/** Uploads a service installment receipt to GCS under the "receipts/" folder. */
+export async function uploadReceipt({
+  telegramUserId,
+  installmentId,
+  fileBuffer,
+  mimeType,
+}: {
+  telegramUserId: string;
+  installmentId: string;
+  fileBuffer: Buffer;
+  mimeType: string;
+}): Promise<string> {
+  return uploadFile({ folder: "receipts", telegramUserId, installmentId, fileBuffer, mimeType });
 }
 
-export async function uploadInvoice(
-  telegramUserId: string,
-  installmentId: string,
-  fileBuffer: Buffer,
-  mimeType: string
-): Promise<string> {
-  return uploadFile("invoices", telegramUserId, installmentId, fileBuffer, mimeType);
+/** Uploads a service invoice to GCS under the "invoices/" folder. */
+export async function uploadInvoice({
+  telegramUserId,
+  installmentId,
+  fileBuffer,
+  mimeType,
+}: {
+  telegramUserId: string;
+  installmentId: string;
+  fileBuffer: Buffer;
+  mimeType: string;
+}): Promise<string> {
+  return uploadFile({ folder: "invoices", telegramUserId, installmentId, fileBuffer, mimeType });
 }
 
 /**
  * Uploads a card statement receipt to GCS under the "card_statements/" folder.
  *
- * @param {string} telegramUserId
- * @param {string} statementId - Firestore statement document ID
- * @param {Buffer} fileBuffer
- * @param {string} mimeType
- * @return {string} Public URL of the uploaded file
+ * @param {Object} params
+ * @param {string} params.telegramUserId
+ * @param {string} params.statementId - Firestore statement document ID
+ * @param {Buffer} params.fileBuffer
+ * @param {string} params.mimeType
+ * @return {Promise<string>} Public URL of the uploaded file
  */
-export async function uploadStatementReceipt(
-  telegramUserId: string,
-  statementId: string,
-  fileBuffer: Buffer,
-  mimeType: string
-): Promise<string> {
-  return uploadFile(
-    "card_statements", telegramUserId, statementId, fileBuffer, mimeType,
-  );
+export async function uploadStatementReceipt({
+  telegramUserId,
+  statementId,
+  fileBuffer,
+  mimeType,
+}: {
+  telegramUserId: string;
+  statementId: string;
+  fileBuffer: Buffer;
+  mimeType: string;
+}): Promise<string> {
+  return uploadFile({ folder: "card_statements", telegramUserId, installmentId: statementId, fileBuffer, mimeType });
+}
+
+/**
+ * Uploads a tax installment receipt to GCS under the "tax_receipts/" folder.
+ *
+ * @param {Object} params
+ * @param {string} params.telegramUserId
+ * @param {string} params.installmentId - Firestore tax installment document ID
+ * @param {Buffer} params.fileBuffer
+ * @param {string} params.mimeType
+ * @return {Promise<string>} Public URL of the uploaded file
+ */
+export async function uploadTaxReceipt({
+  telegramUserId,
+  installmentId,
+  fileBuffer,
+  mimeType,
+}: {
+  telegramUserId: string;
+  installmentId: string;
+  fileBuffer: Buffer;
+  mimeType: string;
+}): Promise<string> {
+  return uploadFile({ folder: "tax_receipts", telegramUserId, installmentId, fileBuffer, mimeType });
 }
 
 /**

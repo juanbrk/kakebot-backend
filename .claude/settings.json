@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/scripts/track-modified-file.js"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/scripts/check-session-params.js"
+          }
+        ]
+      }
+    ]
+  }
+}

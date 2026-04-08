@@ -235,12 +235,7 @@ export async function attachInvoiceToInstallment(
           ? "image/png"
           : "image/jpeg";
 
-    const invoiceUrl = await uploadInvoice(
-      telegramUserId,
-      installmentId,
-      fileBuffer,
-      mimeType,
-    );
+    const invoiceUrl = await uploadInvoice({ telegramUserId, installmentId, fileBuffer, mimeType });
 
     await saveInvoiceUrl(installmentId, invoiceUrl);
     await clearSession(telegramUserId);

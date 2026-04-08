@@ -48,3 +48,49 @@ function buildPaginatedKeyboard(items, page, callbackPrefix) {
 
 - Left: negative/dismissive (Cancelar, Volver, Anterior)
 - Right: positive/affirmative (Confirmar, Crear, Siguiente)
+
+## Action Prompt Text — Always Bold
+
+Any text that asks the user to take an action or make a choice **must be wrapped in `*...*`** (Markdown bold) and the message must include `parse_mode: "Markdown"`.
+
+This applies to:
+- Questions: `*¿Qué querés hacer?*`, `*¿Deseás marcar la cuota como pagada?*`
+- Instructions to the user: `*Enviá la foto o PDF del comprobante de pago.*`
+- Prompts for input: `*¿Cuál es el monto de la cuota para Abril 2026?*`
+
+### ❌ WRONG
+```typescript
+await ctx.reply("¿Qué querés hacer?", { reply_markup: keyboard.reply_markup });
+```
+
+### ✅ RIGHT
+```typescript
+await ctx.reply("*¿Qué querés hacer?*", {
+  parse_mode: "Markdown",
+  reply_markup: keyboard.reply_markup as any,
+});
+```
+
+## Chronological Keyboard Order — Always Ascending
+
+When displaying buttons that represent time periods (months, years, installments, history):
+
+- **Order: oldest → newest** (ascending)
+- **Layout direction: left → right, top → bottom**
+- Meaning: earliest item appears top-left, latest item appears bottom-right
+
+This applies to: month selectors, installment history grids, report period pickers, any date-based paginated list.
+
+### ❌ WRONG
+```
+[ Dic 2026 ] [ Nov 2026 ]
+[ Oct 2026 ] [ Sep 2026 ]
+```
+
+### ✅ RIGHT
+```
+[ Ene 2026 ] [ Feb 2026 ]
+[ Mar 2026 ] [ Abr 2026 ]
+```
+
+**Implementation:** sort array ascending before slicing into the grid. For `dueMonth` strings (`"YYYY-MM"`) use `a.localeCompare(b)` (ascending).

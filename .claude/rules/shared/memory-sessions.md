@@ -1,5 +1,33 @@
 # Session Log
 
+## 2026-04-07: Feature Impuestos — implementación completa
+
+### Completado
+- **Feature completa**: sección Impuestos en KakeBot (réplica del dominio Servicios con prefijo `tax_`)
+- **Archivos creados**:
+  - `types/tax.types.ts`: interfaces `Tax` y `TaxInstallment`
+  - `services/tax.service.ts`: CRUD completo (`createTax`, `getTaxesByUser`, `getTaxById`, `saveTaxInstallment`, `getTaxInstallment`, `getTaxInstallmentById`, `markTaxInstallmentAsPaid`, `saveTaxReceiptUrl`, `getTaxInstallmentsForMonth`)
+  - `bot/keyboards/tax.ts`: 6 builders de keyboards
+  - `bot/handlers/tax.ts`: `registerTaxHandler` + 3 handlers exportados para text.ts
+- **Archivos modificados**:
+  - `types/index.ts`: `TaxSessionState` + fields `taxId?`, `taxName?`, `taxInstallmentId?` en Session
+  - `firestore.indexes.json`: índice compuesto `tax_installments (telegramUserId, dueMonth)`
+  - `services/storage.service.ts`: `uploadTaxReceipt`
+  - `bot/handlers/text.ts`: 3 bloques de estado tax
+  - `bot/handlers/photo.ts`: detección `tax_awaiting_receipt` + upload handlers
+  - `bot/telegram.ts`: registro de `registerTaxHandler`
+  - `bot/handlers/menu.ts`: botón "Impuestos" entre Servicios y Tarjetas
+  - `services/report.service.ts`: 5ª query, hasNoData, sección IMPUESTOS en detalle, egresosTotal + Impuestos en balance
+- **Decisiones clave**:
+  - `estimatedDueDay` en entidad `Tax` (no en installment); capado con `getDaysInMonth` al crear cuota
+  - `taxInstallmentId` en session (distinto de `installmentId` de servicios, sin colisión)
+  - Ordenamiento en código, no en Firestore (evita índices adicionales)
+- Build + lint: ✅ 0 errores
+
+### Pendiente
+- Testing en emuladores: flujos crear impuesto, registrar cuota, marcar pagado, adjuntar comprobante, reporte
+- Deploy a botitio_testitoBot para validación end-to-end
+
 ## 2026-03-01: Initial setup and expense registration
 
 ### Completed
