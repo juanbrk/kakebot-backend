@@ -1,5 +1,6 @@
 import { Telegraf, Context, Markup } from "telegraf";
 import { ServiceInstallment, ServicePaymentMethod } from "../../types/index";
+import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
 import {
   getSession,
   setSession,
@@ -636,14 +637,14 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
   const text = buildInstallmentDetailText(installment);
   const hasReceipt = !!installment.receiptUrl;
   const hasInvoice = !!installment.invoiceUrl;
-  const keyboard = buildInstallmentDetailKeyboard(
-    installment.id || "",
-    installment.isPaid,
+  const keyboard = buildInstallmentDetailKeyboard({
+    installmentId: installment.id || "",
+    isPaid: installment.isPaid,
     hasReceipt,
     hasInvoice,
-    `svc_back_svc:${serviceId}`,
-    `\u2190 Volver a ${serviceName}`,
-  );
+    backCallback: `svc_back_svc:${serviceId}`,
+    backLabel: `\u2190 Volver a ${serviceName}`,
+  });
   await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -898,12 +899,12 @@ async function handlePagination(ctx: Context): Promise<void> {
   });
 }
 
-export async function showInstallmentDetail(
-  ctx: Context,
-  installmentId: string,
+export async function showInstallmentDetail({
+  ctx,
+  installmentId,
   backLabel = "Volver al historial",
-  breadcrumbSegments: string[] = [],
-): Promise<void> {
+  breadcrumbSegments = [],
+}: ShowInstallmentDetailParams): Promise<void> {
   const installment = await getInstallmentById(installmentId);
   if (!installment) {
     await replyOrEdit(ctx, "No se encontró la cuota.");
@@ -912,14 +913,14 @@ export async function showInstallmentDetail(
 
   const breadcrumb = buildBreadcrumb(breadcrumbSegments);
   const text = buildInstallmentDetailText(installment);
-  const keyboard = buildInstallmentDetailKeyboard(
+  const keyboard = buildInstallmentDetailKeyboard({
     installmentId,
-    installment.isPaid,
-    !!installment.receiptUrl,
-    !!installment.invoiceUrl,
-    `svc_cuotas:${installment.serviceId}`,
+    isPaid: installment.isPaid,
+    hasReceipt: !!installment.receiptUrl,
+    hasInvoice: !!installment.invoiceUrl,
+    backCallback: `svc_cuotas:${installment.serviceId}`,
     backLabel,
-  );
+  });
   await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -943,13 +944,13 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
     return;
   }
 
-  await renderInstallmentsList(
+  await renderInstallmentsList({
     ctx,
     installments,
-    0,
+    page: 0,
     serviceId,
-    serviceName || serviceId,
-  );
+    serviceName: serviceName || serviceId,
+  });
 }
 
 async function handleBackToServiceAction(ctx: Context): Promise<void> {
@@ -971,31 +972,31 @@ async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
     getServiceNameCached(telegramUserId, serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
-  await renderInstallmentsList(
+  await renderInstallmentsList({
     ctx,
     installments,
     page,
     serviceId,
-    serviceName || serviceId,
-  );
+    serviceName: serviceName || serviceId,
+  });
 }
 
-async function renderInstallmentsList(
-  ctx: Context,
-  installments: import("../../types/index").ServiceInstallment[],
-  page: number,
-  serviceId: string,
-  serviceName: string,
-): Promise<void> {
+async function renderInstallmentsList({
+  ctx,
+  installments,
+  page,
+  serviceId,
+  serviceName,
+}: RenderInstallmentsListParams): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Cuotas"]);
   const totalPages = Math.ceil(installments.length / INSTALLMENTS_PER_PAGE);
   const text = `*Seleccioná la cuota a ver.*\n\n_Página ${page + 1} de ${totalPages}_`;
-  const keyboard = buildInstallmentListKeyboard(
+  const keyboard = buildInstallmentListKeyboard({
     installments,
     page,
     serviceId,
     serviceName,
-  );
+  });
 
   await ctx.editMessageText(breadcrumb + text, {
     parse_mode: "Markdown",
@@ -1025,14 +1026,14 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
   ]);
 
   const text = buildInstallmentDetailText(installment);
-  const keyboard = buildInstallmentDetailKeyboard(
+  const keyboard = buildInstallmentDetailKeyboard({
     installmentId,
-    installment.isPaid,
-    !!installment.receiptUrl,
-    !!installment.invoiceUrl,
-    `svc_cuotas:${installment.serviceId}`,
-    "\u2190 Volver al historial",
-  );
+    isPaid: installment.isPaid,
+    hasReceipt: !!installment.receiptUrl,
+    hasInvoice: !!installment.invoiceUrl,
+    backCallback: `svc_cuotas:${installment.serviceId}`,
+    backLabel: "\u2190 Volver al historial",
+  });
 
   await ctx.editMessageText(breadcrumb + text, {
     parse_mode: "Markdown",

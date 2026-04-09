@@ -1,5 +1,5 @@
 import { Markup } from "telegraf";
-import { Tax, TaxInstallment } from "../../types/tax.types";
+import { Tax, TaxInstallment, BuildTaxInstallmentDetailKeyboardParams, BuildTaxActionKeyboardParams } from "../../types/tax.types";
 import { formatARS, MONTH_NAMES } from "../../helpers/format";
 
 const TAXES_PER_PAGE = 6;
@@ -96,12 +96,12 @@ export function buildTaxListKeyboard(
  * @param {string} [installmentId] - Installment ID (required when hasInstallment && !isPaid)
  * @return {Markup.Markup} Inline keyboard markup
  */
-export function buildTaxActionKeyboard(
-  taxId: string,
-  hasInstallment: boolean,
-  isPaid: boolean,
-  installmentId?: string,
-) {
+export function buildTaxActionKeyboard({
+  taxId,
+  hasInstallment,
+  isPaid,
+  installmentId,
+}: BuildTaxActionKeyboardParams) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: any[][] = [];
 
@@ -241,18 +241,14 @@ export function buildTaxInstallmentHistoryKeyboard(
  * Builds the action keyboard for a single installment in the history view.
  * Shows conditional buttons based on payment and receipt status.
  *
- * @param {string} installmentId - Installment document ID
- * @param {boolean} isPaid - Whether the installment is already paid
- * @param {boolean} hasReceipt - Whether a receipt is attached
- * @param {string} taxId - Parent tax document ID (used for back navigation)
  * @return {Markup.Markup} Inline keyboard markup
  */
-export function buildTaxInstallmentDetailKeyboard(
-  installmentId: string,
-  isPaid: boolean,
-  hasReceipt: boolean,
-  taxId: string,
-) {
+export function buildTaxInstallmentDetailKeyboard({
+  installmentId,
+  isPaid,
+  hasReceipt,
+  taxId,
+}: BuildTaxInstallmentDetailKeyboardParams) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: any[][] = [];
 

@@ -1,5 +1,48 @@
 # Decisions Log
 
+## 2026-04-08: Refactorización completa de firmas de funciones — params objects + destructuring en firma
+
+### Cambios implementados
+- **Arquitectura de tipos consolidada**: Cada entidad tiene su archivo en `types/[entidad].types.ts`; `types/index.ts` congelado para nuevas interfaces
+- **16 funciones refactorizadas** en ~10 archivos siguiendo dos patrones:
+  1. **Destructuring en firma**: `const { x } = params` movido de cuerpo a firma de función
+  2. **Tipos inline eliminados**: `}: { x: string }` reemplazados con interfaces nombradas en `types/`
+
+### Archivos de tipos creados
+- `types/category.types.ts` — `AssignCategoryParams`, `BuildExpensePromptTextParams`
+- `types/service.types.ts` — `SaveInstallmentParams`, `BuildInstallmentListKeyboardParams`, `BuildInstallmentDetailKeyboardParams`
+- `types/card.types.ts` — `CreateCardParams`, `CreateStatementParams`, `CardConfirmTextParams`, `StmtConfirmTextParams`
+- `types/storage.types.ts` — `FileUploadParams`, `UploadFileInternalParams`
+
+### Interfaces agregadas a tipos existentes
+- `types/tax.types.ts` — `SaveTaxInstallmentParams`, `BuildTaxInstallmentDetailKeyboardParams`
+- `types/expense.types.ts` — pattern aplicado pero interfaces ya existían (heredadas)
+- `types/income.types.ts` — pattern aplicado pero interfaces ya existían
+- `types/report.types.ts` — pattern aplicado pero interfaces ya existían
+
+### Patrón consolidado en documentación
+- Nueva sección en `shared/conventions.md`: "Destructuring in Signature, Not in Body"
+- Regla: SIEMPRE destructurar en la firma, NUNCA en el cuerpo de la función
+- Regla: NUNCA tipos inline (`}:{ x: string }`); use interfaces nombradas
+- Benefits: una sola fuente de verdad, cuerpo limpio, sin boilerplate
+
+### Hook PreToolUse creado
+- **Archivo**: `scripts/check-param-patterns.js`
+- **Detecta dos violaciones**:
+  1. Body destructuring: `const { ... } = params;` en cuerpo de función
+  2. Inline type annotations: `}:{ ` en firmas
+- **Validación**: stripStringsAndComments para evitar falsos positivos
+- **Exit code**: 0 si OK, Exit 2 si violación (bloquea Edit/Write)
+- **Configuración**: (pendiente) agregar a `.claude/settings.json` cuando usuario lo active
+
+### Resultados
+- ✅ Build: 0 errores TypeScript
+- ✅ Lint: 0 nuevos warnings
+- ✅ Patrón aplicado consistentemente a todo el codebase
+- ✅ Hook listo para activación (mejora pattern enforcement)
+
+---
+
 ## 2026-04-06: Types per entity + param object convention enforced
 - Nueva arquitectura: cada entidad tiene `types/[entidad].types.ts`; `types/index.ts` congelado
 - Interfaces migradas esta sesión: `Expense`, `BulkExpenseEntry` → `expense.types.ts`; `Income` → `income.types.ts`; `MonthlyReport` → `report.types.ts`

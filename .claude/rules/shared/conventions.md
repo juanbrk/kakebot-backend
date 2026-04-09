@@ -29,6 +29,52 @@
 - Never use `session: any`. Always type session parameters as `Session` from `types/index.ts`.
 - Never use `// eslint-disable @typescript-eslint/no-explicit-any` to suppress a `session: any` parameter. Fix the type instead.
 
+### Destructuring in Signature, Not in Body
+
+When a function accepts an object parameter, **ALWAYS destructure in the signature**, never in the body.
+
+```typescript
+// ❌ WRONG — destructuring in function body (pure boilerplate)
+function saveExpense(params: SaveExpenseParams): Promise<string | null> {
+  const { telegramUserId, description, amount, date } = params;
+  // ... logic
+}
+
+// ✅ RIGHT — destructuring in the signature
+function saveExpense({
+  telegramUserId,
+  description,
+  amount,
+  date,
+}: SaveExpenseParams): Promise<string | null> {
+  // ... logic starts directly
+}
+```
+
+**Benefits**: single source of truth (the interface), cleaner body, one less line of boilerplate.
+
+**Also WRONG: Inline type annotations.** Never define parameter types inline; use a named interface:
+
+```typescript
+// ❌ WRONG — type defined inline
+function createCard({
+  telegramUserId,
+  lastFourDigits,
+  bank,
+}: {
+  telegramUserId: string;
+  lastFourDigits: string;
+  bank: string;
+}): Promise<string>
+
+// ✅ RIGHT — named interface in types/[entity].types.ts
+function createCard({
+  telegramUserId,
+  lastFourDigits,
+  bank,
+}: CreateCardParams): Promise<string>
+```
+
 ### Named Types for Domain Values
 - **All domain-specific literal unions must be exported as named types from `types/index.ts`.** Never inline a union in a function signature or interface field if it represents a business concept.
   ```typescript

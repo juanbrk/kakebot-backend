@@ -295,7 +295,9 @@ async function handleCardReceiptUpload({
       "application/pdf" :
       (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
 
-    const receiptUrl = await uploadStatementReceipt({ telegramUserId, statementId, fileBuffer, mimeType });
+    const receiptUrl = await uploadStatementReceipt({
+      telegramUserId, installmentId: statementId, fileBuffer, mimeType,
+    });
 
     await saveStatementReceiptUrl(statementId, receiptUrl);
 

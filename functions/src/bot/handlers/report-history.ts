@@ -126,11 +126,13 @@ async function handleRepYear(ctx: Context): Promise<void> {
 
 /**
  * Builds and shows the month selector keyboard for a given year.
- *
- * @param {ShowMonthSelectorParams} params - Navigation context and data
  */
-async function showMonthSelector(params: ShowMonthSelectorParams): Promise<void> {
-  const { ctx, year, allPastMonths, backCallback } = params;
+async function showMonthSelector({
+  ctx,
+  year,
+  allPastMonths,
+  backCallback,
+}: ShowMonthSelectorParams): Promise<void> {
   const yearMonths = allPastMonths
     .filter((ym) => ym.startsWith(year))
     .sort()

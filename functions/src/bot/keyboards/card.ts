@@ -1,5 +1,6 @@
 import { Markup } from "telegraf";
 import { CreditCard, CardStatement } from "../../types/index";
+import { CardConfirmTextParams, StmtConfirmTextParams } from "../../types/card.types";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
 
 const CARDS_PER_PAGE = 6;
@@ -271,24 +272,12 @@ export function buildCardDetailText(
 /**
  * Builds the card creation confirmation text.
  *
- * @param {object} params
- * @param {string} params.digits
- * @param {string} params.bank
- * @param {string} params.processor
- * @param {string} params.expiry - Raw "MM/AA" string
+ * @param {CardConfirmTextParams} params
  * @return {string}
  */
-export function buildCardConfirmText({
-  digits,
-  bank,
-  processor,
-  expiry,
-}: {
-  digits: string;
-  bank: string;
-  processor: string;
-  expiry: string;
-}): string {
+export function buildCardConfirmText(params: CardConfirmTextParams): string {
+  const { digits, bank, processor, expiry } = params;
+
   return (
     "*Vas a agregar la siguiente tarjeta*\n\n" +
     `Últimos 4 dígitos: ${digits}\n` +
@@ -340,30 +329,12 @@ export function buildCardEmptyStateKeyboard() {
 /**
  * Builds the statement creation confirmation text.
  *
- * @param {object} params
- * @param {string} params.cardLabel - e.g. "Visa 5477 - Galicia"
- * @param {string} params.monthLabel - e.g. "Marzo 2026"
- * @param {number} params.amountARS
- * @param {number} params.amountUSD
- * @param {number} params.dueDay
- * @param {string} params.stmtMonth - YYYY-MM, used to derive DD/MM due date
+ * @param {StmtConfirmTextParams} params
  * @return {string}
  */
-export function buildStmtConfirmText({
-  cardLabel,
-  monthLabel,
-  amountARS,
-  amountUSD,
-  dueDay,
-  stmtMonth,
-}: {
-  cardLabel: string;
-  monthLabel: string;
-  amountARS: number;
-  amountUSD: number;
-  dueDay: number;
-  stmtMonth: string;
-}): string {
+export function buildStmtConfirmText(params: StmtConfirmTextParams): string {
+  const { cardLabel, monthLabel, amountARS, amountUSD, dueDay, stmtMonth } = params;
+
   const monthNum = stmtMonth.split("-")[1];
   const dueDateStr = `${String(dueDay).padStart(2, "0")}/${monthNum}`;
 

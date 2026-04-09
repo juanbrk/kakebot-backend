@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { FileUploadParams, UploadFileInternalParams } from "../types/storage.types";
 
 function getBucket() {
   const bucketName = process.env.GCS_BUCKET || "";
@@ -17,13 +18,7 @@ async function uploadFile({
   installmentId,
   fileBuffer,
   mimeType,
-}: {
-  folder: string;
-  telegramUserId: string;
-  installmentId: string;
-  fileBuffer: Buffer;
-  mimeType: string;
-}): Promise<string> {
+}: UploadFileInternalParams): Promise<string> {
   const extension = EXTENSION_MAP[mimeType] || "jpg";
   const filePath = `${folder}/${telegramUserId}/${installmentId}.${extension}`;
 
@@ -45,82 +40,45 @@ async function uploadFile({
   return `${baseUrl}/${bucket.name}/o/${encodedPath}?alt=media&token=${token}`;
 }
 
-/** Uploads a service installment receipt to GCS under the "receipts/" folder. */
-export async function uploadReceipt({
-  telegramUserId,
-  installmentId,
-  fileBuffer,
-  mimeType,
-}: {
-  telegramUserId: string;
-  installmentId: string;
-  fileBuffer: Buffer;
-  mimeType: string;
-}): Promise<string> {
-  return uploadFile({ folder: "receipts", telegramUserId, installmentId, fileBuffer, mimeType });
+/**
+ * Uploads a service installment receipt to GCS under the "receipts/" folder.
+ *
+ * @param {FileUploadParams} params
+ * @return {Promise<string>} Public URL of the uploaded file
+ */
+export async function uploadReceipt(params: FileUploadParams): Promise<string> {
+  return uploadFile({ folder: "receipts", ...params });
 }
 
-/** Uploads a service invoice to GCS under the "invoices/" folder. */
-export async function uploadInvoice({
-  telegramUserId,
-  installmentId,
-  fileBuffer,
-  mimeType,
-}: {
-  telegramUserId: string;
-  installmentId: string;
-  fileBuffer: Buffer;
-  mimeType: string;
-}): Promise<string> {
-  return uploadFile({ folder: "invoices", telegramUserId, installmentId, fileBuffer, mimeType });
+/**
+ * Uploads a service invoice to GCS under the "invoices/" folder.
+ *
+ * @param {FileUploadParams} params
+ * @return {Promise<string>} Public URL of the uploaded file
+ */
+export async function uploadInvoice(params: FileUploadParams): Promise<string> {
+  return uploadFile({ folder: "invoices", ...params });
 }
 
 /**
  * Uploads a card statement receipt to GCS under the "card_statements/" folder.
  *
- * @param {Object} params
- * @param {string} params.telegramUserId
- * @param {string} params.statementId - Firestore statement document ID
- * @param {Buffer} params.fileBuffer
- * @param {string} params.mimeType
+ * @param {FileUploadParams} params
+ * @param {string} params.installmentId - Firestore statement document ID (mapped as installmentId)
  * @return {Promise<string>} Public URL of the uploaded file
  */
-export async function uploadStatementReceipt({
-  telegramUserId,
-  statementId,
-  fileBuffer,
-  mimeType,
-}: {
-  telegramUserId: string;
-  statementId: string;
-  fileBuffer: Buffer;
-  mimeType: string;
-}): Promise<string> {
-  return uploadFile({ folder: "card_statements", telegramUserId, installmentId: statementId, fileBuffer, mimeType });
+export async function uploadStatementReceipt(params: FileUploadParams): Promise<string> {
+  return uploadFile({ folder: "card_statements", ...params });
 }
 
 /**
  * Uploads a tax installment receipt to GCS under the "tax_receipts/" folder.
  *
- * @param {Object} params
- * @param {string} params.telegramUserId
- * @param {string} params.installmentId - Firestore tax installment document ID
- * @param {Buffer} params.fileBuffer
- * @param {string} params.mimeType
+ * @param {FileUploadParams} params
  * @return {Promise<string>} Public URL of the uploaded file
  */
-export async function uploadTaxReceipt({
-  telegramUserId,
-  installmentId,
-  fileBuffer,
-  mimeType,
-}: {
-  telegramUserId: string;
-  installmentId: string;
-  fileBuffer: Buffer;
-  mimeType: string;
-}): Promise<string> {
-  return uploadFile({ folder: "tax_receipts", telegramUserId, installmentId, fileBuffer, mimeType });
+export async function uploadTaxReceipt(params: FileUploadParams): Promise<string> {
+  return uploadFile({ folder: "tax_receipts", ...params });
 }
 
 /**

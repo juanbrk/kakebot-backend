@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
 import { Service, ServiceInstallment, ServicePaymentMethod } from "../types/index";
+import { SaveInstallmentParams } from "../types/service.types";
 import { getDaysInMonth } from "../helpers/format";
 
 export async function createService(
@@ -96,14 +97,17 @@ export async function deleteService(serviceId: string): Promise<void> {
   await batch.commit();
 }
 
-export async function saveInstallment(
-  telegramUserId: string,
-  serviceId: string,
-  serviceName: string,
-  amount: number,
-  dueDate: Date,
-  dueMonth: string
-): Promise<string> {
+/**
+ * Saves a service installment to Firestore.
+ */
+export async function saveInstallment({
+  telegramUserId,
+  serviceId,
+  serviceName,
+  amount,
+  dueDate,
+  dueMonth,
+}: SaveInstallmentParams): Promise<string> {
   const docRef = await getDb()
     .collection("service_installments")
     .add({

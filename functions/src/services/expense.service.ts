@@ -5,11 +5,14 @@ import { getDb } from "./db";
 /**
  * Saves an expense record to Firestore.
  *
- * @param {SaveExpenseParams} params - Expense data
  * @return {string | null} The categoryId if a mapping exists, otherwise null
  */
-export async function saveExpense(params: SaveExpenseParams): Promise<string | null> {
-  const { telegramUserId, description, amount, date } = params;
+export async function saveExpense({
+  telegramUserId,
+  description,
+  amount,
+  date,
+}: SaveExpenseParams): Promise<string | null> {
   const normalizedDesc = description.toLowerCase().trim();
 
   const existingMapping = await getDb()

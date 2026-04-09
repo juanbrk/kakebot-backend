@@ -4,6 +4,7 @@ import {
   Category, Session, PendingDescEntry, SessionExpenseEntry,
 } from "../types/index";
 import { Expense } from "../types/expense.types";
+import { AssignCategoryParams } from "../types/category.types";
 import { getDb } from "./db";
 import { setSession, clearSession } from "./session.service";
 import { formatARS } from "../helpers/format";
@@ -24,14 +25,17 @@ export async function fetchExpenseCategories(): Promise<Category[]> {
   return categories;
 }
 
-export async function assignCategoryToDesc(
-  telegramUserId: string,
-  normalizedDesc: string,
-  displayName: string,
-  categoryId: string,
-  categoryName: string,
-  session: Session
-): Promise<Session> {
+/**
+ * Assigns a category to all expenses with a normalized description.
+ */
+export async function assignCategoryToDesc({
+  telegramUserId,
+  normalizedDesc,
+  displayName,
+  categoryId,
+  categoryName,
+  session,
+}: AssignCategoryParams): Promise<Session> {
   const db = getDb();
 
   const expensesSnapshot = await db
@@ -110,12 +114,12 @@ export async function advanceOrFinish(
   const total = session.sessionExpenses.length + session.pendingDescs.length + 1;
   const current = session.sessionExpenses.length + 1;
 
-  const messageText = buildExpensePromptText(
-    session.currentDisplayName,
-    session.currentTotalAmount,
+  const messageText = buildExpensePromptText({
+    displayName: session.currentDisplayName,
+    totalAmount: session.currentTotalAmount,
     current,
-    total
-  );
+    total,
+  });
 
   await ctx.telegram.editMessageText(
     session.chatId,
@@ -171,12 +175,12 @@ async function finishCategorizingFlow(
       const categories = await fetchExpenseCategories();
       const keyboard = buildCategoryKeyboard(categories, 0);
       const total = pendingDescsKeys.length;
-      const messageText = buildExpensePromptText(
-        firstDescData.displayName,
-        firstDescData.totalAmount,
-        1,
-        total
-      );
+      const messageText = buildExpensePromptText({
+        displayName: firstDescData.displayName,
+        totalAmount: firstDescData.totalAmount,
+        current: 1,
+        total,
+      });
 
       const newSession: Session = {
         telegramUserId,
@@ -269,14 +273,14 @@ export async function handleNewCategoryInput(
     // ignore if can't delete
   }
 
-  const updatedSession = await assignCategoryToDesc(
-    session.telegramUserId,
-    session.currentDesc,
-    session.currentDisplayName,
-    newCategoryId,
+  const updatedSession = await assignCategoryToDesc({
+    telegramUserId: session.telegramUserId,
+    normalizedDesc: session.currentDesc,
+    displayName: session.currentDisplayName,
+    categoryId: newCategoryId,
     categoryName,
-    session
-  );
+    session,
+  });
 
   await advanceOrFinish(ctx, updatedSession);
 }
