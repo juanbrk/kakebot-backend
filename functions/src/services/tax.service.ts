@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { Tax, TaxInstallment } from "../types/tax.types";
+import { Tax, TaxInstallment, SaveTaxInstallmentParams } from "../types/tax.types";
 
 /**
  * Creates a new tax document and returns its Firestore ID.
@@ -69,23 +69,15 @@ export async function getTaxById(taxId: string): Promise<Tax | null> {
 
 /**
  * Saves a monthly tax installment.
- *
- * @param {string} telegramUserId - User's Telegram ID
- * @param {string} taxId - Parent tax document ID
- * @param {string} taxName - Display name of the tax (cached to avoid re-fetching)
- * @param {number} amount - Installment amount in ARS
- * @param {Date} dueDate - Exact due date for this installment
- * @param {string} dueMonth - Month in "YYYY-MM" format
- * @return {string} Firestore ID of the created installment
  */
-export async function saveTaxInstallment(
-  telegramUserId: string,
-  taxId: string,
-  taxName: string,
-  amount: number,
-  dueDate: Date,
-  dueMonth: string
-): Promise<string> {
+export async function saveTaxInstallment({
+  telegramUserId,
+  taxId,
+  taxName,
+  amount,
+  dueDate,
+  dueMonth,
+}: SaveTaxInstallmentParams): Promise<string> {
   const docRef = await getDb()
     .collection("tax_installments")
     .add({

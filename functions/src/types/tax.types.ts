@@ -24,3 +24,35 @@ export interface TaxInstallment {
   receiptUrl?: string;
   createdAt: admin.firestore.Timestamp;
 }
+
+/**
+ * Parameters for saving a tax installment.
+ */
+export interface SaveTaxInstallmentParams {
+  telegramUserId: string;
+  taxId: string;
+  taxName: string;
+  amount: number;
+  dueDate: Date;
+  dueMonth: string;
+}
+
+/**
+ * Parameters for buildTaxInstallmentDetailKeyboard.
+ */
+export interface BuildTaxInstallmentDetailKeyboardParams {
+  installmentId: string;
+  isPaid: boolean;
+  hasReceipt: boolean;
+  taxId: string;
+}
+
+/**
+ * Parameters for buildTaxActionKeyboard.
+ */
+export interface BuildTaxActionKeyboardParams {
+  taxId: string;
+  hasInstallment: boolean;
+  isPaid: boolean;
+  installmentId?: string;
+}

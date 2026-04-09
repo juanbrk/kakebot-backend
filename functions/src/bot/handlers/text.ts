@@ -1,5 +1,6 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { Session } from "../../types/index";
+import { Session, CreditCardProcessor } from "../../types/index";
+import { TextHandlerParams } from "../../types/handlers.types";
 import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
@@ -69,32 +70,32 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
     }
 
     if (session?.state === "awaiting_amount") {
-      await handleAwaitingAmount(ctx, session, telegramUserId, messageText);
+      await handleAwaitingAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "awaiting_description") {
-      await handleAwaitingDescription(ctx, session, telegramUserId, messageText);
+      await handleAwaitingDescription({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "categorizing") {
-      await handleCategorizingText(ctx, session, telegramUserId, messageText);
+      await handleCategorizingText({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "inc_awaiting_amount") {
-      await handleIncomeAmount(ctx, session, telegramUserId, messageText);
+      await handleIncomeAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "inc_awaiting_reason") {
-      await handleIncomeReason(ctx, session, telegramUserId, messageText);
+      await handleIncomeReason({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "rep_awaiting_expense") {
-      await handleRepAwaitingExpense(ctx, session, telegramUserId, messageText);
+      await handleRepAwaitingExpense({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -104,87 +105,87 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
     }
 
     if (session?.state === "svc_awaiting_amount") {
-      await handleServiceAmount(ctx, session, telegramUserId, messageText);
+      await handleServiceAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "svc_awaiting_day") {
-      await handleServiceDay(ctx, session, telegramUserId, messageText);
+      await handleServiceDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "svc_awaiting_edit_name") {
-      await handleEditServiceNameText(ctx, session, telegramUserId, messageText);
+      await handleEditServiceNameText({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "svc_awaiting_edit_amount") {
-      await handleEditServiceAmountText(ctx, session, telegramUserId, messageText);
+      await handleEditServiceAmountText({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "svc_awaiting_edit_day") {
-      await handleEditServiceDayText(ctx, session, telegramUserId, messageText);
+      await handleEditServiceDayText({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "invoice_awaiting_name") {
-      await handleInvoiceServiceName(ctx, session, telegramUserId, messageText);
+      await handleInvoiceServiceName({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "invoice_awaiting_day") {
-      await handleInvoiceDay(ctx, session, telegramUserId, messageText);
+      await handleInvoiceDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "invoice_awaiting_amount") {
-      await handleInvoiceAmount(ctx, session, telegramUserId, messageText);
+      await handleInvoiceAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "comp_awaiting_name") {
-      await handleCompServiceName(ctx, session, telegramUserId, messageText);
+      await handleCompServiceName({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "comp_awaiting_day") {
-      await handleCompDay(ctx, session, telegramUserId, messageText);
+      await handleCompDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "comp_awaiting_amount") {
-      await handleCompAmount(ctx, session, telegramUserId, messageText);
+      await handleCompAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "card_awaiting_digits") {
-      await handleCardDigits(ctx, session, telegramUserId, messageText);
+      await handleCardDigits({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "card_awaiting_bank") {
-      await handleCardBank(ctx, session, telegramUserId, messageText);
+      await handleCardBank({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "card_awaiting_expiry") {
-      await handleCardExpiry(ctx, session, telegramUserId, messageText);
+      await handleCardExpiry({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "card_stmt_awaiting_ars") {
-      await handleCardStmtArs(ctx, session, telegramUserId, messageText);
+      await handleCardStmtArs({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "card_stmt_awaiting_usd") {
-      await handleCardStmtUsd(ctx, session, telegramUserId, messageText);
+      await handleCardStmtUsd({ ctx, session, telegramUserId, messageText });
       return;
     }
 
     if (session?.state === "card_stmt_awaiting_day") {
-      await handleCardStmtDay(ctx, session, telegramUserId, messageText);
+      await handleCardStmtDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -267,12 +268,12 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
   });
 }
 
-async function handleAwaitingAmount(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleAwaitingAmount({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
   if (amount !== null && amount > 0) {
     await clearSession(telegramUserId);
@@ -295,12 +296,12 @@ async function handleAwaitingAmount(
   }
 }
 
-async function handleAwaitingDescription(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleAwaitingDescription({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   await clearSession(telegramUserId);
   const amount = session.partialAmount || 0;
   const description = messageText.trim();
@@ -316,12 +317,12 @@ async function handleAwaitingDescription(
   );
 }
 
-async function handleCategorizingText(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCategorizingText({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const lowerText = messageText.trim().toLowerCase();
 
   if (lowerText === "omitir") {
@@ -423,12 +424,12 @@ async function handleServiceName(
   });
 }
 
-async function handleServiceAmount(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleServiceAmount({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   if (amount === null || amount <= 0) {
@@ -471,14 +472,14 @@ async function handleServiceAmount(
     return;
   }
 
-  const installmentId = await saveInstallment(
+  const installmentId = await saveInstallment({
     telegramUserId,
     serviceId,
     serviceName,
     amount,
     dueDate,
-    selectedMonth
-  );
+    dueMonth: selectedMonth,
+  });
   await clearSession(telegramUserId);
 
   const day2 = String(dueDate.getDate()).padStart(2, "0");
@@ -492,12 +493,12 @@ async function handleServiceAmount(
   await ctx.reply("¿Deseas adjuntar factura?", keyboard);
 }
 
-async function handleServiceDay(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleServiceDay({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
@@ -521,12 +522,12 @@ async function handleServiceDay(
   );
 }
 
-async function handleEditServiceNameText(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleEditServiceNameText({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const newName = messageText.trim();
   const serviceId = session.serviceId || "";
 
@@ -542,12 +543,12 @@ async function handleEditServiceNameText(
   await ctx.reply(`✅ Nombre actualizado a '${newName}'.`);
 }
 
-async function handleEditServiceAmountText(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleEditServiceAmountText({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
   const installmentId = session.installmentId || "";
 
@@ -562,15 +563,15 @@ async function handleEditServiceAmountText(
   await updateInstallmentAmount(installmentId, amount);
   await clearSession(telegramUserId);
 
-  await showInstallmentDetail(ctx, installmentId);
+  await showInstallmentDetail({ ctx, installmentId });
 }
 
-async function handleEditServiceDayText(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleEditServiceDayText({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
   const installmentId = session.installmentId || "";
@@ -586,15 +587,15 @@ async function handleEditServiceDayText(
   await updateInstallmentDueDay(installmentId, day);
   await clearSession(telegramUserId);
 
-  await showInstallmentDetail(ctx, installmentId);
+  await showInstallmentDetail({ ctx, installmentId });
 }
 
-async function handleInvoiceServiceName(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleInvoiceServiceName({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const name = messageText.trim();
   if (!name) {
     await ctx.reply("El nombre no puede estar vacío.");
@@ -618,12 +619,12 @@ async function handleInvoiceServiceName(
   );
 }
 
-async function handleInvoiceDay(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleInvoiceDay({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
@@ -648,12 +649,12 @@ async function handleInvoiceDay(
   );
 }
 
-async function handleInvoiceAmount(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleInvoiceAmount({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   const isValidAmount = amount !== null && amount > 0;
@@ -678,9 +679,14 @@ async function handleInvoiceAmount(
   const [year, month] = selectedMonth.split("-");
   const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
 
-  const installmentId = await saveInstallment(
-    telegramUserId, serviceId, serviceName, amount, dueDate, selectedMonth
-  );
+  const installmentId = await saveInstallment({
+    telegramUserId,
+    serviceId,
+    serviceName,
+    amount,
+    dueDate,
+    dueMonth: selectedMonth,
+  });
 
   const successMessage = session.isNewService ?
     "✅ Servicio creado y factura adjuntada." :
@@ -691,12 +697,12 @@ async function handleInvoiceAmount(
   );
 }
 
-async function handleCompServiceName(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCompServiceName({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const name = messageText.trim();
   if (!name) {
     await ctx.reply("El nombre no puede estar vacío.");
@@ -720,12 +726,12 @@ async function handleCompServiceName(
   );
 }
 
-async function handleCompDay(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCompDay({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 
@@ -750,12 +756,12 @@ async function handleCompDay(
   );
 }
 
-async function handleCompAmount(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCompAmount({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   const isValidAmount = amount !== null && amount > 0;
@@ -780,9 +786,14 @@ async function handleCompAmount(
   const [year, month] = selectedMonth.split("-");
   const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
 
-  const installmentId = await saveInstallment(
-    telegramUserId, serviceId, serviceName, amount, dueDate, selectedMonth
-  );
+  const installmentId = await saveInstallment({
+    telegramUserId,
+    serviceId,
+    serviceName,
+    amount,
+    dueDate,
+    dueMonth: selectedMonth,
+  });
 
   const successMessage = session.isNewService ?
     "✅ Servicio creado, comprobante adjunto y cuota marcada como pagada." :
@@ -795,18 +806,13 @@ async function handleCompAmount(
 
 /**
  * Handles amount input during income registration.
- *
- * @param {Context} ctx - Telegraf context
- * @param {Session} session - Current user session
- * @param {string} telegramUserId - The user's Telegram ID
- * @param {string} messageText - The raw message text
  */
-async function handleIncomeAmount(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleIncomeAmount({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   const isValidAmount = amount !== null && amount > 0;
@@ -833,18 +839,13 @@ async function handleIncomeAmount(
 
 /**
  * Handles reason input during income registration.
- *
- * @param {Context} ctx - Telegraf context
- * @param {Session} session - Current user session
- * @param {string} telegramUserId - The user's Telegram ID
- * @param {string} messageText - The raw message text
  */
-async function handleIncomeReason(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleIncomeReason({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const reason = messageText.trim();
 
   const isReasonTooLong = reason.length > 30;
@@ -877,18 +878,13 @@ async function handleIncomeReason(
 /**
  * Handles expense input during retroactive registration for a past month.
  * Requires the complete message with description and amount in one shot.
- *
- * @param {Context} ctx - Telegraf context
- * @param {Session} session - Current user session (contains reportMonth)
- * @param {string} telegramUserId - The user's Telegram ID
- * @param {string} messageText - The raw message text
  */
-async function handleRepAwaitingExpense(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string,
-): Promise<void> {
+async function handleRepAwaitingExpense({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const expense = parseExpenseMessage(messageText);
 
   if (!expense) {
@@ -920,12 +916,12 @@ async function handleRepAwaitingExpense(
   );
 }
 
-async function handleCardDigits(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCardDigits({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const digits = messageText.trim();
   const isValidDigits = /^\d{4}$/.test(digits);
 
@@ -948,12 +944,12 @@ async function handleCardDigits(
   );
 }
 
-async function handleCardBank(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCardBank({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const bank = messageText.trim();
 
   if (bank.length === 0) {
@@ -976,12 +972,12 @@ async function handleCardBank(
   );
 }
 
-async function handleCardExpiry(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCardExpiry({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const expiry = messageText.trim();
   const isValidExpiry = /^(0[1-9]|1[0-2])\/(\d{2})$/.test(expiry);
 
@@ -999,7 +995,7 @@ async function handleCardExpiry(
 
   const digits = session.partialDescription || "";
   const bank = session.serviceName || "";
-  const processor = session.cardProcessor || "";
+  const processor = (session.cardProcessor || "VISA") as CreditCardProcessor;
 
   await ctx.reply(
     buildCardConfirmText({ digits, bank, processor, expiry }),
@@ -1010,12 +1006,12 @@ async function handleCardExpiry(
   );
 }
 
-async function handleCardStmtArs(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCardStmtArs({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   const isValidAmount = amount !== null && amount > 0;
@@ -1053,12 +1049,12 @@ async function handleCardStmtArs(
   }
 }
 
-async function handleCardStmtUsd(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCardStmtUsd({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const amount = parseArgentineAmount(messageText.trim());
 
   const isValidAmount = amount !== null && amount > 0;
@@ -1084,12 +1080,12 @@ async function handleCardStmtUsd(
   );
 }
 
-async function handleCardStmtDay(
-  ctx: Context,
-  session: Session,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
+async function handleCardStmtDay({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
   const dayStr = messageText.trim();
   const day = parseInt(dayStr, 10);
 

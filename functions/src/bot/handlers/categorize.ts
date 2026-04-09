@@ -68,12 +68,12 @@ async function startCategorizationFlow(
   const categories = await fetchExpenseCategories();
   const keyboard = buildCategoryKeyboard(categories, 0);
   const total = pendingDescsKeys.length;
-  const messageText = buildExpensePromptText(
-    firstDescData.displayName,
-    firstDescData.totalAmount,
-    1,
+  const messageText = buildExpensePromptText({
+    displayName: firstDescData.displayName,
+    totalAmount: firstDescData.totalAmount,
+    current: 1,
     total,
-  );
+  });
 
   const sentMessage = await ctx.reply(messageText, {
     ...keyboard,
@@ -133,14 +133,14 @@ export function registerCategorizeHandler(bot: Telegraf<Context>): void {
       ? (categoryDoc.data()?.name as string)
       : categoryId;
 
-    const updatedSession = await assignCategoryToDesc(
+    const updatedSession = await assignCategoryToDesc({
       telegramUserId,
-      session.currentDesc,
-      session.currentDisplayName,
+      normalizedDesc: session.currentDesc,
+      displayName: session.currentDisplayName,
       categoryId,
       categoryName,
       session,
-    );
+    });
 
     await advanceOrFinish(ctx, updatedSession);
   });

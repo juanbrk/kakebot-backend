@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { CreditCard, CardStatement, CreditCardProcessor } from "../types/index";
+import { CreditCard, CardStatement } from "../types/index";
+import { CreateCardParams, CreateStatementParams } from "../types/card.types";
 
 /**
  * Returns all credit cards for a user, ordered by creation date.
@@ -43,30 +44,12 @@ export async function getCardById(cardId: string): Promise<CreditCard | null> {
 /**
  * Creates a new credit card document.
  *
- * @param {object} params
- * @param {string} params.telegramUserId
- * @param {string} params.lastFourDigits - Exactly 4 numeric characters
- * @param {string} params.bank - Bank name
- * @param {CreditCardProcessor} params.processor
- * @param {number} params.expiryMonth - 1-12
- * @param {number} params.expiryYear - 4-digit year
+ * @param {CreateCardParams} params
  * @return {Promise<string>} New Firestore document ID
  */
-export async function createCard({
-  telegramUserId,
-  lastFourDigits,
-  bank,
-  processor,
-  expiryMonth,
-  expiryYear,
-}: {
-  telegramUserId: string;
-  lastFourDigits: string;
-  bank: string;
-  processor: CreditCardProcessor;
-  expiryMonth: number;
-  expiryYear: number;
-}): Promise<string> {
+export async function createCard(params: CreateCardParams): Promise<string> {
+  const { telegramUserId, lastFourDigits, bank, processor, expiryMonth, expiryYear } = params;
+
   const docRef = await getDb().collection("credit_cards").add({
     telegramUserId,
     lastFourDigits,
@@ -154,30 +137,12 @@ export async function getStatementsByUserAndMonth(
 /**
  * Creates a new card statement document.
  *
- * @param {object} params
- * @param {string} params.cardId
- * @param {string} params.telegramUserId
- * @param {string} params.month - YYYY-MM format
- * @param {number} params.amountARS
- * @param {number} params.amountUSD - 0 if no USD charge
- * @param {Date} params.dueDate
+ * @param {CreateStatementParams} params
  * @return {Promise<string>} New Firestore document ID
  */
-export async function createStatement({
-  cardId,
-  telegramUserId,
-  month,
-  amountARS,
-  amountUSD,
-  dueDate,
-}: {
-  cardId: string;
-  telegramUserId: string;
-  month: string;
-  amountARS: number;
-  amountUSD: number;
-  dueDate: Date;
-}): Promise<string> {
+export async function createStatement(params: CreateStatementParams): Promise<string> {
+  const { cardId, telegramUserId, month, amountARS, amountUSD, dueDate } = params;
+
   const docRef = await getDb()
     .collection("card_statements")
     .add({

@@ -412,12 +412,12 @@ async function handleTaxInstallmentDetail(ctx: Context): Promise<void> {
   const text =
     buildBreadcrumb(["Impuestos", taxName, "Historial", monthLabel])
     + buildTaxInstallmentDetailText(installment);
-  const keyboard = buildTaxInstallmentDetailKeyboard(
+  const keyboard = buildTaxInstallmentDetailKeyboard({
     installmentId,
-    installment.isPaid,
-    !!installment.receiptUrl,
-    installment.taxId,
-  );
+    isPaid: installment.isPaid,
+    hasReceipt: !!installment.receiptUrl,
+    taxId: installment.taxId,
+  });
   await replyOrEdit(ctx, text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -540,12 +540,12 @@ async function showTaxActionView(
   }
 
   const text = buildBreadcrumb(["Impuestos", tax.name]) + statusText + "\n\n*¿Qué querés hacer?*";
-  const keyboard = buildTaxActionKeyboard(
+  const keyboard = buildTaxActionKeyboard({
     taxId,
     hasInstallment,
     isPaid,
-    installment?.id,
-  );
+    installmentId: installment?.id,
+  });
 
   await replyOrEdit(ctx, text, {
     parse_mode: "Markdown",
@@ -680,14 +680,14 @@ export async function handleTaxAmount({
   const dueDay = Math.min(tax.estimatedDueDay, maxDay);
   const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, dueDay);
 
-  const installmentId = await saveTaxInstallment(
+  const installmentId = await saveTaxInstallment({
     telegramUserId,
     taxId,
     taxName,
     amount,
     dueDate,
-    selectedMonth,
-  );
+    dueMonth: selectedMonth,
+  });
   await clearSession(telegramUserId);
 
   const day = String(dueDate.getDate()).padStart(2, "0");

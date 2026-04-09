@@ -1,5 +1,9 @@
 import { Markup } from "telegraf";
 import { Service, ServiceInstallment, ServicePaymentMethod } from "../../types/index";
+import {
+  BuildInstallmentListKeyboardParams,
+  BuildInstallmentDetailKeyboardParams,
+} from "../../types/service.types";
 import { formatARS, MONTH_NAMES } from "../../helpers/format";
 
 export const PAYMENT_METHOD_LABELS: Record<ServicePaymentMethod, string> = {
@@ -261,14 +265,14 @@ export function buildInstallmentDetailText(
   );
 }
 
-export function buildInstallmentDetailKeyboard(
-  installmentId: string,
-  isPaid: boolean,
-  hasReceipt: boolean,
-  hasInvoice: boolean,
+export function buildInstallmentDetailKeyboard({
+  installmentId,
+  isPaid,
+  hasReceipt,
+  hasInvoice,
   backCallback = "svc_back",
   backLabel = "Volver",
-) {
+}: BuildInstallmentDetailKeyboardParams) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: any[][] = [];
 
@@ -335,12 +339,12 @@ export function buildInstallmentDetailKeyboard(
   return Markup.inlineKeyboard(rows);
 }
 
-export function buildInstallmentListKeyboard(
-  installments: ServiceInstallment[],
-  page: number,
-  serviceId: string,
-  serviceName: string,
-) {
+export function buildInstallmentListKeyboard({
+  installments,
+  page,
+  serviceId,
+  serviceName,
+}: BuildInstallmentListKeyboardParams) {
   const start = page * INSTALLMENTS_PER_PAGE;
   const end = start + INSTALLMENTS_PER_PAGE;
   const pageInstallments = installments.slice(start, end);

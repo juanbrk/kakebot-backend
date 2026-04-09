@@ -5,11 +5,14 @@ import { getDb } from "./db";
 /**
  * Saves an income record to Firestore.
  *
- * @param {SaveIncomeParams} params - Income data
  * @return {string} The new document ID
  */
-export async function saveIncome(params: SaveIncomeParams): Promise<string> {
-  const { telegramUserId, amount, reason, date } = params;
+export async function saveIncome({
+  telegramUserId,
+  amount,
+  reason,
+  date,
+}: SaveIncomeParams): Promise<string> {
   const now = admin.firestore.Timestamp.now();
 
   const docRef = await getDb().collection("incomes").add({

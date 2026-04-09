@@ -1,5 +1,6 @@
 import { Markup } from "telegraf";
 import { Category } from "../../types/index";
+import { BuildExpensePromptTextParams } from "../../types/category.types";
 import { formatARS } from "../../helpers/format";
 
 export const CATEGORIES_PER_PAGE = 4;
@@ -41,12 +42,17 @@ export function buildCategoryKeyboard(categories: Category[], page: number) {
   return Markup.inlineKeyboard(buttons);
 }
 
-export function buildExpensePromptText(
-  displayName: string,
-  totalAmount: number,
-  current: number,
-  total: number
-): string {
+/**
+ * Builds the expense prompt text for category selection.
+ *
+ * @return {string} Formatted prompt text
+ */
+export function buildExpensePromptText({
+  displayName,
+  totalAmount,
+  current,
+  total,
+}: BuildExpensePromptTextParams): string {
   return (
     `*${displayName}* ${formatARS(totalAmount)} (${current} de ${total})\n` +
     "• Elegí una categoría o creá una nueva\n" +
