@@ -199,6 +199,37 @@ export async function getTaxInstallmentsByTaxId(
 }
 
 /**
+ * Returns unpaid tax installments for a user due within the next N days, ordered by dueDate ascending.
+ *
+ * @param {string} telegramUserId - User's Telegram ID
+ * @param {number} daysAhead - Number of days to look ahead from today
+ * @return {TaxInstallment[]} Matching installments sorted by dueDate
+ */
+export async function getUpcomingUnpaidTaxInstallments(
+  telegramUserId: string,
+  daysAhead: number
+): Promise<TaxInstallment[]> {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const futureDate = new Date(now);
+  futureDate.setDate(futureDate.getDate() + daysAhead);
+
+  const snapshot = await getDb()
+    .collection("tax_installments")
+    .where("telegramUserId", "==", telegramUserId)
+    .where("isPaid", "==", false)
+    .where("dueDate", ">=", admin.firestore.Timestamp.fromDate(now))
+    .where("dueDate", "<=", admin.firestore.Timestamp.fromDate(futureDate))
+    .orderBy("dueDate", "asc")
+    .get();
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Omit<TaxInstallment, "id">),
+  }));
+}
+
+/**
  * Returns all tax installments for a user in a given month.
  * Used by the monthly report generator.
  *
