@@ -40,6 +40,7 @@ async function handleReportesMenu(ctx: Context): Promise<void> {
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback("Ver reporte actual", "rep_current")],
     [Markup.button.callback("Reportes anteriores", "rep_history")],
+    [Markup.button.callback("Próximos Vencimientos", "menu_upcoming")],
     [Markup.button.callback("← Volver al menú", "menu_back")],
   ]);
   await ctx.editMessageText(

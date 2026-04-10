@@ -1,5 +1,35 @@
 # Session Log
 
+## 2026-04-09: Feature Próximos Vencimientos — implementación completa
+
+### Completado
+- **Feature**: reporte "Próximos Vencimientos" en menú Reportes (solo servicios e impuestos impagos)
+- **Archivos creados**:
+  - `types/upcoming-dues.types.ts`: `UpcomingDueEntityType`, `UpcomingDueItem`, `UpcomingDuesBucket`, `UpcomingDuesResult`
+  - `services/upcoming-dues.service.ts`: `getUpcomingDues(userId)` — fetch paralelo + agrupación en buckets no superpuestos (días 0-3, 4-5, 6-7)
+  - `bot/handlers/upcoming-dues.ts`: `registerUpcomingDuesHandler` + formateo con `├─` / `└─` + prefijos `[Svc]`/`[Imp]`
+- **Archivos modificados**:
+  - `services/tax.service.ts`: agregada `getUpcomingUnpaidTaxInstallments(userId, daysAhead)` — mirror de la función equivalente en service.service.ts
+  - `firestore.indexes.json`: nuevo índice `tax_installments (telegramUserId, isPaid, dueDate)` para query de próximos vencimientos
+  - `bot/handlers/report-history.ts`: botón "Próximos Vencimientos" → `menu_upcoming` en menú de Reportes
+  - `bot/telegram.ts`: registro de `registerUpcomingDuesHandler`
+- **Decisiones clave**:
+  - Tarjetas excluidas (CardStatement no tiene `isPaid`) → ticket de mejora generado
+  - Buckets no superpuestos: cada ítem aparece en una sola sección
+  - Action: `menu_upcoming`, back: `menu_reportes`
+- Build + lint: ✅ 0 errores, 0 warnings nuevos
+
+### Pendiente
+- Testing en emuladores: flujo completo Menú → Reportes → Próximos Vencimientos
+- Deploy a botitio_testitoBot
+- **Antes de prod**: verificar que el nuevo índice `tax_installments (telegramUserId, isPaid, dueDate)` esté "Enabled" en Firebase Console
+
+### Ticket de mejora generado: Estado de Pago en Tarjetas
+- Agregar `isPaid` + `paidAt` a `CardStatement`
+- Nueva función `markStatementAsPaid` en card.service.ts
+- Nuevo índice `card_statements (telegramUserId, isPaid, dueDate)`
+- Integrar tarjetas en upcoming-dues con prefijo `[TC]`
+
 ## 2026-04-07: Feature Impuestos — implementación completa
 
 ### Completado

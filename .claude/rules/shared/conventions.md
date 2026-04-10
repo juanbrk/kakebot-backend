@@ -1,5 +1,32 @@
 # Code Conventions
 
+## Text Formatting in Bot Messages
+
+### Bullet Character for List Items
+
+**ALWAYS use `•` (U+2022) as the bullet character for list items.** Never use tree characters (`├─`, `└─`) in list formatting.
+
+```typescript
+// ❌ WRONG — tree characters
+`├─ Telecentro  $ 2.100,00 (07/04)`
+`└─ Ganancias  $ 1.180,50 (09/04)`
+
+// ✅ RIGHT — standard bullet
+`• Telecentro  $ 2.100,00 (07/04)`
+`• Ganancias  $ 1.180,50 (09/04)`
+```
+
+This convention is enforced by a PreToolUse hook (`scripts/check-list-bullets.js`) that blocks edits containing `├─` or `└─` in TypeScript files.
+
+**Known usages in codebase:**
+- `report.service.ts` — expense/service/income/tax lines
+- `keyboards/service.ts` — service installment list
+- `helpers/bulk-parse.ts` — bulk expense preview
+- `bot/handlers/tax.ts` — tax list
+- `bot/handlers/upcoming-dues.ts` — upcoming dues buckets
+
+---
+
 ## TypeScript
 - Strict mode enabled
 - Target: ES2017, Module: CommonJS
