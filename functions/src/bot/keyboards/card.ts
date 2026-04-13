@@ -267,11 +267,14 @@ export function buildCardDetailText(
 
     lines.push("");
     lines.push(`*Resumen ${monthName} ${year}:*`);
-    lines.push(`Monto: ${formatARS(statement.amountARS)}`);
+    lines.push(` • Monto: ${formatARS(statement.amountARS)}`);
     if (statement.amountUSD > 0) {
-      lines.push(`Dólares: ${formatUSD(statement.amountUSD)}`);
+      lines.push(` • Dólares: ${formatUSD(statement.amountUSD)}`);
     }
-    lines.push(`Vence: ${day}/${mo}`);
+    lines.push(` • Vence: ${day}/${mo}`);
+    lines.push(
+      ` • Estado: ${statement.isPaid ? "✅ Pagado" : "Pendiente de pago"}`,
+    );
   } else {
     lines.push("");
     lines.push(`Sin resumen registrado para ${monthName} ${year}.`);
@@ -360,12 +363,14 @@ export function buildStatementListKeyboard({
     const row = [];
     const stmt1 = pageStmts[i];
     const [year1, month1] = stmt1.month.split("-");
-    const label1 = `${MONTH_NAMES[parseInt(month1, 10) - 1]} ${year1}`;
+    const baseLabel1 = `${MONTH_NAMES[parseInt(month1, 10) - 1]} ${year1}`;
+    const label1 = stmt1.isPaid ? `${baseLabel1} ✅` : baseLabel1;
     row.push(Markup.button.callback(label1, `card_stmt_detail:${stmt1.id}`));
     if (i + 1 < pageStmts.length) {
       const stmt2 = pageStmts[i + 1];
       const [year2, month2] = stmt2.month.split("-");
-      const label2 = `${MONTH_NAMES[parseInt(month2, 10) - 1]} ${year2}`;
+      const baseLabel2 = `${MONTH_NAMES[parseInt(month2, 10) - 1]} ${year2}`;
+      const label2 = baseLabel2;
       row.push(Markup.button.callback(label2, `card_stmt_detail:${stmt2.id}`));
     }
     rows.push(row);
@@ -413,24 +418,23 @@ export function buildStatementDetailText(
 
   const lines = [
     `*Resumen ${monthName}*`,
-    `*Tarjeta*: ${cardLabel}`,
-    `*Consumos en pesos*: ${formatARS(statement.amountARS)}`,
+    ` • *Tarjeta*: ${cardLabel}`,
+    ` • *Consumos en pesos*: ${formatARS(statement.amountARS)}`,
   ];
 
   if (statement.amountUSD > 0) {
-    lines.push(`*Consumos en dólares*: ${formatUSD(statement.amountUSD)}`);
+    lines.push(` • *Consumos en dólares*: ${formatUSD(statement.amountUSD)}`);
   }
 
-  lines.push(`*Vencimiento*: ${day}/${month}`);
-  // TODO agregar cuando se permita marcar resumen como pagado
-  // lines.push(`*Comprobante*: ${statement.receiptUrl ? "Disponible ✅" : "No disponible"}`);
+  lines.push(` • *Vencimiento*: ${day}/${month}`);
+  lines.push(` • *Estado*: ${statement.isPaid ? "✅ Pagado" : "Pendiente"}`);
 
   return lines.join("\n");
 }
 
 /**
  * Builds the action keyboard for a statement detail screen.
- * Buttons adapt based on whether a PDF is already attached.
+ * Buttons adapt based on payment status and attached documents.
  *
  * @param {BuildStatementDetailKeyboardParams} params
  * @return {object} Inline keyboard markup
@@ -439,8 +443,33 @@ export function buildStatementDetailKeyboard({
   statementId,
   cardId,
   hasReceipt,
+  isPaid,
+  hasPaymentReceipt,
 }: BuildStatementDetailKeyboardParams) {
   const rows: ReturnType<typeof Markup.button.callback>[][] = [];
+
+  if (!isPaid) {
+    rows.push([
+      Markup.button.callback(
+        "Marcar como pagado",
+        `card_stmt_pay:${statementId}`,
+      ),
+    ]);
+  } else if (!hasPaymentReceipt) {
+    rows.push([
+      Markup.button.callback(
+        "Adjuntar comprobante",
+        `card_stmt_pay_attach:${statementId}`,
+      ),
+    ]);
+  } else {
+    rows.push([
+      Markup.button.callback(
+        "Ver comprobante",
+        `card_stmt_pay_download:${statementId}`,
+      ),
+    ]);
+  }
 
   if (!hasReceipt) {
     rows.push([
@@ -496,6 +525,22 @@ export function buildStmtEditConfirmKeyboard({
         "Confirmar",
         `card_edit_ok:${field}:${statementId}:${value}`,
       ),
+    ],
+  ]);
+}
+
+/**
+ * Prompt keyboard shown after marking a statement as paid.
+ * Offers to skip or attach a payment receipt (comprobante de pago).
+ *
+ * @param {string} statementId
+ * @return {object} Inline keyboard markup
+ */
+export function buildStmtPayReceiptKeyboard(statementId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Omitir", "card_stmt_pay_skip"),
+      Markup.button.callback("Adjuntar", `card_stmt_pay_attach:${statementId}`),
     ],
   ]);
 }

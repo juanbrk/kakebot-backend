@@ -38,6 +38,8 @@ export interface BuildStatementDetailKeyboardParams {
   statementId: string;
   cardId: string;
   hasReceipt: boolean;
+  isPaid: boolean;
+  hasPaymentReceipt: boolean;
 }
 
 export interface BuildStatementListKeyboardParams {

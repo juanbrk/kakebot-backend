@@ -21,6 +21,7 @@ import {
   updateStatementAmountARS,
   updateStatementAmountUSD,
   updateStatementDueDay,
+  markStatementAsPaid,
 } from "../../services/card.service";
 import { downloadFromUrl } from "../../services/storage.service";
 import {
@@ -39,6 +40,7 @@ import {
   buildStatementDetailText,
   buildStatementDetailKeyboard,
   buildStatementEditMenuKeyboard,
+  buildStmtPayReceiptKeyboard,
 } from "../keyboards/card";
 
 async function handleCardsHub(ctx: Context): Promise<void> {
@@ -516,6 +518,8 @@ async function showStatementDetail(
         statementId,
         cardId: statement.cardId,
         hasReceipt: !!statement.receiptUrl,
+        isPaid: statement.isPaid,
+        hasPaymentReceipt: !!statement.paymentReceiptUrl,
       }),
     },
   );
@@ -900,7 +904,8 @@ async function handleListAllCards(ctx: Context): Promise<void> {
       const dueDate = stmt.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
       const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-      lines.push(`${label}: ${day}/${mo}`);
+      const estado = stmt.isPaid ? "✅ Pagado" : "Pendiente de pago";
+      lines.push(`${label}: ${day}/${mo} — ${estado}`);
     } else {
       lines.push(`${label}: -`);
     }
@@ -910,6 +915,145 @@ async function handleListAllCards(ctx: Context): Promise<void> {
     parse_mode: "Markdown",
     ...buildCardListViewKeyboard(),
   });
+}
+
+/**
+ * Marks a statement as paid and prompts to attach a payment receipt.
+ *
+ * @param {Context} ctx
+ */
+async function handleMarkStatementAsPaid(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  await markStatementAsPaid(statementId);
+
+  await ctx.reply(`✅ Resumen marcado como pagado.\n_${monthLabel} · ${cardLabel}_`, {
+    parse_mode: "Markdown",
+  });
+
+  await ctx.reply(
+    `*¿Deseás adjuntar el comprobante de pago del resumen ${monthLabel} de la tarjeta ${cardLabel}?*`,
+    {
+      parse_mode: "Markdown",
+      ...buildStmtPayReceiptKeyboard(statementId),
+    },
+  );
+}
+
+/**
+ * Sets session to card_stmt_awaiting_receipt and prompts the user to send the file.
+ *
+ * @param {Context} ctx
+ */
+async function handleAttachStatementPaymentReceipt(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_awaiting_receipt",
+    statementId,
+    cardLabel,
+    statementMonth: statement.month,
+    cardId: statement.cardId,
+  });
+
+  const attachPrompt = `*Vas a adjuntar el comprobante de pago del resumen ${monthLabel}`
+    + ` de la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`;
+  await ctx.reply(attachPrompt, { parse_mode: "Markdown" });
+  await ctx.reply("Enviá la foto o PDF del comprobante de pago.");
+}
+
+/**
+ * Skips the payment receipt attachment after marking a statement as paid.
+ *
+ * @param {Context} ctx
+ */
+async function handleSkipStatementPaymentReceipt(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  const telegramUserId = String(ctx.from!.id);
+  await clearSession(telegramUserId);
+  await ctx.reply("Podés adjuntar el comprobante luego desde el detalle del resumen.");
+}
+
+/**
+ * Downloads and sends the payment receipt (comprobante de pago) for a statement.
+ *
+ * @param {Context} ctx
+ */
+async function handleDownloadStatementPaymentReceipt(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+
+  const statement = await getStatementById(statementId);
+
+  if (!statement?.paymentReceiptUrl) {
+    await ctx.reply("No hay comprobante de pago adjunto para este resumen.");
+    return;
+  }
+
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
+  const sanitizedLabel = cardLabel
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  try {
+    const { buffer, extension } = await downloadFromUrl(statement.paymentReceiptUrl);
+    const filename = `${statement.month}-comprobante-pago-${sanitizedLabel}.${extension}`;
+    await ctx.reply(
+      `Acá tenés el comprobante de pago de ${monthLabel} para ${cardLabel}`,
+    );
+    await ctx.replyWithDocument({ source: buffer, filename });
+  } catch (error) {
+    console.error("[handleDownloadStatementPaymentReceipt] Error:", error);
+    await ctx.reply("❌ No se pudo descargar el archivo. Intentá de nuevo.");
+  }
 }
 
 /**
@@ -956,4 +1100,10 @@ export function registerCardHandler(bot: Telegraf<Context>): void {
   bot.action(/^card_edit_day:(.+)$/, handleEditDay);
   bot.action(/^card_edit_ok:(ars|usd|day):(.+):(.+)$/, handleConfirmEdit);
   bot.action(/^card_stmt_edit:(.+)$/, handleStatementEditMenu);
+
+  // Statement payment
+  bot.action(/^card_stmt_pay:(.+)$/, handleMarkStatementAsPaid);
+  bot.action(/^card_stmt_pay_attach:(.+)$/, handleAttachStatementPaymentReceipt);
+  bot.action("card_stmt_pay_skip", handleSkipStatementPaymentReceipt);
+  bot.action(/^card_stmt_pay_download:(.+)$/, handleDownloadStatementPaymentReceipt);
 }

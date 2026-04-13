@@ -158,6 +158,7 @@ export async function createStatement(params: CreateStatementParams): Promise<st
       amountARS,
       amountUSD,
       dueDate: admin.firestore.Timestamp.fromDate(dueDate),
+      isPaid: false,
       createdAt: admin.firestore.Timestamp.now(),
     });
   return docRef.id;
@@ -260,4 +261,37 @@ export async function saveStatementReceiptUrl(
     .collection("card_statements")
     .doc(statementId)
     .update({ receiptUrl });
+}
+
+/**
+ * Marks a card statement as paid and records the payment timestamp.
+ *
+ * @param {string} statementId
+ */
+export async function markStatementAsPaid(statementId: string): Promise<void> {
+  await getDb()
+    .collection("card_statements")
+    .doc(statementId)
+    .update({
+      isPaid: true,
+      paidAt: admin.firestore.Timestamp.now(),
+    });
+}
+
+/**
+ * Saves the payment receipt URL on an existing statement document.
+ * This is separate from receiptUrl (bank statement PDF) — it stores the
+ * proof-of-payment uploaded after marking the statement as paid.
+ *
+ * @param {string} statementId
+ * @param {string} paymentReceiptUrl
+ */
+export async function saveStatementPaymentReceiptUrl(
+  statementId: string,
+  paymentReceiptUrl: string,
+): Promise<void> {
+  await getDb()
+    .collection("card_statements")
+    .doc(statementId)
+    .update({ paymentReceiptUrl });
 }
