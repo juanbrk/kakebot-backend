@@ -82,7 +82,10 @@ export interface CardStatement {
   amountARS: number;
   amountUSD: number;
   dueDate: FirebaseFirestore.Timestamp;
+  isPaid: boolean;
+  paidAt?: FirebaseFirestore.Timestamp;
   receiptUrl?: string;
+  paymentReceiptUrl?: string;
   createdAt: FirebaseFirestore.Timestamp;
 }
 
@@ -134,6 +137,7 @@ export type CardSessionState =
   | "card_stmt_awaiting_usd"
   | "card_stmt_awaiting_day"
   | "card_awaiting_receipt"
+  | "card_stmt_awaiting_receipt"
   | "card_stmt_edit_awaiting_ars"
   | "card_stmt_edit_awaiting_usd"
   | "card_stmt_edit_awaiting_day";
