@@ -66,6 +66,14 @@
       ]
     },
     {
+      "collectionGroup": "card_statements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cardId", "order": "ASCENDING" },
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "tax_installments",
       "queryScope": "COLLECTION",
       "fields": [

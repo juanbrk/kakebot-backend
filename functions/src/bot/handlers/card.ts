@@ -15,14 +15,18 @@ import {
   getStatementByCardAndMonth,
   getStatementsByUserAndMonth,
   getStatementById,
+  getStatementsByCard,
   createCard,
   createStatement,
+  updateStatementAmountARS,
+  updateStatementAmountUSD,
+  updateStatementDueDay,
 } from "../../services/card.service";
 import { downloadFromUrl } from "../../services/storage.service";
 import {
   buildCardListKeyboard,
   buildCardDetailText,
-  buildCardDetailBackKeyboard,
+  buildCardDetailKeyboard,
   buildCardStmtMonthKeyboard,
   buildCardStmtReceiptKeyboard,
   buildCardCurrencyKeyboard,
@@ -31,6 +35,10 @@ import {
   buildCardsHubKeyboard,
   buildCardListViewKeyboard,
   buildCardEmptyStateKeyboard,
+  buildStatementListKeyboard,
+  buildStatementDetailText,
+  buildStatementDetailKeyboard,
+  buildStatementEditMenuKeyboard,
 } from "../keyboards/card";
 
 async function handleCardsHub(ctx: Context): Promise<void> {
@@ -106,7 +114,7 @@ async function handlePickCard(ctx: Context): Promise<void> {
 
   await replyOrEdit(ctx, `${breadcrumb}${detailText}`, {
     parse_mode: "Markdown",
-    ...buildCardDetailBackKeyboard(cardId, statement),
+    ...buildCardDetailKeyboard(cardId, statement),
   });
 }
 
@@ -442,7 +450,9 @@ async function handleDownloadStatementPdf(ctx: Context): Promise<void> {
 
   const card = await getCardById(statement.cardId);
   const cardLabel = card ? buildCardLabel(card) : "";
-  const sanitizedLabel = cardLabel.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const sanitizedLabel = cardLabel
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
@@ -450,12 +460,381 @@ async function handleDownloadStatementPdf(ctx: Context): Promise<void> {
   try {
     const { buffer, extension } = await downloadFromUrl(statement.receiptUrl);
     const filename = `${statement.month}-resumen-tarjeta-${sanitizedLabel}.${extension}`;
-    await ctx.reply(`Acá tenés el resumen de ${monthLabel} para ${cardLabel} en formato PDF`);
+    await ctx.reply(
+      `Acá tenés el resumen de ${monthLabel} para ${cardLabel} en formato PDF`,
+    );
     await ctx.replyWithDocument({ source: buffer, filename });
   } catch (error) {
     console.error("[handleDownloadStatementPdf] Error:", error);
     await ctx.reply("❌ No se pudo descargar el archivo. Intentá de nuevo.");
   }
+}
+
+/**
+ * Renders the statement detail view for a given statementId.
+ * Shared by handleStatementDetail, handleConfirmEdit, and handleAttachStatementPdfFromHistory.
+ *
+ * @param {Context} ctx
+ * @param {string} statementId
+ */
+async function showStatementDetail(
+  ctx: Context,
+  statementId: string,
+): Promise<void> {
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const telegramUserId = String(ctx.from!.id);
+  const session = await getSession(telegramUserId);
+
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const breadcrumb = buildBreadcrumb([
+    "Tarjetas",
+    cardLabel,
+    "Resúmenes",
+    monthLabel,
+  ]);
+
+  await replyOrEdit(
+    ctx,
+    `${breadcrumb}${buildStatementDetailText(statement, cardLabel)}`,
+    {
+      parse_mode: "Markdown",
+      ...buildStatementDetailKeyboard({
+        statementId,
+        cardId: statement.cardId,
+        hasReceipt: !!statement.receiptUrl,
+      }),
+    },
+  );
+}
+
+async function handleStatementsList(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cardId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const [card, statements] = await Promise.all([
+    getCardById(cardId),
+    getStatementsByCard(cardId, telegramUserId),
+  ]);
+
+  if (!card) {
+    await replyOrEdit(ctx, "Tarjeta no encontrada.");
+    return;
+  }
+
+  const cardLabel = buildCardLabel(card);
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_awaiting_receipt",
+    cardId,
+    cardLabel,
+  });
+
+  const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
+
+  if (statements.length === 0) {
+    await replyOrEdit(
+      ctx,
+      `${breadcrumb}No hay resúmenes registrados para esta tarjeta.`,
+      {
+        parse_mode: "Markdown",
+        ...buildStatementListKeyboard({
+          statements,
+          page: 0,
+          cardId,
+          cardLabel,
+        }),
+      },
+    );
+    return;
+  }
+
+  await replyOrEdit(ctx, `${breadcrumb}*Seleccioná un resumen:*`, {
+    parse_mode: "Markdown",
+    ...buildStatementListKeyboard({ statements, page: 0, cardId, cardLabel }),
+  });
+}
+
+async function handleStatementsListPagination(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cardId = ((ctx as any).match as string[])[1];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const page = parseInt(((ctx as any).match as string[])[2], 10);
+  const telegramUserId = String(ctx.from!.id);
+
+  const session = await getSession(telegramUserId);
+  const statements = await getStatementsByCard(cardId, telegramUserId);
+
+  let cardLabel = "";
+  if (session?.cardId === cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
+
+  await replyOrEdit(ctx, `${breadcrumb}*Seleccioná un resumen:*`, {
+    parse_mode: "Markdown",
+    ...buildStatementListKeyboard({ statements, page, cardId, cardLabel }),
+  });
+}
+
+async function handleStatementDetail(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  await showStatementDetail(ctx, statementId);
+}
+
+async function handleAttachStatementPdfFromHistory(
+  ctx: Context,
+): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  const [year, month] = statement.month.split("-");
+  const stmtMonth = statement.month;
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_awaiting_receipt",
+    statementId,
+    cardLabel,
+    statementMonth: stmtMonth,
+    cardId: statement.cardId,
+  });
+
+  await ctx.reply(
+    `*Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${cardLabel}*\n` +
+      "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" },
+  );
+  await ctx.reply("Enviá la foto o PDF del resumen.");
+}
+
+async function handleStatementEditMenu(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const breadcrumb = buildBreadcrumb([
+    "Tarjetas",
+    cardLabel,
+    "Resúmenes",
+    monthLabel,
+    "Modificar",
+  ]);
+
+  await replyOrEdit(ctx, `${breadcrumb}*¿Qué querés modificar?*`, {
+    parse_mode: "Markdown",
+    ...buildStatementEditMenuKeyboard(statementId),
+  });
+}
+
+async function handleEditArs(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_edit_awaiting_ars",
+    statementId,
+    cardId: statement.cardId,
+    cardLabel,
+    statementMonth: statement.month,
+  });
+
+  await ctx.editMessageText(
+    `*Vas a modificar el monto en pesos para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
+    { parse_mode: "Markdown" },
+  );
+  await ctx.reply(
+    `*Monto actual*: ${formatARS(statement.amountARS)}\n*Ingresá el nuevo monto en pesos:*`,
+    { parse_mode: "Markdown" },
+  );
+}
+
+async function handleEditUsd(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_edit_awaiting_usd",
+    statementId,
+    cardId: statement.cardId,
+    cardLabel,
+    statementMonth: statement.month,
+  });
+
+  const currentUsd =
+    statement.amountUSD > 0
+      ? formatUSD(statement.amountUSD)
+      : "sin monto en dólares";
+
+  await ctx.editMessageText(
+    `*Vas a modificar el monto en dólares para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
+    { parse_mode: "Markdown" },
+  );
+  await ctx.reply(
+    `*Monto actual*: ${currentUsd}\n*Ingresá el nuevo monto en dólares:*`,
+    { parse_mode: "Markdown" },
+  );
+}
+
+async function handleEditDay(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const statement = await getStatementById(statementId);
+  if (!statement) {
+    await replyOrEdit(ctx, "Resumen no encontrado.");
+    return;
+  }
+
+  const [year, month] = statement.month.split("-").map(Number);
+  const maxDay = new Date(year, month, 0).getDate();
+  const currentDay = statement.dueDate.toDate().getDate();
+
+  const session = await getSession(telegramUserId);
+  let cardLabel = "";
+  if (session?.cardId === statement.cardId && session?.cardLabel) {
+    cardLabel = session.cardLabel;
+  } else {
+    const card = await getCardById(statement.cardId);
+    cardLabel = card ? buildCardLabel(card) : "";
+  }
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_edit_awaiting_day",
+    statementId,
+    cardId: statement.cardId,
+    cardLabel,
+    statementMonth: statement.month,
+  });
+
+  await ctx.editMessageText(
+    `*Vas a modificar el vencimiento para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
+    { parse_mode: "Markdown" },
+  );
+  await ctx.reply(
+    `*Vencimiento actual*: ${String(currentDay).padStart(2, "0")}/${String(month).padStart(2, "0")}\n*Ingresá el nuevo día (1-${maxDay}):*`,
+    { parse_mode: "Markdown" },
+  );
+}
+
+async function handleConfirmEdit(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const field = match[1] as "ars" | "usd" | "day";
+  const statementId = match[2];
+  const value = match[3];
+  const telegramUserId = String(ctx.from!.id);
+
+  await clearSession(telegramUserId);
+
+  if (field === "ars") {
+    await updateStatementAmountARS({ statementId, amount: parseFloat(value) });
+  } else if (field === "usd") {
+    await updateStatementAmountUSD({ statementId, amount: parseFloat(value) });
+  } else {
+    await updateStatementDueDay({ statementId, newDay: parseInt(value, 10) });
+  }
+
+  await showStatementDetail(ctx, statementId);
 }
 
 async function handleListAllCards(ctx: Context): Promise<void> {
@@ -564,4 +943,17 @@ export function registerCardHandler(bot: Telegraf<Context>): void {
   bot.action(/^card_stmt_attach:(.+)$/, handleAttachStatementReceipt);
   bot.action("card_stmt_skip", handleSkipStatementReceipt);
   bot.action(/^card_stmt_download:(.+)$/, handleDownloadStatementPdf);
+
+  // Statement history
+  bot.action(/^card_stmts:(.+)$/, handleStatementsList);
+  bot.action(/^card_stmts_pg:(.+):(\d+)$/, handleStatementsListPagination);
+  bot.action(/^card_stmt_detail:(.+)$/, handleStatementDetail);
+  bot.action(/^card_hist_attach:(.+)$/, handleAttachStatementPdfFromHistory);
+
+  // Statement edit — specific patterns must be registered before the general card_stmt_edit
+  bot.action(/^card_edit_ars:(.+)$/, handleEditArs);
+  bot.action(/^card_edit_usd:(.+)$/, handleEditUsd);
+  bot.action(/^card_edit_day:(.+)$/, handleEditDay);
+  bot.action(/^card_edit_ok:(ars|usd|day):(.+):(.+)$/, handleConfirmEdit);
+  bot.action(/^card_stmt_edit:(.+)$/, handleStatementEditMenu);
 }

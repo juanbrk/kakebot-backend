@@ -1,9 +1,16 @@
 import { Markup } from "telegraf";
 import { CreditCard, CardStatement } from "../../types/index";
-import { CardConfirmTextParams, StmtConfirmTextParams } from "../../types/card.types";
+import {
+  CardConfirmTextParams,
+  StmtConfirmTextParams,
+  BuildStatementDetailKeyboardParams,
+  BuildStatementListKeyboardParams,
+  BuildStmtEditConfirmKeyboardParams,
+} from "../../types/card.types";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
 
 const CARDS_PER_PAGE = 6;
+const STATEMENTS_PER_PAGE = 6;
 
 /**
  * Builds the label displayed on card list buttons (includes bank).
@@ -201,23 +208,27 @@ export function buildCardStmtAfterCreateKeyboard(cardId: string) {
 }
 
 /**
- * Card detail keyboard with conditional statement actions and back button.
- * Shows different options depending on whether a statement and its PDF exist.
+ * Card detail keyboard with primary navigation options.
+ * "Añadir Resumen" is shown only when no statement exists for the current month.
+ * PDF actions are available from the individual statement detail, not here.
  *
  * @param {string} cardId
  * @param {CardStatement | null} statement - Current month statement, if any
  * @return {object} Inline keyboard markup
  */
-export function buildCardDetailBackKeyboard(cardId: string, statement: CardStatement | null) {
+export function buildCardDetailKeyboard(
+  cardId: string,
+  statement: CardStatement | null,
+) {
   const rows: ReturnType<typeof Markup.button.callback>[][] = [];
 
   if (!statement) {
-    rows.push([Markup.button.callback("Cargar nuevo resumen", `card_stmt_reg:${cardId}`)]);
-  } else if (!statement.receiptUrl) {
-    rows.push([Markup.button.callback("Adjuntar PDF resumen", `card_stmt_attach:${statement.id}`)]);
+    rows.push([
+      Markup.button.callback("Añadir Resumen", `card_stmt_reg:${cardId}`),
+      Markup.button.callback("Resúmenes", `card_stmts:${cardId}`),
+    ]);
   } else {
-    rows.push([Markup.button.callback("Descargar PDF resumen", `card_stmt_download:${statement.id}`)]);
-    rows.push([Markup.button.callback("Reemplazar PDF resumen", `card_stmt_attach:${statement.id}`)]);
+    rows.push([Markup.button.callback("Resúmenes", `card_stmts:${cardId}`)]);
   }
 
   rows.push([Markup.button.callback("← Volver a tarjetas", "card_list")]);
@@ -327,13 +338,177 @@ export function buildCardEmptyStateKeyboard() {
 }
 
 /**
+ * Builds a paginated 2-column grid of statement buttons, ordered oldest to newest.
+ *
+ * @param {BuildStatementListKeyboardParams} params
+ * @return {object} Inline keyboard markup
+ */
+export function buildStatementListKeyboard({
+  statements,
+  page,
+  cardId,
+  cardLabel,
+}: BuildStatementListKeyboardParams) {
+  const start = page * STATEMENTS_PER_PAGE;
+  const end = start + STATEMENTS_PER_PAGE;
+  const pageStmts = statements.slice(start, end);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[] = [];
+
+  for (let i = 0; i < pageStmts.length; i += 2) {
+    const row = [];
+    const stmt1 = pageStmts[i];
+    const [year1, month1] = stmt1.month.split("-");
+    const label1 = `${MONTH_NAMES[parseInt(month1, 10) - 1]} ${year1}`;
+    row.push(Markup.button.callback(label1, `card_stmt_detail:${stmt1.id}`));
+    if (i + 1 < pageStmts.length) {
+      const stmt2 = pageStmts[i + 1];
+      const [year2, month2] = stmt2.month.split("-");
+      const label2 = `${MONTH_NAMES[parseInt(month2, 10) - 1]} ${year2}`;
+      row.push(Markup.button.callback(label2, `card_stmt_detail:${stmt2.id}`));
+    }
+    rows.push(row);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const navRow: any[] = [];
+  if (page > 0) {
+    navRow.push(
+      Markup.button.callback(
+        "← Anterior",
+        `card_stmts_pg:${cardId}:${page - 1}`,
+      ),
+    );
+  }
+  if (end < statements.length) {
+    navRow.push(
+      Markup.button.callback("Más →", `card_stmts_pg:${cardId}:${page + 1}`),
+    );
+  }
+  if (navRow.length > 0) rows.push(navRow);
+
+  rows.push([
+    Markup.button.callback(`← Volver a ${cardLabel}`, `card_pick:${cardId}`),
+  ]);
+  return Markup.inlineKeyboard(rows);
+}
+
+/**
+ * Builds the detail text for a single statement.
+ *
+ * @param {CardStatement} statement
+ * @param {string} cardLabel - e.g. "Visa 5477 - Galicia"
+ * @return {string}
+ */
+export function buildStatementDetailText(
+  statement: CardStatement,
+  cardLabel: string,
+): string {
+  const [year, month] = statement.month.split("-");
+  const monthName = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  const dueDate = statement.dueDate.toDate();
+  const day = String(dueDate.getDate()).padStart(2, "0");
+
+  const lines = [
+    `*Resumen ${monthName}*`,
+    `*Tarjeta*: ${cardLabel}`,
+    `*Consumos en pesos*: ${formatARS(statement.amountARS)}`,
+  ];
+
+  if (statement.amountUSD > 0) {
+    lines.push(`*Consumos en dólares*: ${formatUSD(statement.amountUSD)}`);
+  }
+
+  lines.push(`*Vencimiento*: ${day}/${month}`);
+  // TODO agregar cuando se permita marcar resumen como pagado
+  // lines.push(`*Comprobante*: ${statement.receiptUrl ? "Disponible ✅" : "No disponible"}`);
+
+  return lines.join("\n");
+}
+
+/**
+ * Builds the action keyboard for a statement detail screen.
+ * Buttons adapt based on whether a PDF is already attached.
+ *
+ * @param {BuildStatementDetailKeyboardParams} params
+ * @return {object} Inline keyboard markup
+ */
+export function buildStatementDetailKeyboard({
+  statementId,
+  cardId,
+  hasReceipt,
+}: BuildStatementDetailKeyboardParams) {
+  const rows: ReturnType<typeof Markup.button.callback>[][] = [];
+
+  if (!hasReceipt) {
+    rows.push([
+      Markup.button.callback("Subir PDF", `card_hist_attach:${statementId}`),
+    ]);
+  } else {
+    rows.push([
+      Markup.button.callback(
+        "Descargar PDF",
+        `card_stmt_download:${statementId}`,
+      ),
+    ]);
+  }
+
+  rows.push([
+    Markup.button.callback("Modificar", `card_stmt_edit:${statementId}`),
+  ]);
+  rows.push([Markup.button.callback("← Volver", `card_stmts:${cardId}`)]);
+  return Markup.inlineKeyboard(rows);
+}
+
+/**
+ * Builds the edit field selection keyboard for a statement.
+ * Back button returns to the statement detail view.
+ *
+ * @param {string} statementId
+ * @return {object} Inline keyboard markup
+ */
+export function buildStatementEditMenuKeyboard(statementId: string) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Monto ARS", `card_edit_ars:${statementId}`)],
+    [Markup.button.callback("Monto U$S", `card_edit_usd:${statementId}`)],
+    [Markup.button.callback("Vencimiento", `card_edit_day:${statementId}`)],
+    [Markup.button.callback("← Volver", `card_stmt_detail:${statementId}`)],
+  ]);
+}
+
+/**
+ * Confirm/cancel keyboard for a statement field edit.
+ *
+ * @param {BuildStmtEditConfirmKeyboardParams} params
+ * @return {object} Inline keyboard markup
+ */
+export function buildStmtEditConfirmKeyboard({
+  field,
+  statementId,
+  value,
+}: BuildStmtEditConfirmKeyboardParams) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Cancelar", `card_stmt_edit:${statementId}`),
+      Markup.button.callback(
+        "Confirmar",
+        `card_edit_ok:${field}:${statementId}:${value}`,
+      ),
+    ],
+  ]);
+}
+
+/**
  * Builds the statement creation confirmation text.
  *
  * @param {StmtConfirmTextParams} params
  * @return {string}
  */
 export function buildStmtConfirmText(params: StmtConfirmTextParams): string {
-  const { cardLabel, monthLabel, amountARS, amountUSD, dueDay, stmtMonth } = params;
+  const { cardLabel, monthLabel, amountARS, amountUSD, dueDay, stmtMonth } =
+    params;
 
   const monthNum = stmtMonth.split("-")[1];
   const dueDateStr = `${String(dueDay).padStart(2, "0")}/${monthNum}`;

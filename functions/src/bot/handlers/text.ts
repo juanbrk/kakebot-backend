@@ -6,7 +6,7 @@ import {
 } from "../../services/session.service";
 import { handleNewCategoryInput, advanceOrFinish } from "../../services/category.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
-import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatUSD, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import {
   isBulkMessage, parseBulkLines, buildBulkConfirmText, MAX_BULK_LINES,
 } from "../../helpers/bulk-parse";
@@ -36,7 +36,9 @@ import {
   buildCardConfirmKeyboard,
   buildStmtConfirmText,
   buildCardStmtConfirmKeyboard,
+  buildStmtEditConfirmKeyboard,
 } from "../keyboards/card";
+import { getStatementById } from "../../services/card.service";
 import { handleTaxName, handleTaxDay, handleTaxAmount } from "./tax";
 
 const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
@@ -186,6 +188,21 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "card_stmt_awaiting_day") {
       await handleCardStmtDay({ ctx, session, telegramUserId, messageText });
+      return;
+    }
+
+    if (session?.state === "card_stmt_edit_awaiting_ars") {
+      await handleCardStmtEditArs({ ctx, session, telegramUserId, messageText });
+      return;
+    }
+
+    if (session?.state === "card_stmt_edit_awaiting_usd") {
+      await handleCardStmtEditUsd({ ctx, session, telegramUserId, messageText });
+      return;
+    }
+
+    if (session?.state === "card_stmt_edit_awaiting_day") {
+      await handleCardStmtEditDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -1125,5 +1142,111 @@ async function handleCardStmtDay({
       parse_mode: "Markdown",
       ...buildCardStmtConfirmKeyboard(),
     }
+  );
+}
+
+async function handleCardStmtEditArs({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
+  const parsed = parseArgentineAmount(messageText.trim());
+
+  if (!parsed || parsed <= 0) {
+    await ctx.reply("Monto inválido. Ingresá un número mayor a cero, por ejemplo: 14819,50");
+    return;
+  }
+
+  const statementId = session.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: no se encontró el resumen en la sesión.");
+    return;
+  }
+
+  const statement = await getStatementById(statementId);
+  const currentLabel = statement ? formatARS(statement.amountARS) : "—";
+
+  await setSession(telegramUserId, { ...session, pendingEditValue: String(parsed) });
+
+  await ctx.reply(
+    `*Monto ARS actual*: ${currentLabel}\n*Nuevo monto*: ${formatARS(parsed)}\n\n*¿Confirmar el cambio?*`,
+    {
+      parse_mode: "Markdown",
+      ...buildStmtEditConfirmKeyboard({ field: "ars", statementId, value: String(parsed) }),
+    },
+  );
+}
+
+async function handleCardStmtEditUsd({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
+  const parsed = parseArgentineAmount(messageText.trim());
+
+  if (parsed === null || parsed < 0) {
+    await ctx.reply("Monto inválido. Ingresá un número mayor o igual a cero, por ejemplo: 49,47");
+    return;
+  }
+
+  const statementId = session.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: no se encontró el resumen en la sesión.");
+    return;
+  }
+
+  const statement = await getStatementById(statementId);
+  const currentLabel = statement && statement.amountUSD > 0 ? formatUSD(statement.amountUSD) : "sin monto en dólares";
+
+  await setSession(telegramUserId, { ...session, pendingEditValue: String(parsed) });
+
+  await ctx.reply(
+    `*Monto U$S actual*: ${currentLabel}\n*Nuevo monto*: ${formatUSD(parsed)}\n\n*¿Confirmar el cambio?*`,
+    {
+      parse_mode: "Markdown",
+      ...buildStmtEditConfirmKeyboard({ field: "usd", statementId, value: String(parsed) }),
+    },
+  );
+}
+
+async function handleCardStmtEditDay({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
+  const dayStr = messageText.trim();
+  const day = parseInt(dayStr, 10);
+
+  const stmtMonth = session.statementMonth || "";
+  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
+
+  if (!isValidDay) {
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
+    return;
+  }
+
+  const statementId = session.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: no se encontró el resumen en la sesión.");
+    return;
+  }
+
+  const statement = await getStatementById(statementId);
+  const currentDay = statement ? statement.dueDate.toDate().getDate() : "—";
+  const [, month] = stmtMonth.split("-");
+  const monthNum = month || "?";
+
+  await setSession(telegramUserId, { ...session, pendingEditValue: String(day) });
+
+  await ctx.reply(
+    `*Vencimiento actual*: ${String(currentDay).padStart(2, "0")}/${monthNum}\n*Nuevo vencimiento*: ${String(day).padStart(2, "0")}/${monthNum}\n\n*¿Confirmar el cambio?*`,
+    {
+      parse_mode: "Markdown",
+      ...buildStmtEditConfirmKeyboard({ field: "day", statementId, value: String(day) }),
+    },
   );
 }
