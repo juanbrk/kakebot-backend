@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import { getDb } from "./db";
 import { CreditCard, CardStatement } from "../types/index";
 import {
+  CardStatementForDue,
   CreateCardParams,
   CreateStatementParams,
   UpdateStatementAmountARSParams,
@@ -276,6 +277,61 @@ export async function markStatementAsPaid(statementId: string): Promise<void> {
       isPaid: true,
       paidAt: admin.firestore.Timestamp.now(),
     });
+}
+
+/**
+ * Fetches upcoming unpaid card statements within `daysAhead` days, with resolved card labels.
+ * Performs a compound query on card_statements, then batch-fetches unique parent cards
+ * to build the display label for each result.
+ *
+ * @param {string} telegramUserId
+ * @param {number} daysAhead - Max days ahead to include
+ * @return {Promise<CardStatementForDue[]>} Statements sorted by dueDate ascending
+ */
+export async function getUpcomingUnpaidCardStatements(
+  telegramUserId: string,
+  daysAhead: number,
+): Promise<CardStatementForDue[]> {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const futureDate = new Date(now);
+  futureDate.setDate(futureDate.getDate() + daysAhead);
+
+  const snapshot = await getDb()
+    .collection("card_statements")
+    .where("telegramUserId", "==", telegramUserId)
+    .where("isPaid", "==", false)
+    .where("dueDate", ">=", admin.firestore.Timestamp.fromDate(now))
+    .where("dueDate", "<=", admin.firestore.Timestamp.fromDate(futureDate))
+    .orderBy("dueDate", "asc")
+    .get();
+
+  if (snapshot.empty) return [];
+
+  const statements = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Omit<CardStatement, "id">),
+  }));
+
+  const uniqueCardIds = [...new Set(statements.map((s) => s.cardId))];
+  const cards = await Promise.all(uniqueCardIds.map((id) => getCardById(id)));
+
+  const cardLabelMap = new Map<string, string>();
+  uniqueCardIds.forEach((cardId, i) => {
+    const card = cards[i];
+    if (card) {
+      const processorLabel = card.processor === "VISA" ? "Visa" : "Master";
+      cardLabelMap.set(cardId, `${processorLabel} ${card.lastFourDigits} - ${card.bank}`);
+    }
+  });
+
+  return statements
+    .filter((s) => cardLabelMap.has(s.cardId))
+    .map((s) => ({
+      cardLabel: cardLabelMap.get(s.cardId) as string,
+      amountARS: s.amountARS,
+      dueDate: s.dueDate,
+    }));
 }
 
 /**

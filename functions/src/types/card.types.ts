@@ -69,3 +69,10 @@ export interface UpdateStatementDueDayParams {
   statementId: string;
   newDay: number;
 }
+
+/** Resolved card statement data for the Próximos Vencimientos report. */
+export interface CardStatementForDue {
+  cardLabel: string;
+  amountARS: number;
+  dueDate: FirebaseFirestore.Timestamp;
+}
