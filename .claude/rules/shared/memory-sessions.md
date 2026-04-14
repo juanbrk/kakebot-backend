@@ -1,5 +1,24 @@
 # Session Log
 
+## 2026-04-13: Tarjetas en Próximos Vencimientos
+
+### Completado
+- **Feature**: resúmenes de tarjeta (CardStatement) ahora aparecen en "Próximos Vencimientos"
+- **Archivos modificados**:
+  - `firestore.indexes.json`: nuevo índice `card_statements (telegramUserId, isPaid, dueDate)`
+  - `types/card.types.ts`: nueva interface `CardStatementForDue { cardLabel, amountARS, dueDate }`
+  - `services/card.service.ts`: nueva función `getUpcomingUnpaidCardStatements(userId, daysAhead)` — query compound + batch fetch de cards para resolver labels
+  - `types/upcoming-dues.types.ts`: `UpcomingDueEntityType` extendido con `"card"`
+  - `services/upcoming-dues.service.ts`: `getUpcomingDues` actualizado con tercer branch (cards) en Promise.all y mapping a UpcomingDueItem
+- **Sin cambios**: handler `upcoming-dues.ts` (ya era genérico), `report-history.ts`, `telegram.ts`
+- Build + lint: ✅ 0 errores, 0 warnings nuevos
+- **Nota**: `buildCardLabel` existe en `bot/keyboards/card.ts` — NO importar desde service layer; replicar la lógica inline
+
+### Pendiente
+- Deploy del nuevo índice: `firebase deploy --only firestore:indexes`
+- Esperar que index pase a "Enabled" (~5-10 min) antes de deploy a prod
+- Testing en emuladores con card_statement de isPaid=false y dueDate en próximos 7 días
+
 ## 2026-04-09: Feature Próximos Vencimientos — implementación completa
 
 ### Completado

@@ -1,5 +1,5 @@
 /** Entity type for an upcoming due item. */
-export type UpcomingDueEntityType = "service" | "tax";
+export type UpcomingDueEntityType = "service" | "tax" | "card";
 
 /** A single upcoming unpaid due item, normalized across entity types. */
 export interface UpcomingDueItem {

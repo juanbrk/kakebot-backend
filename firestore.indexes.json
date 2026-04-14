@@ -89,6 +89,15 @@
         { "fieldPath": "isPaid", "order": "ASCENDING" },
         { "fieldPath": "dueDate", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "card_statements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "isPaid", "order": "ASCENDING" },
+        { "fieldPath": "dueDate", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

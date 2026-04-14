@@ -294,10 +294,10 @@ export function buildCardConfirmText(params: CardConfirmTextParams): string {
 
   return (
     "*Vas a agregar la siguiente tarjeta*\n\n" +
-    `Últimos 4 dígitos: ${digits}\n` +
-    `Banco: ${bank}\n` +
-    `Procesador: ${processor}\n` +
-    `Vencimiento: ${expiry}`
+    ` • Últimos 4 dígitos: ${digits}\n` +
+    ` • Banco: ${bank}\n` +
+    ` • Procesador: ${processor}\n` +
+    ` • Vencimiento: ${expiry}`
   );
 }
 

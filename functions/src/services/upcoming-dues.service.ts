@@ -1,5 +1,6 @@
 import { getUpcomingUnpaidInstallments } from "./service.service";
 import { getUpcomingUnpaidTaxInstallments } from "./tax.service";
+import { getUpcomingUnpaidCardStatements } from "./card.service";
 import {
   UpcomingDueItem,
   UpcomingDuesBucket,
@@ -78,9 +79,10 @@ function groupIntoBuckets(
 export async function getUpcomingDues(
   telegramUserId: string
 ): Promise<UpcomingDuesResult> {
-  const [serviceInstallments, taxInstallments] = await Promise.all([
+  const [serviceInstallments, taxInstallments, cardStatements] = await Promise.all([
     getUpcomingUnpaidInstallments(telegramUserId, 7),
     getUpcomingUnpaidTaxInstallments(telegramUserId, 7),
+    getUpcomingUnpaidCardStatements(telegramUserId, 7),
   ]);
 
   const serviceItems: UpcomingDueItem[] = serviceInstallments.map((inst) => ({
@@ -97,7 +99,14 @@ export async function getUpcomingDues(
     entityType: "tax",
   }));
 
-  const allItems = [...serviceItems, ...taxItems].sort(
+  const cardItems: UpcomingDueItem[] = cardStatements.map((stmt) => ({
+    entityName: stmt.cardLabel,
+    amount: stmt.amountARS,
+    dueDate: stmt.dueDate.toDate(),
+    entityType: "card",
+  }));
+
+  const allItems = [...serviceItems, ...taxItems, ...cardItems].sort(
     (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
   );
 
