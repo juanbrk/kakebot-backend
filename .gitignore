@@ -70,3 +70,6 @@ emulator-data/
 
 # dataconnect generated files
 .dataconnect
+
+# Claude Code — local settings (contain absolute paths, machine-specific)
+.claude/settings.local.json

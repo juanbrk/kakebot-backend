@@ -1,5 +1,39 @@
 # Session Log
 
+## 2026-04-14: Hooks PostToolUse — Migración a stderr + investigación de visibilidad
+
+### Completado
+- **Investigación**: ¿Por qué los hooks PostToolUse se ejecutan silenciosamente?
+  - Root cause: PostToolUse hooks escriben a stdout (console.log), Claude Code solo captura stderr
+  - PreToolUse hooks escriben a stderr → visibles; PostToolUse escriben a stdout → invisibles
+- **Cambios en 3 hooks PostToolUse** (migrados a stderr):
+  - `env-change-guard.js`: `console.log()` → `process.stderr.write()`
+  - `typecheck-feedback.js`: `console.log()` → `process.stderr.write()`
+  - `lint-feedback.js`: `console.log()` → `process.stderr.write()`
+- **Verificación de funcionalidad**: ✅ Todos 3 hooks funcionan correctamente
+  - `env-change-guard.js`: Detecta variables en `.env.prod` (estructura validada)
+  - `typecheck-feedback.js`: `tsc --noEmit` detecta TS2322 type mismatch (verificado manualmente)
+  - `lint-feedback.js`: `eslint` detecta 4 violaciones: no-var, unused-vars (x2), semi (verificado manualmente)
+- Build + lint: ✅ 0 errores después de limpiar cambios de prueba
+
+### Estado actual de hooks
+| Hook | Tipo | Funciona | Visible |
+|------|------|----------|---------|
+| `protect-sensitive-files.js` | PreToolUse | ✅ | ✅ (stderr) |
+| `check-list-bullets.js` | PreToolUse | ✅ | ✅ (stderr) |
+| `check-param-patterns.js` | PreToolUse | ✅ | ✅ (stderr) |
+| `env-change-guard.js` | PostToolUse | ✅ | ⚠️ (stderr, no capturado) |
+| `typecheck-feedback.js` | PostToolUse | ✅ | ⚠️ (stderr, no capturado) |
+| `lint-feedback.js` | PostToolUse | ✅ | ⚠️ (stderr, no capturado) |
+| `track-modified-file.js` | PostToolUse | ✅ | N/A (silencioso) |
+| `check-session-params.js` | Stop | ✅ | ✅ (stderr) |
+
+### Pendiente
+- Claude Code podría mejorar captura de stderr de PostToolUse hooks en futuras versiones
+- Cuando eso suceda, los 3 hooks serán visibles automáticamente
+
+---
+
 ## 2026-04-13: Tarjetas en Próximos Vencimientos
 
 ### Completado

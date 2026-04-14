@@ -2,11 +2,24 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/protect-sensitive-files.js"
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/scripts/check-list-bullets.js"
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-list-bullets.js"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-param-patterns.js"
           }
         ]
       }
@@ -17,7 +30,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/scripts/track-modified-file.js"
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/track-modified-file.js"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/env-change-guard.js"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/typecheck-feedback.js"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/lint-feedback.js"
           }
         ]
       }
@@ -28,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/scripts/check-session-params.js"
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-session-params.js"
           }
         ]
       }
