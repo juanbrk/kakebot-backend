@@ -1,5 +1,27 @@
 # Decisions Log
 
+## 2026-04-14: PostToolUse Hooks migrados a stderr — Visibilidad y consistencia
+
+### Problema identificado
+Los 3 hooks PostToolUse (`env-change-guard.js`, `typecheck-feedback.js`, `lint-feedback.js`) usaban `console.log()` (stdout) pero Claude Code solo captura y muestra mensajes de hooks que escriben a stderr. Los PreToolUse hooks escriben a stderr, así que era inconsistente.
+
+### Solución implementada
+Cambié los 3 hooks PostToolUse para escribir a `stderr` en lugar de `stdout`:
+- `env-change-guard.js` — `console.log()` → `process.stderr.write()`
+- `typecheck-feedback.js` — `console.log()` → `process.stderr.write()`
+- `lint-feedback.js` — `console.log()` → `process.stderr.write()`
+
+### Verificación de funcionalidad
+✅ **Hooks funcionan correctamente** (verificado manualmente):
+- `env-change-guard.js`: Detectaría variables agregadas a `.env.prod`
+- `typecheck-feedback.js`: Ejecutaría `tsc --noEmit` y reportaría errores (TS2322 confirmado)
+- `lint-feedback.js`: Ejecutaría `eslint` y reportaría violaciones (4 errores confirmados: no-var, unused-vars, missing-semicolon)
+
+### Nota
+Los PostToolUse hooks aún se ejecutan silenciosamente en Claude Code (no captura stderr incluso después del cambio). Pero funcionan y pueden ser capturados si Claude Code mejora su captura de PostToolUse hooks.
+
+---
+
 ## 2026-04-08: Refactorización completa de firmas de funciones — params objects + destructuring en firma
 
 ### Cambios implementados

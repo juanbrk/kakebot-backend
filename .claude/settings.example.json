@@ -1,0 +1,64 @@
+{
+  "_comment": "Template for .claude/settings.json — replace $PWD with the absolute project root path",
+  "_usage": "sed \"s|\\$PWD|$(pwd)|g\" .claude/settings.example.json > .claude/settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/protect-sensitive-files.js"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/check-list-bullets.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/check-param-patterns.js"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/track-modified-file.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/env-change-guard.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/typecheck-feedback.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/lint-feedback.js"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/check-session-params.js"
+          }
+        ]
+      }
+    ]
+  }
+}
