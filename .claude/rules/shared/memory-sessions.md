@@ -1,5 +1,28 @@
 # Session Log
 
+## 2026-04-15: Bug fix — Telegraf callback handlers UX (stale keyboards) en tax.ts
+
+### Completado
+- **Bug identificado**: En el flujo de registro de cuota de impuesto, al presionar "No" en "¿Deseas marcar como pagada?", el bot enviaba `ctx.reply()` (nuevo mensaje) antes de editar el prompt original → mensajes desordenados + keyboard huérfano
+- **Patrón correcto establecido**: En `bot.action()` handlers, el mensaje con el botón presionado SIEMPRE debe editarse (`ctx.editMessageText`) como respuesta primaria; follow-up va como `ctx.reply()` separado
+- **5 funciones corregidas en `bot/handlers/tax.ts`**:
+  - `handlePaidNo` — reemplazó `ctx.reply()` + `showTaxActionView()` por `ctx.editMessageText(context+detail)` + `ctx.reply(submenu)`
+  - `handlePaidYes` — agregó `ctx.editMessageText("✅ Cuota marcada...")` antes de enviar prompt de comprobante
+  - `handleMarkAsPaid` — reemplazó `ctx.reply()` por `ctx.editMessageText("✅ Cuota marcada...")`
+  - `handleAttachReceipt` — reemplazó `ctx.reply()` por `ctx.editMessageText("*Enviá la foto...")`
+  - `handleSkipReceipt` — reemplazó `ctx.reply()` por `ctx.editMessageText("Listo...")`
+- Build + lint: ✅ 0 errores, 0 warnings nuevos
+
+### Pendiente (próxima sesión)
+- Implementar convención + hook (diseño completo en `.claude/plans/lovely-zooming-stallman.md`):
+  - Crear `.claude/rules/shared/telegram-callback-ux.md`
+  - Crear `.claude/hooks/check-callback-pattern.js` (PostToolUse advisory, exit 0, stderr)
+  - Registrar en `.claude/settings.json` + `.claude/settings.example.json`
+  - Agregar fila en CLAUDE.md rules table
+  - Actualizar `shared/memory-decisions.md`
+
+---
+
 ## 2026-04-14: Hooks PostToolUse — Migración a stderr + investigación de visibilidad
 
 ### Completado

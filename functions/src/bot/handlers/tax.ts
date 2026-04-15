@@ -234,12 +234,41 @@ async function handlePaidNo(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
-  await ctx.reply("✅ Cuota registrada como pendiente de pago.");
-
   const installment = await getTaxInstallmentById(installmentId);
-  if (installment) {
-    await showTaxActionView(ctx, telegramUserId, installment.taxId);
+  if (!installment) {
+    await ctx.reply("Error: cuota no encontrada.");
+    return;
   }
+
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const contextText = `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}`;
+
+  await ctx.editMessageText(
+    contextText + "\n\n" + buildTaxInstallmentDetailText(installment),
+    { parse_mode: "Markdown" },
+  );
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    taxId: installment.taxId,
+    taxName: installment.taxName,
+  });
+
+  const keyboard = buildTaxActionKeyboard({
+    taxId: installment.taxId,
+    hasInstallment: true,
+    isPaid: false,
+    installmentId: installment.id,
+  });
+  await ctx.reply(
+    buildBreadcrumb(["Impuestos", installment.taxName]) + "*¿Qué querés hacer?*",
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    },
+  );
 }
 
 async function handlePaidYes(ctx: Context): Promise<void> {
@@ -248,9 +277,11 @@ async function handlePaidYes(ctx: Context): Promise<void> {
   const installmentId = ((ctx as any).match as string[])[1];
   await markTaxInstallmentAsPaid(installmentId);
 
+  await ctx.editMessageText("✅ Cuota marcada como pagada.", { parse_mode: "Markdown" });
+
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
   await ctx.reply(
-    "✅ Cuota marcada como pagada.\n*¿Deseás adjuntar un comprobante?*",
+    "*¿Deseás adjuntar un comprobante?*",
     {
       parse_mode: "Markdown",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -266,15 +297,14 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
 
   await markTaxInstallmentAsPaid(installmentId);
 
+  await ctx.editMessageText("✅ Cuota marcada como pagada.", { parse_mode: "Markdown" });
+
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
-  await ctx.reply(
-    "✅ Cuota marcada como pagada.\n*¿Deseás adjuntar un comprobante?*",
-    {
-      parse_mode: "Markdown",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      reply_markup: keyboard.reply_markup as any,
-    },
-  );
+  await ctx.reply("*¿Deseás adjuntar un comprobante?*", {
+    parse_mode: "Markdown",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  });
 }
 
 async function handleAttachReceipt(ctx: Context): Promise<void> {
@@ -289,7 +319,7 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
     taxInstallmentId: installmentId,
   });
 
-  await ctx.reply("*Enviá la foto o PDF del comprobante de pago.*", {
+  await ctx.editMessageText("*Enviá la foto o PDF del comprobante de pago.*", {
     parse_mode: "Markdown",
   });
 }
@@ -298,7 +328,7 @@ async function handleSkipReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const telegramUserId = ctx.from?.id.toString() || "";
   await clearSession(telegramUserId);
-  await ctx.reply(
+  await ctx.editMessageText(
     "Listo. Podés adjuntar el comprobante luego desde el menú Impuestos.",
   );
 }
