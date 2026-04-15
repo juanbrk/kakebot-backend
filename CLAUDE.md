@@ -68,3 +68,24 @@ explicit behavioral rules — not just descriptions.
 
 Personas are first-class citizens of this rule system — they are
 versioned, explicit, and operationally binding for the session.
+
+## Memory Management (/mem-consolidate)
+
+Custom command to consolidate memory files — prevents session log and decisions log from
+growing unbounded, which degrades Claude's performance over time.
+
+**On-demand:** `/mem-consolidate` (run at any time)
+
+**Auto-advisory** triggers after each `git commit` when:
+- 10+ commits since last consolidation, OR
+- `memory-sessions.md` exceeds 300 lines or 30KB
+
+**What it consolidates:**
+- `.claude/rules/shared/memory-sessions.md` — keeps 5 most recent sessions in full, collapses older ones
+- `.claude/rules/shared/memory-decisions.md` — removes superseded decisions, fixes relative dates
+- `.claude/memory/MEMORY.md` — verifies facts are current
+- `~/.claude/projects/.../memory/MEMORY.md` — removes duplicates of CLAUDE.md content
+
+**State file:** `.claude/dream-state.json` — tracks commit count and last consolidation timestamp.
+**Adjust thresholds:** Edit `.claude/dream-state.json` → `thresholds`.
+**Disable auto-advisory:** Set `"commits": 999999`.

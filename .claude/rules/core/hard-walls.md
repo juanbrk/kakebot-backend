@@ -39,6 +39,10 @@ Constraints that must never be violated.
 - When asked for a commit message: provide a non-technical, coarse-grained description
   - Describe the before/after state, not each individual step
   - Focus on what was implemented, not how
+- **NEVER rename an existing branch** — especially `main` or `master`
+  - When asked to "create a branch", ALWAYS use `git checkout -b <name>` from the current branch
+  - `git branch -m` is forbidden unless the user explicitly says "rename this branch"
+  - Root cause of past mistake: confused "rename branch" with "create branch"
 
 ## Code
 - NEVER use `functions.config()` — it's deprecated. Use `process.env` (dotenv)
