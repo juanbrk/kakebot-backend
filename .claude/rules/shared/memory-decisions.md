@@ -1,5 +1,26 @@
 # Decisions Log
 
+## 2026-04-15: Patrón UX para Telegraf callback handlers — edit-before-reply
+
+### Problema raíz
+En handlers de `bot.action()`, usar `ctx.reply()` como respuesta primaria deja el mensaje original con el keyboard activo (stale). El usuario puede seguir presionando botones viejos, rompiendo el flujo.
+
+### Patrón correcto establecido
+1. **Respuesta primaria**: `ctx.editMessageText()` — edita el mensaje que contenía el botón presionado
+2. **Follow-up**: `ctx.reply()` — envía el siguiente paso como mensaje nuevo
+3. **Guard clause**: `ctx.reply()` + `return` inmediato — siempre válido para errores/early exit
+4. **Alternativa**: `replyOrEdit()` de `helpers/telegram.ts` — cumple el patrón
+
+### Aplicado en
+`bot/handlers/tax.ts` — 5 funciones: `handlePaidNo`, `handlePaidYes`, `handleMarkAsPaid`, `handleAttachReceipt`, `handleSkipReceipt`
+
+### Pendiente
+- Convención documentada en `.claude/rules/shared/telegram-callback-ux.md` (plan en `.claude/plans/lovely-zooming-stallman.md`)
+- Hook PostToolUse advisory `check-callback-pattern.js` — detecta violaciones sin bloquear
+- Registrar en `.claude/settings.json` + `.claude/settings.example.json`
+
+---
+
 ## 2026-04-14: PostToolUse Hooks migrados a stderr — Visibilidad y consistencia
 
 ### Problema identificado
