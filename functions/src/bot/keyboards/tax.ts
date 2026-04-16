@@ -88,36 +88,35 @@ export function buildTaxListKeyboard(
 
 /**
  * Builds the action keyboard for a selected tax.
- * Shows "Marcar como pagado" conditionally only when an unpaid installment exists.
  *
- * @param {string} taxId - Tax document ID
- * @param {boolean} hasInstallment - Whether a cuota exists for the current month
- * @param {boolean} isPaid - Whether the current month's cuota is already paid
- * @param {string} [installmentId] - Installment ID (required when hasInstallment && !isPaid)
+ * @param {BuildTaxActionKeyboardParams} params - taxId and optional paymentMethod
  * @return {Markup.Markup} Inline keyboard markup
  */
 export function buildTaxActionKeyboard({
   taxId,
-  hasInstallment,
-  isPaid,
-  installmentId,
 }: BuildTaxActionKeyboardParams) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[][] = [];
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Nueva cuota", `tax_reg:${taxId}`),
+      Markup.button.callback("Modificar", `tax_edit_pm:${taxId}`),
+    ],
+    [Markup.button.callback("Historial de cuotas", `tax_hist:${taxId}`)],
+    [Markup.button.callback("\u2190 Volver a impuestos", "tax_view")],
+  ]);
+}
 
-  rows.push([Markup.button.callback("Nueva cuota", `tax_reg:${taxId}`)]);
-
-  if (hasInstallment && !isPaid && installmentId) {
-    rows.push([
-      Markup.button.callback("Marcar como pagado", `tax_pay:${installmentId}`),
-    ]);
-  }
-
-  rows.push([Markup.button.callback("Historial de cuotas", `tax_hist:${taxId}`)]);
-
-  rows.push([Markup.button.callback("\u2190 Volver a impuestos", "tax_view")]);
-
-  return Markup.inlineKeyboard(rows);
+/**
+ * Builds the edit options keyboard for a selected tax.
+ * Provides navigation to specific edit actions.
+ *
+ * @param {string} taxId - Tax document ID
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildTaxEditOptionsKeyboard(taxId: string) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Cambiar método de pago", `tax_chg_pm:${taxId}`)],
+    [Markup.button.callback("\u2190 Volver a detalles de impuesto", `tax_back_tax:${taxId}`)],
+  ]);
 }
 
 /**

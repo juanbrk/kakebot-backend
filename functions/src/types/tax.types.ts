@@ -1,4 +1,6 @@
 import * as admin from "firebase-admin";
+import { Context } from "telegraf";
+import { Session, ServicePaymentMethod } from "./index";
 
 export interface Tax {
   id?: string;
@@ -7,7 +9,27 @@ export interface Tax {
   normalizedName: string;
   /** Estimated day of month (1-28) when this tax is due. */
   estimatedDueDay: number;
+  paymentMethod?: ServicePaymentMethod;
   createdAt: admin.firestore.Timestamp;
+}
+
+/**
+ * Parameters for createTax.
+ */
+export interface CreateTaxParams {
+  telegramUserId: string;
+  name: string;
+  estimatedDueDay: number;
+  paymentMethod?: ServicePaymentMethod;
+}
+
+/**
+ * Parameters for updateTaxPaymentMethod.
+ * Set paymentMethod to undefined to remove it.
+ */
+export interface UpdateTaxPaymentMethodParams {
+  taxId: string;
+  paymentMethod?: ServicePaymentMethod;
 }
 
 export interface TaxInstallment {
@@ -48,11 +70,19 @@ export interface BuildTaxInstallmentDetailKeyboardParams {
 }
 
 /**
+ * Parameters for tax text handler functions (handleTaxDay, handleTaxAmount).
+ */
+export interface TaxTextHandlerParams {
+  ctx: Context;
+  session: Session;
+  telegramUserId: string;
+  messageText: string;
+}
+
+/**
  * Parameters for buildTaxActionKeyboard.
  */
 export interface BuildTaxActionKeyboardParams {
   taxId: string;
-  hasInstallment: boolean;
-  isPaid: boolean;
-  installmentId?: string;
+  paymentMethod?: ServicePaymentMethod;
 }

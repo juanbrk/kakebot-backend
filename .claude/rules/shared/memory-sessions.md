@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-04-16: Método de pago en impuestos — registro, edición y corrección de UX
+
+### Completado
+- **Feature**: al crear un impuesto, el flujo ahora solicita el método de pago (Tarjeta de Crédito, Débito Automático, Manual) después del día de vencimiento
+- El campo `paymentMethod` se guarda en el documento del impuesto en Firestore
+- La vista de detalle muestra el método registrado (o "No registrado" si no hay)
+- Nuevo botón "Modificar" en la vista de detalle → pantalla de edición → cambio de método de pago
+- El reporte mensual muestra el método entre paréntesis junto al monto en la sección IMPUESTOS
+- **Bug fix**: eliminado botón "Volver" del teclado de selección de método en el flujo de edición (loop cerrado)
+- **Bug fix**: agregado guard en `text.ts` para `tax_awaiting_payment_method` — evita caída al parser de gastos si el usuario escribe texto en ese estado
+- Build: ✅ 0 errores
+
+### Pendiente
+- Testing en emuladores: flujo crear impuesto con método de pago, editar método, reporte con método visible
+
+---
+
 ## 2026-04-16: Comandos de generación de tickets (feature, bug, mejora, automatización)
 
 ### Completado

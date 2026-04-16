@@ -1,31 +1,56 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { Tax, TaxInstallment, SaveTaxInstallmentParams } from "../types/tax.types";
+import {
+  Tax,
+  TaxInstallment,
+  SaveTaxInstallmentParams,
+  CreateTaxParams,
+  UpdateTaxPaymentMethodParams,
+} from "../types/tax.types";
 
 /**
  * Creates a new tax document and returns its Firestore ID.
  *
- * @param {string} telegramUserId - User's Telegram ID
- * @param {string} name - Display name for the tax
- * @param {number} estimatedDueDay - Estimated monthly due day (1-28)
+ * @param {CreateTaxParams} params - Tax creation parameters
  * @return {string} Firestore ID of the created tax
  */
-export async function createTax(
-  telegramUserId: string,
-  name: string,
-  estimatedDueDay: number
-): Promise<string> {
+export async function createTax({
+  telegramUserId,
+  name,
+  estimatedDueDay,
+  paymentMethod,
+}: CreateTaxParams): Promise<string> {
   const normalizedName = name.toLowerCase().trim();
-  const docRef = await getDb()
-    .collection("taxes")
-    .add({
-      telegramUserId,
-      name,
-      normalizedName,
-      estimatedDueDay,
-      createdAt: admin.firestore.Timestamp.now(),
-    });
+  const data: Record<string, unknown> = {
+    telegramUserId,
+    name,
+    normalizedName,
+    estimatedDueDay,
+    createdAt: admin.firestore.Timestamp.now(),
+  };
+  if (paymentMethod !== undefined) {
+    data.paymentMethod = paymentMethod;
+  }
+  const docRef = await getDb().collection("taxes").add(data);
   return docRef.id;
+}
+
+/**
+ * Updates (or removes) the payment method of an existing tax.
+ * Pass paymentMethod as undefined to delete the field.
+ *
+ * @param {UpdateTaxPaymentMethodParams} params - taxId and optional paymentMethod
+ * @return {void}
+ */
+export async function updateTaxPaymentMethod({
+  taxId,
+  paymentMethod,
+}: UpdateTaxPaymentMethodParams): Promise<void> {
+  const value =
+    paymentMethod !== undefined
+      ? paymentMethod
+      : admin.firestore.FieldValue.delete();
+  await getDb().collection("taxes").doc(taxId).update({ paymentMethod: value });
 }
 
 /**

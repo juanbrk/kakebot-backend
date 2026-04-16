@@ -3,7 +3,8 @@ import { getDb } from "./db";
 import { formatARS, MONTH_NAMES } from "../helpers/format";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
-import { getTaxInstallmentsForMonth } from "./tax.service";
+import { getTaxInstallmentsForMonth, getTaxById } from "./tax.service";
+import { formatServicePaymentMethod } from "../helpers/payment-method";
 import { MonthlyReport } from "../types/report.types";
 
 /**
@@ -180,9 +181,19 @@ export async function generateMonthlyReport(
   const taxesTotal = taxInstallments.reduce((sum, inst) => sum + inst.amount, 0);
 
   if (taxInstallments.length > 0) {
+    const uniqueTaxIds = [...new Set(taxInstallments.map((i) => i.taxId))];
+    const taxEntities = await Promise.all(uniqueTaxIds.map((id) => getTaxById(id)));
+    const taxMap = new Map(
+      taxEntities.filter(Boolean).map((t) => [t!.id, t!]),
+    );
+
     detailLines.push(`*IMPUESTOS* ${formatARS(taxesTotal)}`);
     for (const inst of taxInstallments) {
-      detailLines.push(` • ${inst.taxName}: ${formatARS(inst.amount)}`);
+      const tax = taxMap.get(inst.taxId);
+      const pmLabel = tax?.paymentMethod
+        ? ` (${formatServicePaymentMethod(tax.paymentMethod)})`
+        : "";
+      detailLines.push(` • ${inst.taxName}${pmLabel}: ${formatARS(inst.amount)}`);
     }
     detailLines.push("");
   }
