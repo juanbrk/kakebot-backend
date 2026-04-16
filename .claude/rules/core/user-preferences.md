@@ -34,7 +34,7 @@ Never use emojis in:
 
 ## Ticket Format
 
-When requesting improvements (bug), bugs (error), or features (feature), use the templates below. Provide ONLY the information defined in each template — no additions, no omissions.
+When requesting improvements (bug), bugs (error), features (feature), or automations (automatizacion), use the templates below. Provide ONLY the information defined in each template — no additions, no omissions.
 
 ### Feature (Funcionalidad)
 
@@ -134,4 +134,25 @@ En la página de navegación del proyecto, se debe mostrar los metros como la m�
 
 Ejemplo:
 - Mostrar metros como métrica predeterminada en el control de imagen
+```
+
+### Automatización (Automatizacion)
+
+Escribir desde el **punto de vista del desarrollador**. Foco en cómo mejora el flujo de trabajo, reduce tareas manuales repetitivas o previene errores.
+
+```
+Intención: [¿Cuál es el propósito central de la automatización? 1-2 oraciones describiendo el problema del desarrollador que se resuelve]
+
+Estado Actual: [¿Cuál es el proceso o flujo manual hoy? ¿Qué fricción o pasos repetitivos existen?]
+
+Automatización Deseada: [Describir el flujo automatizado como si ya estuviera funcionando — qué lo dispara, qué hace, qué produce, y cómo interactúa el desarrollador con él]
+
+Mejoras:
+- [Qué se vuelve más rápido, fácil o confiable]
+- [Qué carga cognitiva se elimina]
+
+Criterios de Aceptación:
+- [Requisito específico y verificable — e.g., "se dispara ante el evento X"]
+- [e.g., "bloquea el merge ante la condición Y"]
+- [e.g., "se integra con la herramienta Z"]
 ```

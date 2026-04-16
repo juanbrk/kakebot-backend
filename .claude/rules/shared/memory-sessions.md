@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-04-16: Comandos de generación de tickets (feature, bug, mejora, automatización)
+
+### Completado
+- Creados 4 comandos en `.claude/commands/`: `/feature`, `/bug`, `/improvement`, `/automatizacion`
+- Cada comando detecta automáticamente el modo de operación:
+  - **RETROACTIVO**: hay cambios en git → genera el ticket como si no estuvieran implementados todavía
+  - **DESCRIPCIÓN**: sin cambios + texto en `$ARGUMENTS` o respuesta del usuario → genera desde descripción
+  - **PROMPT**: sin cambios y sin args → pregunta la descripción y espera
+- En modo DESCRIPCIÓN: ofrece invocar la secuencia de personas recomendada post-ticket
+- Cada ticket incluye un `**Nombre:**` sugerido antes del cuerpo
+- Agregado template "Automatización" en `user-preferences.md` (cuarto tipo de ticket)
+
+### Pendiente
+- Ninguno
+
+---
+
 ## 2026-04-15: Mejora — Listado de servicios agrupado en secciones por estado
 
 ### Completado
