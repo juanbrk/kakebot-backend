@@ -1,5 +1,25 @@
 # Session Log
 
+## 2026-04-15: Mejora — Listado de servicios agrupado en secciones por estado
+
+### Completado
+- **Feature**: "Listar servicios" deja de mostrar lista plana y muestra 5 secciones diferenciadas
+  - **Vencidos**: cuota registrada, impaga, `dueDate` anterior a hoy (más urgente, aparece primero)
+  - **Próximos a vencer**: cuota registrada, impaga, vence dentro de 7 días (mismo threshold que `handleShowUpcoming`)
+  - **Pagados**: cuota registrada y marcada como pagada
+  - **Pendientes**: cuota registrada, impaga, vence en más de 7 días
+  - **Sin cuota**: sin cuota registrada para el mes actual
+- Secciones vacías se omiten; dentro de cada sección orden ascendente por `dueDate`
+- Texto diferenciado: vencidos muestran `venció DD/MM`, futuros muestran `vence DD/MM`
+- **Optimización Firestore**: `handleListServices` reemplaza N llamadas a `getInstallment` por 1 sola query a `getInstallmentsForMonth`
+- **Archivos modificados**: `bot/handlers/service.ts`, `bot/keyboards/service.ts`
+- Build + lint: ✅ 0 errores, 0 warnings nuevos
+
+### Pendiente
+- Testing en emuladores con datos reales: verificar las 5 secciones
+
+---
+
 ## 2026-04-15: Bug fix — Telegraf callback handlers UX (stale keyboards) en tax.ts
 
 ### Completado

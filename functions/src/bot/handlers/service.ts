@@ -13,6 +13,7 @@ import {
   getInstallment,
   getInstallmentById,
   getInstallmentsByService,
+  getInstallmentsForMonth,
   replaceInstallment,
   deleteService,
   markInstallmentAsPaid,
@@ -262,18 +263,10 @@ async function handleListServices(ctx: Context): Promise<void> {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${month}`;
 
-  const [installmentEntries] = await Promise.all([
-    Promise.all(
-      services.map(async (svc) => {
-        const installment = await getInstallment(svc.id || "", dueMonth);
-        return [svc.id || "", installment] as const;
-      }),
-    ),
-  ]);
-
+  const monthInstallments = await getInstallmentsForMonth(telegramUserId, dueMonth);
   const installmentsByServiceId: Record<string, ServiceInstallment | null> = {};
-  for (const [id, installment] of installmentEntries) {
-    installmentsByServiceId[id] = installment;
+  for (const installment of monthInstallments) {
+    installmentsByServiceId[installment.serviceId] = installment;
   }
 
   const breadcrumb = buildBreadcrumb(["Servicios", "Listar servicios"]);
@@ -283,7 +276,7 @@ async function handleListServices(ctx: Context): Promise<void> {
   ]);
 
   const text =
-    breadcrumb + buildServiceViewText(services, installmentsByServiceId);
+    breadcrumb + buildServiceViewText(services, installmentsByServiceId, now);
   await replyOrEdit(ctx, text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
