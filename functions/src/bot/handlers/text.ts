@@ -216,6 +216,11 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
       return;
     }
 
+    if (session?.state === "tax_awaiting_payment_method") {
+      await ctx.reply("Elegí un método de pago del teclado, o escribí \"cancelar\" para anular.");
+      return;
+    }
+
     if (session?.state === "tax_awaiting_amount") {
       await handleTaxAmount({ ctx, session, telegramUserId, messageText });
       return;

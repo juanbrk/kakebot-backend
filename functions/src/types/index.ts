@@ -145,6 +145,7 @@ export type CardSessionState =
 export type TaxSessionState =
   | "tax_awaiting_name"
   | "tax_awaiting_day"
+  | "tax_awaiting_payment_method"
   | "tax_awaiting_amount"
   | "tax_awaiting_receipt";
 
@@ -191,5 +192,6 @@ export interface Session {
   taxId?: string;
   taxName?: string;
   taxInstallmentId?: string;
+  taxPaymentMethod?: ServicePaymentMethod;
   pendingEditValue?: string;
 }
