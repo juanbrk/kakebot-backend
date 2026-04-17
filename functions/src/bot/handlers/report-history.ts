@@ -19,6 +19,9 @@ import { replyOrEdit } from "../../helpers/telegram";
  */
 export function registerReportHistoryHandler(bot: Telegraf<Context>): void {
   bot.action("menu_reportes", handleReportesMenu);
+  bot.action("rep_balances", handleBalancesMenu);
+  bot.action("rep_pagos", handlePagosMenu);
+  bot.action("rep_servicios", handleServiciosMenu);
   bot.action("rep_current", handleRepCurrent);
   bot.action("rep_history", handleRepHistory);
   bot.action(/^rep_year:(.+)$/, handleRepYear);
@@ -31,20 +34,86 @@ export function registerReportHistoryHandler(bot: Telegraf<Context>): void {
 }
 
 /**
- * Shows the main reports submenu: current month vs previous months.
+ * Shows the main reports menu with grouped sections: Balances, Pagos, Servicios.
  *
  * @param {Context} ctx - Telegraf context
  */
 async function handleReportesMenu(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const keyboard = Markup.inlineKeyboard([
-    [Markup.button.callback("Ver reporte actual", "rep_current")],
-    [Markup.button.callback("Reportes anteriores", "rep_history")],
-    [Markup.button.callback("Próximos Vencimientos", "menu_upcoming")],
+    [Markup.button.callback("Balances", "rep_balances")],
+    [Markup.button.callback("Pagos", "rep_pagos")],
+    [Markup.button.callback("Servicios", "rep_servicios")],
     [Markup.button.callback("← Volver al menú", "menu_back")],
   ]);
   await ctx.editMessageText(
-    buildBreadcrumb(["Reportes"]) + "Selecciona una opción",
+    buildBreadcrumb(["Reportes"]) +
+      "*¿Qué querés ver?*\n\n" +
+      "• *Balances*: resumenes mensuales de gastos e ingresos\n" +
+      "• *Pagos*: Pagos de servicios, impuestos y tarjetas\n" +
+      "• *Servicios*: método de pago de tus servicios",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+  );
+}
+
+/**
+ * Shows the Balances submenu: current report and previous reports.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleBalancesMenu(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("Ver Balance actual", "rep_current")],
+    [Markup.button.callback("Balances anteriores", "rep_history")],
+    [Markup.button.callback("← Volver", "menu_reportes")],
+  ]);
+  await ctx.editMessageText(
+    buildBreadcrumb(["Reportes", "Balances"]) +
+      "*¿Qué querés ver?*\n\n" +
+      "• *Ver Balance actual*: detalle de gastos e ingresos del mes en curso\n" +
+      "• *Balances anteriores*: Historial de reportes pasados",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+  );
+}
+
+/**
+ * Shows the Pagos submenu: upcoming dues.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handlePagosMenu(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("Próximos Vencimientos", "menu_upcoming")],
+    [Markup.button.callback("← Volver", "menu_reportes")],
+  ]);
+  await ctx.editMessageText(
+    buildBreadcrumb(["Reportes", "Pagos"]) +
+      "*¿Qué querés ver?*\n\n" +
+      "• *Próximos Vencimientos*: servicios e impuestos a vencer en los próximos 7 días",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+  );
+}
+
+/**
+ * Shows the Servicios submenu: payment methods report.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleServiciosMenu(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("Métodos de pago", "menu_payment_methods")],
+    [Markup.button.callback("← Volver", "menu_reportes")],
+  ]);
+  await ctx.editMessageText(
+    buildBreadcrumb(["Reportes", "Servicios"]) +
+      "*¿Qué querés ver?*\n\n" +
+      "• *Métodos de pago*: Listado de servicios agrupados por forma de pago",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
   );
@@ -83,10 +152,10 @@ async function handleRepHistory(ctx: Context): Promise<void> {
 
   if (pastMonths.length === 0) {
     const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback("← Volver", "menu_reportes")],
+      [Markup.button.callback("← Volver", "rep_balances")],
     ]);
     await ctx.editMessageText(
-      buildBreadcrumb(["Reportes", "Anteriores"]) + "No hay registros anteriores.",
+      buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "No hay registros anteriores.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
     );
@@ -96,16 +165,16 @@ async function handleRepHistory(ctx: Context): Promise<void> {
   const years = [...new Set(pastMonths.map((ym) => ym.split("-")[0]))];
 
   if (years.length === 1) {
-    // Only one year: skip year selector. Back button must return to menu_reportes,
+    // Only one year: skip year selector. Back button must return to rep_balances,
     // not to rep_history (which would create a loop by showing this same screen again).
-    await showMonthSelector({ ctx, year: years[0], allPastMonths: pastMonths, backCallback: "menu_reportes" });
+    await showMonthSelector({ ctx, year: years[0], allPastMonths: pastMonths, backCallback: "rep_balances" });
     return;
   }
 
   const rows = years.map((year) => [Markup.button.callback(year, `rep_year:${year}`)]);
-  rows.push([Markup.button.callback("← Volver", "menu_reportes")]);
+  rows.push([Markup.button.callback("← Volver", "rep_balances")]);
   await ctx.editMessageText(
-    buildBreadcrumb(["Reportes", "Anteriores"]) + "Seleccioná el año",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "Seleccioná el año",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
   );
@@ -162,7 +231,7 @@ async function showMonthSelector({
   rows.push([Markup.button.callback("← Volver", backCallback)]);
 
   await ctx.editMessageText(
-    buildBreadcrumb(["Reportes", "Anteriores", year]) + "Seleccioná el mes",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores", year]) + "Seleccioná el mes",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
   );
@@ -189,7 +258,7 @@ async function handleRepMonth(ctx: Context): Promise<void> {
     [Markup.button.callback("← Volver", `rep_year:${year}`)],
   ]);
   await ctx.editMessageText(
-    buildBreadcrumb(["Reportes", "Anteriores", monthLabel]) + "Selecciona una opción",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Selecciona una opción",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
   );
@@ -237,7 +306,7 @@ async function handleRepExp(ctx: Context): Promise<void> {
   });
 
   await ctx.editMessageText(
-    buildBreadcrumb(["Reportes", "Anteriores", monthLabel]) + "Registrando gasto",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando gasto",
     { parse_mode: "Markdown" },
   );
   await ctx.reply(
@@ -268,7 +337,7 @@ async function handleRepInc(ctx: Context): Promise<void> {
   });
 
   await ctx.editMessageText(
-    buildBreadcrumb(["Reportes", "Anteriores", monthLabel]) + "Registrando ingreso",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando ingreso",
     { parse_mode: "Markdown" },
   );
   await ctx.reply(
