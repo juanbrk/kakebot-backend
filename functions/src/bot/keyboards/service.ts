@@ -3,7 +3,7 @@ import {
   Service,
   ServiceInstallment,
   ServicePaymentMethod,
-} from "../../types/index";
+} from "../../types/service.types";
 import {
   BuildInstallmentListKeyboardParams,
   BuildInstallmentDetailKeyboardParams,

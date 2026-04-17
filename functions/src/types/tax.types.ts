@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { Context } from "telegraf";
-import { Session, ServicePaymentMethod } from "./index";
+import { Session } from "./index";
+import { ServicePaymentMethod } from "./service.types";
 
 export interface Tax {
   id?: string;
