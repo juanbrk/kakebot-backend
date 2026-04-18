@@ -1,4 +1,5 @@
 import { BulkExpenseEntry } from "./expense.types";
+import { ServicePaymentMethod } from "./service.types";
 
 export interface SubcategoryMapping {
   id?: string;
@@ -34,34 +35,9 @@ export interface SessionExpenseEntry {
   categoryName: string;
 }
 
-export interface Service {
-  id?: string;
-  telegramUserId: string;
-  name: string;
-  normalizedName: string;
-  createdAt: FirebaseFirestore.Timestamp;
-  paymentMethod?: ServicePaymentMethod;
-}
-
-export interface ServiceInstallment {
-  id?: string;
-  telegramUserId: string;
-  serviceId: string;
-  serviceName: string;
-  amount: number;
-  dueDate: FirebaseFirestore.Timestamp;
-  dueMonth: string;
-  isPaid: boolean;
-  paidAt?: FirebaseFirestore.Timestamp;
-  receiptUrl?: string;
-  invoiceUrl?: string;
-  createdAt: FirebaseFirestore.Timestamp;
-}
-
 export type PendingFileType = "photo" | "pdf";
 export type CreditCardProcessor = "VISA" | "MASTERCARD";
 export type StatementCurrency = "ars" | "usd" | "both";
-export type ServicePaymentMethod = "credit_card" | "auto_debit" | "manual";
 
 export interface CreditCard {
   id?: string;

@@ -1,5 +1,6 @@
 import { Context } from "telegraf";
-import { Session, ServiceInstallment } from "./index";
+import { Session } from "./index";
+import { ServiceInstallment } from "./service.types";
 
 /**
  * Parameters for text input handlers that require context, user ID, session, and message text.

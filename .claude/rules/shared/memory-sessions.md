@@ -11,6 +11,21 @@
 
 ### Pendiente
 - Testing en emuladores: ingresar montos con decimales en flujos de servicios, impuestos y gastos
+## 2026-04-17: Reporte Métodos de Pago + reestructuración del menú Reportes
+
+### Completado
+- **Migración de tipos**: `Service`, `ServiceInstallment`, `ServicePaymentMethod` movidos de `types/index.ts` (congelado) a `types/service.types.ts`; todos los consumers actualizados (8 archivos)
+- **Nuevo servicio**: `services/payment-method-report.service.ts` — agrupa servicios por método de pago, muestra cuota del mes en curso con monto y fecha de vencimiento (`$ -` si no hay cuota)
+- **Nuevo handler**: `bot/handlers/payment-method-report.ts` — action `menu_payment_methods`, back a `rep_servicios`
+- **Menú Reportes reestructurado**: submenúes Balances / Pagos / Servicios con breadcrumbs actualizados; `handleRepHistory` redirige back a `rep_balances`
+- **Descripciones en menús**: cada pantalla de menú muestra bullets explicativos debajo de "¿Qué querés ver?"
+- **Nueva regla**: `.claude/rules/shared/reports-menu.md` — estructura del menú, breadcrumbs, back-navigation y guía paso a paso para agregar nuevos reportes
+- Build + lint: ✅ 0 errores
+
+### Pendiente
+- Testing en emuladores: navegar Menú → Reportes → verificar submenúes y reporte Métodos de Pago
+
+---
 
 ## 2026-04-16: Método de pago en impuestos — registro, edición y corrección de UX
 
