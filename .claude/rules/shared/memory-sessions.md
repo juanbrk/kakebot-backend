@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-04-18: Bug fix — Parsing de decimales con punto en ingreso de montos
+
+### Completado
+- **Bug fix**: `parseArgentineAmount()` trataba punto con 3+ dígitos como separador de miles (`157.324` → 157324); ahora siempre es decimal
+- `AMOUNT_PATTERN` regex reescrito con 3 alternativas ordenadas: formato AR completo (`238.130,00`), separador único (punto o coma), entero
+- Truncamiento a 2 dígitos: `157.324` → `157.32`, `9.9999` → `9.99` (sin redondear); casos con coma sin cambios
+- Documentada regla "Decimal Input Parsing" en `conventions.md` con tabla de ejemplos y excepción formato AR
+- Build + lint: ✅ 0 errores, 0 errores nuevos
+
+### Pendiente
+- Testing en emuladores: ingresar montos con decimales en flujos de servicios, impuestos y gastos
 ## 2026-04-17: Reporte Métodos de Pago + reestructuración del menú Reportes
 
 ### Completado
