@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-04-19: Automatización de creación de worktrees (/worktree)
+
+### Completado
+- **Nuevo script**: `scripts/new-worktree.sh` — crea worktree, corre `npm install`, copia `.env`/`.env.test`/`.env.prod` y `emulator-data/` del repo principal, abre VSCode
+- Acepta `$1` (slug) y `$2` (tipo: feature/fix/improv/techDebt); interactivo si no se pasa `$2`
+- **Nuevo skill**: `.claude/commands/worktree.md` — `/worktree [ticket]` extrae slug del campo `**Nombre:**`, pregunta tipo, llama al script y guarda el ticket como `TICKET.md` en el worktree
+- Convención de nombres consistente con worktrees existentes: `kakebot-[slug]`, rama `[tipo]/[slug]`
+- Un emulador a la vez (sin manejo de puertos múltiples)
+
+### Pendiente
+- Ninguno
+
 ## 2026-04-19: Logging estructurado con firebase-functions/logger
 
 ### Completado
