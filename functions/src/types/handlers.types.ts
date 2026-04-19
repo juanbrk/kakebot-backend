@@ -41,3 +41,25 @@ export interface RenderInstallmentsListParams {
   serviceId: string;
   serviceName: string;
 }
+
+/**
+ * Parameters for attaching an invoice file to a service installment.
+ */
+export interface AttachInvoiceParams {
+  ctx: Context;
+  telegramUserId: string;
+  installmentId: string;
+  session: Session;
+  successMessage?: string;
+}
+
+/**
+ * Parameters for attaching a receipt file to a service installment.
+ */
+export interface AttachReceiptParams {
+  ctx: Context;
+  telegramUserId: string;
+  installmentId: string;
+  session: Session;
+  successMessage?: string;
+}

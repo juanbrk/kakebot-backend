@@ -12,6 +12,7 @@ import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { formatARS, MONTH_NAMES, getDaysInMonth } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
+import { log } from "../../helpers/logger";
 import {
   buildPaymentMethodKeyboard,
   formatServicePaymentMethod,
@@ -503,7 +504,7 @@ async function handleDownloadTaxReceipt(ctx: Context): Promise<void> {
     const filename = `${installment.dueMonth}-comprobante-${installment.taxName}.${extension}`;
     await ctx.replyWithDocument({ source: buffer, filename });
   } catch (error) {
-    console.error("[handleDownloadTaxReceipt] Error:", error);
+    log.error("Error downloading tax receipt", error, { module: "tax", action: "handleDownloadTaxReceipt" });
     await ctx.reply(
       "❌ No se pudo descargar el comprobante. Intentá de nuevo.",
     );

@@ -1,4 +1,5 @@
 import { Telegraf } from "telegraf";
+import { log } from "../helpers/logger";
 import { authMiddleware } from "./middleware/auth";
 import { registerStartHandler } from "./handlers/start";
 import { registerMenuHandler } from "./handlers/menu";
@@ -43,5 +44,5 @@ registerPhotoHandler(telegramBot);
 registerTextHandler(telegramBot);
 
 telegramBot.catch((err: unknown) => {
-  console.error("Bot error:", err);
+  log.error("Unhandled bot error", err, { module: "telegram" });
 });
