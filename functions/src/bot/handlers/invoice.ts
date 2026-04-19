@@ -1,5 +1,5 @@
 import { Telegraf, Context } from "telegraf";
-import { Session } from "../../types/index";
+import { log } from "../../helpers/logger";
 import {
   getSession,
   setSession,
@@ -21,6 +21,7 @@ import {
 import { MONTH_NAMES } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
+import { AttachInvoiceParams } from "../../types/handlers.types";
 
 export function registerInvoiceHandler(bot: Telegraf<Context>): void {
   bot.action("doc_type_invoice", handleDocTypeInvoice);
@@ -95,12 +96,7 @@ async function handlePickServiceForInvoice(ctx: Context): Promise<void> {
   const serviceName = service?.name || "";
 
   if (installment) {
-    await attachInvoiceToInstallment(
-      ctx,
-      telegramUserId,
-      installment.id || "",
-      session,
-    );
+    await attachInvoiceToInstallment({ ctx, telegramUserId, installmentId: installment.id || "", session });
     return;
   }
 
@@ -136,12 +132,7 @@ async function handleInvoiceMonthSelected(ctx: Context): Promise<void> {
 
   const existingInstallment = await getInstallment(serviceId, dueMonth);
   if (existingInstallment) {
-    await attachInvoiceToInstallment(
-      ctx,
-      telegramUserId,
-      existingInstallment.id || "",
-      session,
-    );
+    await attachInvoiceToInstallment({ ctx, telegramUserId, installmentId: existingInstallment.id || "", session });
     return;
   }
 
@@ -209,13 +200,13 @@ async function handleInvoiceCancel(ctx: Context): Promise<void> {
   await replyOrEdit(ctx, "Carga de factura cancelada.");
 }
 
-export async function attachInvoiceToInstallment(
-  ctx: Context,
-  telegramUserId: string,
-  installmentId: string,
-  session: Session,
-  successMessage: string = "✅ Factura adjunta.",
-): Promise<void> {
+export async function attachInvoiceToInstallment({
+  ctx,
+  telegramUserId,
+  installmentId,
+  session,
+  successMessage = "✅ Factura adjunta.",
+}: AttachInvoiceParams): Promise<void> {
   const fileId = session.pendingFileId;
   if (!fileId) {
     await ctx.reply("Error: no se encontró el archivo adjunto.");
@@ -241,7 +232,7 @@ export async function attachInvoiceToInstallment(
     await clearSession(telegramUserId);
     await replyOrEdit(ctx, successMessage);
   } catch (error) {
-    console.error("Error uploading invoice:", error);
+    log.error("Error uploading invoice", error, { module: "invoice", userId: telegramUserId });
     await replyOrEdit(ctx, "Error al guardar la factura. Intentá de nuevo.");
   }
 }

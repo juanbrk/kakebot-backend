@@ -12,6 +12,20 @@
 ### Pendiente
 - Ninguno
 
+## 2026-04-19: Logging estructurado con firebase-functions/logger
+
+### Completado
+- **Nueva feature**: módulo `helpers/logger.ts` que envuelve `firebase-functions/logger` con `log.info`, `log.warn`, `log.error`
+- Serialización explícita de `error: unknown` → `error.message`, `error.stack`, `error.name` en Cloud Logging
+- 16 `console.error` reemplazados en 8 archivos de producción: `photo.ts` (7), `card.ts` (2), `tax.ts`, `invoice.ts`, `receipt-direct.ts`, `telegram.ts`, `index.ts`, `middleware/auth.ts`
+- `dev.ts` sin cambios (startup logs locales se mantienen como `console.log`)
+- **Tech debt corregido**: `attachInvoiceToInstallment` y `attachReceiptToInstallment` refactorizados de 5 parámetros posicionales a `AttachInvoiceParams` / `AttachReceiptParams` en `types/handlers.types.ts`
+- Build: ✅ 0 errores — Lint: ✅ 0 errores
+
+### Pendiente
+- Deploy a botitio_testitoBot: verificar que logs aparecen con `severity: ERROR` (no `DEFAULT`) en Cloud Logging
+- Confirmar que campos estructurados (`module`, `userId`, `error.message`, `error.stack`) son visibles en Log Explorer
+- Agregar `kakebot-firebase-loggers` al language map en `~/.claude/settings.json` para commits en español
 ## 2026-04-18: Bug fix — Parsing de decimales con punto en ingreso de montos
 
 ### Completado

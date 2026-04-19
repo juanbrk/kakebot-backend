@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import * as admin from "firebase-admin";
+import { log } from "../helpers/logger";
 
 declare global {
   namespace Express {
@@ -51,7 +52,7 @@ export async function authenticateUser(
 
     next();
   } catch (error) {
-    console.error("Error authenticating user:", error);
+    log.error("Error authenticating user", error, { module: "auth" });
     res.status(401).json({ error: "Unauthorized - Invalid token" });
   }
 }

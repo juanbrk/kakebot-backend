@@ -1,5 +1,5 @@
 import { Telegraf, Context } from "telegraf";
-import { Session } from "../../types/index";
+import { log } from "../../helpers/logger";
 import {
   getSession, setSession, clearSession,
 } from "../../services/session.service";
@@ -19,6 +19,7 @@ import {
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { MONTH_NAMES } from "../../helpers/format";
+import { AttachReceiptParams } from "../../types/handlers.types";
 
 export function registerReceiptDirectHandler(bot: Telegraf<Context>): void {
   bot.action("doc_type_receipt", handleDocTypeReceipt);
@@ -96,9 +97,7 @@ async function handlePickServiceForReceipt(ctx: Context): Promise<void> {
   const serviceName = service?.name || "";
 
   if (installment) {
-    await attachReceiptToInstallment(
-      ctx, telegramUserId, installment.id || "", session
-    );
+    await attachReceiptToInstallment({ ctx, telegramUserId, installmentId: installment.id || "", session });
     return;
   }
 
@@ -138,9 +137,7 @@ async function handleReceiptMonthSelected(ctx: Context): Promise<void> {
 
   const existingInstallment = await getInstallment(serviceId, dueMonth);
   if (existingInstallment) {
-    await attachReceiptToInstallment(
-      ctx, telegramUserId, existingInstallment.id || "", session
-    );
+    await attachReceiptToInstallment({ ctx, telegramUserId, installmentId: existingInstallment.id || "", session });
     return;
   }
 
@@ -210,13 +207,13 @@ async function handleReceiptCancel(ctx: Context): Promise<void> {
   await replyOrEdit(ctx, "Carga de comprobante cancelada.");
 }
 
-export async function attachReceiptToInstallment(
-  ctx: Context,
-  telegramUserId: string,
-  installmentId: string,
-  session: Session,
-  successMessage: string = "✅ Comprobante adjunto. Cuota marcada como pagada."
-): Promise<void> {
+export async function attachReceiptToInstallment({
+  ctx,
+  telegramUserId,
+  installmentId,
+  session,
+  successMessage = "✅ Comprobante adjunto. Cuota marcada como pagada.",
+}: AttachReceiptParams): Promise<void> {
   const fileId = session.pendingFileId;
   if (!fileId) {
     await ctx.reply("Error: no se encontró el archivo adjunto.");
@@ -240,7 +237,7 @@ export async function attachReceiptToInstallment(
     await clearSession(telegramUserId);
     await replyOrEdit(ctx, successMessage);
   } catch (error) {
-    console.error("Error uploading receipt:", error);
+    log.error("Error uploading receipt", error, { module: "receipt-direct", userId: telegramUserId });
     await replyOrEdit(ctx, "Error al guardar el comprobante. Intentá de nuevo.");
   }
 }
