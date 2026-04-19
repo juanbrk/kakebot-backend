@@ -12,6 +12,7 @@ import { saveReceiptUrl, saveInvoiceUrl } from "../../services/service.service";
 import { saveStatementReceiptUrl, saveStatementPaymentReceiptUrl } from "../../services/card.service";
 import { saveTaxReceiptUrl } from "../../services/tax.service";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
+import { log } from "../../helpers/logger";
 
 export function registerPhotoHandler(bot: Telegraf<Context>): void {
   bot.on("photo", handlePhoto);
@@ -169,7 +170,7 @@ async function handleReceiptUpload(
     await clearSession(telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
   } catch (error) {
-    console.error("Error uploading receipt:", error);
+    log.error("Error uploading receipt", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }
@@ -201,7 +202,7 @@ async function handleReceiptUploadFromDocument({
     await clearSession(telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
   } catch (error) {
-    console.error("Error uploading receipt PDF:", error);
+    log.error("Error uploading receipt PDF", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }
@@ -257,7 +258,7 @@ async function handleInvoiceUpload({
     await clearSession(telegramUserId);
     await ctx.reply("✅ Factura adjunta.");
   } catch (error) {
-    console.error("Error uploading invoice:", error);
+    log.error("Error uploading invoice", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar la factura. Intentá de nuevo.");
   }
 }
@@ -326,7 +327,7 @@ async function handleCardReceiptUpload({
       { parse_mode: "Markdown" },
     );
   } catch (error) {
-    console.error("Error uploading card statement receipt:", error);
+    log.error("Error uploading card statement receipt", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el resumen. Intentá de nuevo.");
   }
 }
@@ -360,7 +361,7 @@ async function handleTaxReceiptUpload(
     await clearSession(telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
   } catch (error) {
-    console.error("Error uploading tax receipt:", error);
+    log.error("Error uploading tax receipt", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }
@@ -390,7 +391,7 @@ async function handleTaxReceiptUploadFromDocument({
     await clearSession(telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
   } catch (error) {
-    console.error("Error uploading tax receipt PDF:", error);
+    log.error("Error uploading tax receipt PDF", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }
@@ -454,7 +455,7 @@ async function handleStatementPaymentReceiptUpload({
       { parse_mode: "Markdown" },
     );
   } catch (error) {
-    console.error("Error uploading statement payment receipt:", error);
+    log.error("Error uploading statement payment receipt", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }

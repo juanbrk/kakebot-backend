@@ -714,9 +714,7 @@ async function handleInvoiceAmount({
     "✅ Servicio creado y factura adjuntada." :
     "✅ Factura adjunta.";
 
-  await attachInvoiceToInstallment(
-    ctx, telegramUserId, installmentId, session, successMessage
-  );
+  await attachInvoiceToInstallment({ ctx, telegramUserId, installmentId, session, successMessage });
 }
 
 async function handleCompServiceName({
@@ -821,9 +819,7 @@ async function handleCompAmount({
     "✅ Servicio creado, comprobante adjunto y cuota marcada como pagada." :
     "✅ Comprobante adjunto. Cuota marcada como pagada.";
 
-  await attachReceiptToInstallment(
-    ctx, telegramUserId, installmentId, session, successMessage
-  );
+  await attachReceiptToInstallment({ ctx, telegramUserId, installmentId, session, successMessage });
 }
 
 /**

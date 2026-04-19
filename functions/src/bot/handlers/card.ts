@@ -1,5 +1,6 @@
 import { Telegraf, Context } from "telegraf";
 import { CreditCardProcessor, StatementCurrency } from "../../types/index";
+import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
@@ -467,7 +468,7 @@ async function handleDownloadStatementPdf(ctx: Context): Promise<void> {
     );
     await ctx.replyWithDocument({ source: buffer, filename });
   } catch (error) {
-    console.error("[handleDownloadStatementPdf] Error:", error);
+    log.error("Error downloading statement PDF", error, { module: "card", action: "handleDownloadStatementPdf" });
     await ctx.reply("❌ No se pudo descargar el archivo. Intentá de nuevo.");
   }
 }
@@ -1051,7 +1052,7 @@ async function handleDownloadStatementPaymentReceipt(ctx: Context): Promise<void
     );
     await ctx.replyWithDocument({ source: buffer, filename });
   } catch (error) {
-    console.error("[handleDownloadStatementPaymentReceipt] Error:", error);
+    log.error("Error downloading statement payment receipt", error, { module: "card", action: "handleDownloadStatementPaymentReceipt" });
     await ctx.reply("❌ No se pudo descargar el archivo. Intentá de nuevo.");
   }
 }
