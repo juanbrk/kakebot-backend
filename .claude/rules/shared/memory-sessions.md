@@ -14,6 +14,30 @@
 - Deploy a botitio_testitoBot: verificar que logs aparecen con `severity: ERROR` (no `DEFAULT`) en Cloud Logging
 - Confirmar que campos estructurados (`module`, `userId`, `error.message`, `error.stack`) son visibles en Log Explorer
 - Agregar `kakebot-firebase-loggers` al language map en `~/.claude/settings.json` para commits en español
+## 2026-04-18: Bug fix — Parsing de decimales con punto en ingreso de montos
+
+### Completado
+- **Bug fix**: `parseArgentineAmount()` trataba punto con 3+ dígitos como separador de miles (`157.324` → 157324); ahora siempre es decimal
+- `AMOUNT_PATTERN` regex reescrito con 3 alternativas ordenadas: formato AR completo (`238.130,00`), separador único (punto o coma), entero
+- Truncamiento a 2 dígitos: `157.324` → `157.32`, `9.9999` → `9.99` (sin redondear); casos con coma sin cambios
+- Documentada regla "Decimal Input Parsing" en `conventions.md` con tabla de ejemplos y excepción formato AR
+- Build + lint: ✅ 0 errores, 0 errores nuevos
+
+### Pendiente
+- Testing en emuladores: ingresar montos con decimales en flujos de servicios, impuestos y gastos
+## 2026-04-17: Reporte Métodos de Pago + reestructuración del menú Reportes
+
+### Completado
+- **Migración de tipos**: `Service`, `ServiceInstallment`, `ServicePaymentMethod` movidos de `types/index.ts` (congelado) a `types/service.types.ts`; todos los consumers actualizados (8 archivos)
+- **Nuevo servicio**: `services/payment-method-report.service.ts` — agrupa servicios por método de pago, muestra cuota del mes en curso con monto y fecha de vencimiento (`$ -` si no hay cuota)
+- **Nuevo handler**: `bot/handlers/payment-method-report.ts` — action `menu_payment_methods`, back a `rep_servicios`
+- **Menú Reportes reestructurado**: submenúes Balances / Pagos / Servicios con breadcrumbs actualizados; `handleRepHistory` redirige back a `rep_balances`
+- **Descripciones en menús**: cada pantalla de menú muestra bullets explicativos debajo de "¿Qué querés ver?"
+- **Nueva regla**: `.claude/rules/shared/reports-menu.md` — estructura del menú, breadcrumbs, back-navigation y guía paso a paso para agregar nuevos reportes
+- Build + lint: ✅ 0 errores
+
+### Pendiente
+- Testing en emuladores: navegar Menú → Reportes → verificar submenúes y reporte Métodos de Pago
 
 ---
 

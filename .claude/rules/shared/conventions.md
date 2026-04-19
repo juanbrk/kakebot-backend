@@ -198,6 +198,27 @@ functions/src/
 └── routes/                          # API routes (reserved for future)
 ```
 
+## Decimal Input Parsing
+
+**Rule: any separator (dot or comma) is always a decimal separator.**
+
+| Input | Output | Interpretation |
+|---|---|---|
+| `54.32` | `54.32` | Dot = decimal |
+| `157.324` | `157.32` | Dot = decimal, truncated to 2 digits |
+| `9.9999` | `9.99` | Dot = decimal, truncated to 2 digits |
+| `1000,50` | `1000.50` | Comma = decimal |
+| `238.130,00` | `238130.00` | Full AR format (dot = thousands, comma = decimal) |
+| `238130` | `238130` | Plain integer, no separator |
+
+**Exception — full AR format**: when both dot AND comma are present (`1.234,56`), dot = thousands and comma = decimal. This is the only case where a dot is not a decimal separator.
+
+**Truncation**: if more than 2 decimal digits are provided, truncate (do not round). `157.324` → `157.32`, not `157.33`.
+
+Implemented in `helpers/parse-amount.ts` → `parseArgentineAmount()`.
+
+---
+
 ## Before Writing Any New Helper or Utility Function
 
 **ALWAYS search the existing codebase first.** This project has grown organically and already has helpers for many common operations. Creating a duplicate wastes effort and causes inconsistency.

@@ -1,5 +1,5 @@
 import { Telegraf, Context, Markup } from "telegraf";
-import { ServiceInstallment, ServicePaymentMethod } from "../../types/index";
+import { ServiceInstallment, ServicePaymentMethod } from "../../types/service.types";
 import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
 import {
   getSession,

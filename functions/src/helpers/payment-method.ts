@@ -1,5 +1,5 @@
 import { Markup } from "telegraf";
-import { ServicePaymentMethod } from "../types/index";
+import { ServicePaymentMethod } from "../types/service.types";
 
 /**
  * Parameters for buildPaymentMethodKeyboard.

@@ -1,5 +1,5 @@
 import { Markup } from "telegraf";
-import { Service } from "../../types/index";
+import { Service } from "../../types/service.types";
 import { MONTH_NAMES } from "../../helpers/format";
 
 const SERVICES_PER_PAGE = 6;

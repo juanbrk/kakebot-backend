@@ -1,5 +1,6 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { Session, ServicePaymentMethod } from "../../types/index";
+import { Session } from "../../types/index";
+import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxTextHandlerParams } from "../../types/tax.types";
 import {
   getSession,
