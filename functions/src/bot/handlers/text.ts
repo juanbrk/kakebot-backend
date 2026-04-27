@@ -34,6 +34,7 @@ import {
   buildCardProcessorKeyboard,
   buildCardConfirmText,
   buildCardConfirmKeyboard,
+  buildCardCurrencyKeyboard,
   buildStmtConfirmText,
   buildCardStmtConfirmKeyboard,
   buildStmtEditConfirmKeyboard,
@@ -161,6 +162,11 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
       return;
     }
 
+    if (session?.state === "card_stmt_awaiting_month") {
+      await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para anular.");
+      return;
+    }
+
     if (session?.state === "card_awaiting_digits") {
       await handleCardDigits({ ctx, session, telegramUserId, messageText });
       return;
@@ -177,6 +183,13 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
     }
 
     if (session?.state === "card_stmt_awaiting_ars") {
+      if (!session.statementCurrency) {
+        await ctx.reply(
+          "Elegí una opción del teclado, o escribí \"cancelar\" para anular.",
+          { ...buildCardCurrencyKeyboard() },
+        );
+        return;
+      }
       await handleCardStmtArs({ ctx, session, telegramUserId, messageText });
       return;
     }

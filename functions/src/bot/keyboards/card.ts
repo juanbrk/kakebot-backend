@@ -124,9 +124,10 @@ export function buildCardConfirmKeyboard() {
  * Month selection keyboard for statement registration.
  *
  * @param {string} cardId
+ * @param {string[]} existingMonths - YYYY-MM strings to skip (already have a statement)
  * @return {object} Inline keyboard markup
  */
-export function buildCardStmtMonthKeyboard(cardId: string) {
+export function buildCardStmtMonthKeyboard(cardId: string, existingMonths: string[] = []) {
   const now = new Date();
   const months = [];
 
@@ -135,8 +136,10 @@ export function buildCardStmtMonthKeyboard(cardId: string) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const dueMonth = `${year}-${month}`;
-    const label = `${MONTH_NAMES[date.getMonth()]} ${year}`;
 
+    if (existingMonths.includes(dueMonth)) continue;
+
+    const label = `${MONTH_NAMES[date.getMonth()]} ${year}`;
     months.push([
       Markup.button.callback(label, `card_stmt_month:${cardId}:${dueMonth}`),
     ]);
@@ -393,9 +396,8 @@ export function buildStatementListKeyboard({
   }
   if (navRow.length > 0) rows.push(navRow);
 
-  rows.push([
-    Markup.button.callback(`← Volver a ${cardLabel}`, `card_pick:${cardId}`),
-  ]);
+  rows.push([Markup.button.callback("Añadir Resumen", `card_stmt_add:${cardId}`)]);
+  rows.push([Markup.button.callback(`← Volver a ${cardLabel}`, `card_pick:${cardId}`)]);
   return Markup.inlineKeyboard(rows);
 }
 

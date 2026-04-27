@@ -1,4 +1,4 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf, Context, Markup } from "telegraf";
 import { CreditCardProcessor, StatementCurrency } from "../../types/index";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -332,11 +332,20 @@ async function handleCurrencySelected(ctx: Context): Promise<void> {
 async function handleStatementCancel(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const telegramUserId = String(ctx.from!.id);
+  const session = await getSession(telegramUserId);
+  const cardId = session?.cardId || "";
   await clearSession(telegramUserId);
 
-  await ctx.reply("*Cancelaste la subida del resumen*.", {
-    parse_mode: "Markdown",
-  });
+  await ctx.editMessageText("*Cancelaste la subida del resumen.*", { parse_mode: "Markdown" });
+
+  if (cardId) {
+    await ctx.reply("*¿Qué querés hacer?*", {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([[
+        Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`),
+      ]]),
+    });
+  }
 }
 
 async function handleStatementConfirm(ctx: Context): Promise<void> {
@@ -382,6 +391,7 @@ async function handleStatementConfirm(ctx: Context): Promise<void> {
     statementId,
     cardLabel,
     statementMonth: stmtMonth,
+    cardId,
   });
 
   await ctx.reply("✅ Resumen cargado correctamente.");
@@ -427,9 +437,19 @@ async function handleAttachStatementReceipt(ctx: Context): Promise<void> {
 async function handleSkipStatementReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const telegramUserId = String(ctx.from!.id);
+  const session = await getSession(telegramUserId);
+  const cardId = session?.cardId || "";
   await clearSession(telegramUserId);
 
-  await ctx.reply("Podés adjuntar el resumen luego desde /tarjetas.");
+  if (cardId) {
+    await ctx.reply("Podés adjuntar el resumen luego desde el detalle del resumen.", {
+      ...Markup.inlineKeyboard([[
+        Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`),
+      ]]),
+    });
+  } else {
+    await ctx.reply("Podés adjuntar el resumen luego desde /tarjetas.");
+  }
 }
 
 /**
@@ -1058,6 +1078,72 @@ async function handleDownloadStatementPaymentReceipt(ctx: Context): Promise<void
 }
 
 /**
+ * Initiates statement creation from the statement list view.
+ * Filters out months that already have a statement. Sets state to card_stmt_awaiting_month
+ * so text.ts won't misroute free text input to the expense parser.
+ *
+ * @param {Context} ctx
+ */
+async function handleAddStatementFromList(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cardId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const [card, statements] = await Promise.all([
+    getCardById(cardId),
+    getStatementsByCard(cardId, telegramUserId),
+  ]);
+
+  if (!card) {
+    await replyOrEdit(ctx, "Tarjeta no encontrada.");
+    return;
+  }
+
+  const cardLabel = buildCardLabel(card);
+  const existingMonths = statements.map((s) => s.month);
+
+  const now = new Date();
+  const upcomingMonths = Array.from({ length: 3 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const availableMonths = upcomingMonths.filter((m) => !existingMonths.includes(m));
+
+  if (availableMonths.length === 0) {
+    await ctx.editMessageText(
+      `*Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.*`,
+      {
+        parse_mode: "Markdown",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reply_markup: Markup.inlineKeyboard([[
+          Markup.button.callback("← Volver", `card_stmts:${cardId}`),
+        ]]).reply_markup as any,
+      },
+    );
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_awaiting_month",
+    cardId,
+    cardLabel,
+  });
+
+  await ctx.editMessageText(
+    `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
+    "_Enviá la palabra cancelar para salir._",
+    { parse_mode: "Markdown" },
+  );
+
+  await ctx.reply("*Seleccioná el mes del resumen*", {
+    parse_mode: "Markdown",
+    ...buildCardStmtMonthKeyboard(cardId, existingMonths),
+  });
+}
+
+/**
  * Registers all card-related handlers on the bot.
  *
  * @param {Telegraf<Context>} bot
@@ -1077,6 +1163,7 @@ export function registerCardHandler(bot: Telegraf<Context>): void {
   bot.action("card_cancel", handleCardCancel);
 
   bot.action(/^card_stmt_reg:(.+)$/, handleStartStatement);
+  bot.action(/^card_stmt_add:(.+)$/, handleAddStatementFromList);
   bot.action("card_stmt_no", handleSkipStatement);
   bot.action(
     /^card_stmt_month:(.+):(\d{4}-\d{2})$/,
