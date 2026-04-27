@@ -1,4 +1,4 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf, Context, Markup } from "telegraf";
 import { Session, PendingFileType } from "../../types/index";
 import https from "https";
 import { MONTH_NAMES } from "../../helpers/format";
@@ -316,6 +316,7 @@ async function handleCardReceiptUpload({
 
     const stmtMonth = session.statementMonth || "";
     const cardLabel = session.cardLabel || "";
+    const cardId = session.cardId || "";
     const [year, month] = stmtMonth.split("-");
     const monthLabel = stmtMonth ?
       `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}` :
@@ -326,6 +327,15 @@ async function handleCardReceiptUpload({
       `✅ Se subió correctamente el resumen del mes de *${monthLabel}* de la tarjeta *${cardLabel}*.`,
       { parse_mode: "Markdown" },
     );
+    if (cardId) {
+      await ctx.reply("*¿Qué querés hacer?*", {
+        parse_mode: "Markdown",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reply_markup: Markup.inlineKeyboard([[
+          Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`),
+        ]]).reply_markup as any,
+      });
+    }
   } catch (error) {
     log.error("Error uploading card statement receipt", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el resumen. Intentá de nuevo.");
