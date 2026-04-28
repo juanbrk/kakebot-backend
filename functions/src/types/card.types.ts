@@ -37,9 +37,32 @@ export interface StmtConfirmTextParams {
 export interface BuildStatementDetailKeyboardParams {
   statementId: string;
   cardId: string;
+  isPaid: boolean;
+}
+
+export interface BuildStmtReceiptsKeyboardParams {
+  statementId: string;
   hasReceipt: boolean;
   isPaid: boolean;
-  hasPaymentReceipt: boolean;
+  hasReceiptARS: boolean;
+  hasReceiptUSD: boolean;
+  amountUSD: number;
+}
+
+export interface BuildStmtPayARSKeyboardParams {
+  statementId: string;
+  hasUSD: boolean;
+}
+
+export interface MarkStatementAsPaidParams {
+  statementId: string;
+  exchangeRate?: number;
+}
+
+export interface UpdateStatementUSDAndRateParams {
+  statementId: string;
+  amountUSD: number;
+  exchangeRate: number;
 }
 
 export interface BuildStatementListKeyboardParams {

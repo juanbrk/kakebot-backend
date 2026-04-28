@@ -61,7 +61,9 @@ export interface CardStatement {
   isPaid: boolean;
   paidAt?: FirebaseFirestore.Timestamp;
   receiptUrl?: string;
-  paymentReceiptUrl?: string;
+  receiptUrlARS?: string;
+  receiptUrlUSD?: string;
+  exchangeRate?: number;
   createdAt: FirebaseFirestore.Timestamp;
 }
 
@@ -115,9 +117,13 @@ export type CardSessionState =
   | "card_stmt_awaiting_day"
   | "card_awaiting_receipt"
   | "card_stmt_awaiting_receipt"
+  | "card_stmt_awaiting_exchange_rate"
+  | "card_stmt_awaiting_receipt_ars"
+  | "card_stmt_awaiting_receipt_usd"
   | "card_stmt_edit_awaiting_ars"
   | "card_stmt_edit_awaiting_usd"
-  | "card_stmt_edit_awaiting_day";
+  | "card_stmt_edit_awaiting_day"
+  | "card_stmt_edit_awaiting_exchange_rate";
 
 export type TaxSessionState =
   | "tax_awaiting_name"
@@ -165,6 +171,7 @@ export interface Session {
   statementMonth?: string;
   partialAmountUSD?: number;
   statementCurrency?: StatementCurrency;
+  statementAmountUSD?: number;
   reportMonth?: string;
   taxId?: string;
   taxName?: string;

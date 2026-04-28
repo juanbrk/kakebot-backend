@@ -6,6 +6,8 @@ import {
   BuildStatementDetailKeyboardParams,
   BuildStatementListKeyboardParams,
   BuildStmtEditConfirmKeyboardParams,
+  BuildStmtReceiptsKeyboardParams,
+  BuildStmtPayARSKeyboardParams,
 } from "../../types/card.types";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
 
@@ -431,12 +433,15 @@ export function buildStatementDetailText(
   lines.push(` • *Vencimiento*: ${day}/${month}`);
   lines.push(` • *Estado*: ${statement.isPaid ? "✅ Pagado" : "Pendiente"}`);
 
+  if (statement.isPaid && statement.amountUSD > 0 && statement.exchangeRate) {
+    lines.push(` • *TCV*: ${formatARS(statement.exchangeRate)}`);
+  }
+
   return lines.join("\n");
 }
 
 /**
  * Builds the action keyboard for a statement detail screen.
- * Buttons adapt based on payment status and attached documents.
  *
  * @param {BuildStatementDetailKeyboardParams} params
  * @return {object} Inline keyboard markup
@@ -444,51 +449,18 @@ export function buildStatementDetailText(
 export function buildStatementDetailKeyboard({
   statementId,
   cardId,
-  hasReceipt,
   isPaid,
-  hasPaymentReceipt,
 }: BuildStatementDetailKeyboardParams) {
   const rows: ReturnType<typeof Markup.button.callback>[][] = [];
 
   if (!isPaid) {
     rows.push([
-      Markup.button.callback(
-        "Marcar como pagado",
-        `card_stmt_pay:${statementId}`,
-      ),
-    ]);
-  } else if (!hasPaymentReceipt) {
-    rows.push([
-      Markup.button.callback(
-        "Adjuntar comprobante",
-        `card_stmt_pay_attach:${statementId}`,
-      ),
-    ]);
-  } else {
-    rows.push([
-      Markup.button.callback(
-        "Ver comprobante",
-        `card_stmt_pay_download:${statementId}`,
-      ),
+      Markup.button.callback("Marcar como pagado", `card_stmt_pay:${statementId}`),
     ]);
   }
 
-  if (!hasReceipt) {
-    rows.push([
-      Markup.button.callback("Subir PDF", `card_hist_attach:${statementId}`),
-    ]);
-  } else {
-    rows.push([
-      Markup.button.callback(
-        "Descargar PDF",
-        `card_stmt_download:${statementId}`,
-      ),
-    ]);
-  }
-
-  rows.push([
-    Markup.button.callback("Modificar", `card_stmt_edit:${statementId}`),
-  ]);
+  rows.push([Markup.button.callback("Comprobantes", `card_stmt_receipts:${statementId}`)]);
+  rows.push([Markup.button.callback("Modificar", `card_stmt_edit:${statementId}`)]);
   rows.push([Markup.button.callback("← Volver", `card_stmts:${cardId}`)]);
   return Markup.inlineKeyboard(rows);
 }
@@ -532,19 +504,78 @@ export function buildStmtEditConfirmKeyboard({
 }
 
 /**
- * Prompt keyboard shown after marking a statement as paid.
- * Offers to skip or attach a payment receipt (comprobante de pago).
+ * Post-payment ARS receipt prompt keyboard.
+ * Encodes hasUSD in the skip callback so the handler knows whether to continue to USD step.
+ *
+ * @param {BuildStmtPayARSKeyboardParams} params
+ * @return {object} Inline keyboard markup
+ */
+export function buildStmtPayARSKeyboard({ statementId, hasUSD }: BuildStmtPayARSKeyboardParams) {
+  const skipCallback = `card_stmt_pay_ars_skip:${statementId}:${hasUSD ? "1" : "0"}`;
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Omitir", skipCallback),
+      Markup.button.callback("Adjuntar ARS", `card_stmt_pay_attach_ars:${statementId}`),
+    ],
+  ]);
+}
+
+/**
+ * Post-payment USD receipt prompt keyboard.
  *
  * @param {string} statementId
  * @return {object} Inline keyboard markup
  */
-export function buildStmtPayReceiptKeyboard(statementId: string) {
+export function buildStmtPayUSDKeyboard(statementId: string) {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback("Omitir", "card_stmt_pay_skip"),
-      Markup.button.callback("Adjuntar", `card_stmt_pay_attach:${statementId}`),
+      Markup.button.callback("Omitir", "card_stmt_pay_usd_skip"),
+      Markup.button.callback("Adjuntar USD", `card_stmt_pay_attach_usd:${statementId}`),
     ],
   ]);
+}
+
+/**
+ * Receipts submenu keyboard — shows bank PDF and per-currency payment receipt options.
+ * Displayed via the "Comprobantes" button in the statement detail screen.
+ *
+ * @param {BuildStmtReceiptsKeyboardParams} params
+ * @return {object} Inline keyboard markup
+ */
+export function buildStmtReceiptsKeyboard({
+  statementId,
+  hasReceipt,
+  isPaid,
+  hasReceiptARS,
+  hasReceiptUSD,
+  amountUSD,
+}: BuildStmtReceiptsKeyboardParams) {
+  const rows: ReturnType<typeof Markup.button.callback>[][] = [];
+
+  if (hasReceipt) {
+    rows.push([Markup.button.callback("Descargar Resumen PDF", `card_stmt_download:${statementId}`)]);
+  } else {
+    rows.push([Markup.button.callback("Subir Resumen PDF", `card_hist_attach:${statementId}`)]);
+  }
+
+  if (isPaid) {
+    if (hasReceiptARS) {
+      rows.push([Markup.button.callback("Descargar Comprobante ARS", `card_stmt_pay_download_ars:${statementId}`)]);
+    } else {
+      rows.push([Markup.button.callback("Adjuntar Comprobante ARS", `card_stmt_receipts_attach_ars:${statementId}`)]);
+    }
+
+    if (amountUSD > 0) {
+      if (hasReceiptUSD) {
+        rows.push([Markup.button.callback("Descargar Comprobante USD", `card_stmt_pay_download_usd:${statementId}`)]);
+      } else {
+        rows.push([Markup.button.callback("Adjuntar Comprobante USD", `card_stmt_receipts_attach_usd:${statementId}`)]);
+      }
+    }
+  }
+
+  rows.push([Markup.button.callback("← Volver", `card_stmt_detail:${statementId}`)]);
+  return Markup.inlineKeyboard(rows);
 }
 
 /**

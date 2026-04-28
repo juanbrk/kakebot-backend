@@ -1,5 +1,16 @@
 # Decisions Log
 
+## 2026-04-28: Diseño del flujo multicurrency en comprobantes de resúmenes de tarjeta
+
+### Decisiones tomadas
+- **Schema**: `paymentReceiptUrl` → `receiptUrlARS` + `receiptUrlUSD` (campos separados en Firestore); `exchangeRate` guardado al momento del pago
+- **Flujo secuencial**: al marcar como pagado, se pide ARS primero → luego USD (no simultáneo); `hasUSD` codificado en el callback `card_stmt_pay_ars_skip:{id}:{0|1}` para evitar re-fetch
+- **TCV requerido si hay USD**: si `amountUSD > 0`, el pago no se registra hasta recibir el TCV (text.ts, Commit 2)
+- **Submenú Comprobantes**: botón dedicado en el detalle del resumen → pantalla separada con Resumen PDF + ARS + USD; mantiene separación entre el PDF bancario y los comprobantes de pago
+- **Comprobantes desde historial vs flujo de pago**: adjuntar desde historial usa `statementAmountUSD: 0` en session para suprimir el prompt USD; adjuntar desde flujo de pago usa el valor real de `amountUSD`
+
+---
+
 ## 2026-04-15: Patrón UX para Telegraf callback handlers — edit-before-reply
 
 ### Patrón correcto establecido

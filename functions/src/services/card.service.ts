@@ -5,9 +5,11 @@ import {
   CardStatementForDue,
   CreateCardParams,
   CreateStatementParams,
+  MarkStatementAsPaidParams,
   UpdateStatementAmountARSParams,
   UpdateStatementAmountUSDParams,
   UpdateStatementDueDayParams,
+  UpdateStatementUSDAndRateParams,
 } from "../types/card.types";
 
 /**
@@ -265,17 +267,21 @@ export async function saveStatementReceiptUrl(
 }
 
 /**
- * Marks a card statement as paid and records the payment timestamp.
+ * Marks a card statement as paid, records the payment timestamp, and optionally stores the exchange rate.
  *
- * @param {string} statementId
+ * @param {MarkStatementAsPaidParams} params
  */
-export async function markStatementAsPaid(statementId: string): Promise<void> {
+export async function markStatementAsPaid({
+  statementId,
+  exchangeRate,
+}: MarkStatementAsPaidParams): Promise<void> {
   await getDb()
     .collection("card_statements")
     .doc(statementId)
     .update({
       isPaid: true,
       paidAt: admin.firestore.Timestamp.now(),
+      ...(exchangeRate !== undefined && { exchangeRate }),
     });
 }
 
@@ -338,6 +344,7 @@ export async function getUpcomingUnpaidCardStatements(
  * Saves the payment receipt URL on an existing statement document.
  * This is separate from receiptUrl (bank statement PDF) — it stores the
  * proof-of-payment uploaded after marking the statement as paid.
+ * Kept for backward compatibility with photo.ts until Commit 2 migration.
  *
  * @param {string} statementId
  * @param {string} paymentReceiptUrl
@@ -350,4 +357,53 @@ export async function saveStatementPaymentReceiptUrl(
     .collection("card_statements")
     .doc(statementId)
     .update({ paymentReceiptUrl });
+}
+
+/**
+ * Saves the ARS payment receipt URL on a statement document.
+ *
+ * @param {string} statementId
+ * @param {string} url
+ */
+export async function saveStatementReceiptUrlARS(
+  statementId: string,
+  url: string,
+): Promise<void> {
+  await getDb()
+    .collection("card_statements")
+    .doc(statementId)
+    .update({ receiptUrlARS: url });
+}
+
+/**
+ * Saves the USD payment receipt URL on a statement document.
+ *
+ * @param {string} statementId
+ * @param {string} url
+ */
+export async function saveStatementReceiptUrlUSD(
+  statementId: string,
+  url: string,
+): Promise<void> {
+  await getDb()
+    .collection("card_statements")
+    .doc(statementId)
+    .update({ receiptUrlUSD: url });
+}
+
+/**
+ * Updates both the USD amount and exchange rate on a statement in a single write.
+ * Used when the user edits the USD amount — always requires a new TCV.
+ *
+ * @param {UpdateStatementUSDAndRateParams} params
+ */
+export async function updateStatementUSDAndRate({
+  statementId,
+  amountUSD,
+  exchangeRate,
+}: UpdateStatementUSDAndRateParams): Promise<void> {
+  await getDb()
+    .collection("card_statements")
+    .doc(statementId)
+    .update({ amountUSD, exchangeRate });
 }

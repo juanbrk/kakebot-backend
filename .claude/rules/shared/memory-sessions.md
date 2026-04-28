@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-04-28: Comprobantes multicurrency en resúmenes de tarjeta (Commit 1)
+
+### Completado
+- **Schema `CardStatement`**: `paymentReceiptUrl` reemplazado por `receiptUrlARS?`, `receiptUrlUSD?`, `exchangeRate?`
+- **Nuevos estados de sesión**: `card_stmt_awaiting_exchange_rate`, `card_stmt_awaiting_receipt_ars`, `card_stmt_awaiting_receipt_usd`, `card_stmt_edit_awaiting_exchange_rate`; `statementAmountUSD?` agregado a `Session`
+- **`markStatementAsPaid`**: migrado a `MarkStatementAsPaidParams` — acepta `exchangeRate?` opcional
+- **Nuevas funciones en `card.service.ts`**: `saveStatementReceiptUrlARS`, `saveStatementReceiptUrlUSD`, `updateStatementUSDAndRate`
+- **Nuevo folder GCS** en `storage.service.ts`: `uploadStatementPaymentReceiptUSD` → `stmt_receipts_usd/`
+- **Keyboards reestructurados**: `buildStatementDetailKeyboard` simplificado; reemplazado `buildStmtPayReceiptKeyboard` por `buildStmtPayARSKeyboard`, `buildStmtPayUSDKeyboard`, `buildStmtReceiptsKeyboard`
+- **Handlers reescritos en `card.ts`**: flujo de pago con TCV, 9 handlers nuevos para Comprobantes, `registerCardHandler` actualizado
+- Build ✅ 0 errores — Lint ✅ 0 errores
+
+### Pendiente
+- **Commit 2**: `photo.ts` (despachar `card_stmt_awaiting_receipt_ars/usd`) + `text.ts` (handlers TCV + edición USD en dos pasos)
+- **Commit 3**: `report.service.ts` — sección TARJETAS con equivalente ARS en reporte mensual
+- `card_stmt_awaiting_receipt` y `saveStatementPaymentReceiptUrl` aún presentes (compat. Commit 2); eliminar en Commit 2
+
 ## 2026-04-27: Ordenamiento cronológico en historial de cuotas de servicios e impuestos
 
 ### Completado
