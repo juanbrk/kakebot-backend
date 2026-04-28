@@ -205,7 +205,7 @@ export async function saveTaxReceiptUrl(
  * Used by the installment history view.
  *
  * @param {string} taxId - Tax document ID
- * @return {TaxInstallment[]} All installments sorted newest first
+ * @return {TaxInstallment[]} All installments sorted ascending by dueMonth (oldest first)
  */
 export async function getTaxInstallmentsByTaxId(
   taxId: string

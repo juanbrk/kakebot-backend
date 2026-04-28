@@ -183,7 +183,7 @@ const TAX_INSTALLMENTS_PER_PAGE = 6;
 /**
  * Builds a paginated 2-column keyboard listing all installments for a tax (history view).
  *
- * @param {TaxInstallment[]} installments - Full list of installments (all pages), sorted newest first
+ * @param {TaxInstallment[]} installments - Full list of installments (all pages), sorted ascending (oldest first)
  * @param {number} page - Zero-based page index
  * @param {string} taxId - Tax document ID used in pagination callbacks
  * @return {Markup.Markup} Inline keyboard markup
