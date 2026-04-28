@@ -285,7 +285,7 @@ export async function getInstallmentsByService(
     ...(doc.data() as Omit<ServiceInstallment, "id">),
   }));
 
-  return installments.sort((a, b) => b.dueMonth.localeCompare(a.dueMonth));
+  return installments.sort((a, b) => a.dueMonth.localeCompare(b.dueMonth));
 }
 
 /**

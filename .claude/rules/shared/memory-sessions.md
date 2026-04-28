@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-04-27: Ordenamiento cronológico en historial de cuotas de servicios e impuestos
+
+### Completado
+- **Sort servicios corregido**: `getInstallmentsByService` cambió de descendente (`b.localeCompare(a)`) a ascendente (`a.localeCompare(b)`) — cuotas ahora se muestran de más antigua a más reciente
+- **Tax sort verificado**: `getTaxInstallmentsByTaxId` ya usaba ascendente; sin cambio de código necesario
+- **JSDoc corregido** en `buildTaxInstallmentHistoryKeyboard` y `getTaxInstallmentsByTaxId`: eliminada referencia errónea a "sorted newest first"
+- Build ✅ 0 errores — Lint ✅ 0 errores
+
+### Pendiente
+- Test en emuladores: correr `seed-installments.js` y verificar que primera fila muestra Ene 2025 en historial de servicios
+- Verificar historial de cuotas de impuestos con data real en emulador
+
 ## 2026-04-19: Automatización de creación de worktrees (/worktree)
 
 ### Completado
