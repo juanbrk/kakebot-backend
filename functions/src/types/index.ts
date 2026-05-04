@@ -64,6 +64,7 @@ export interface CardStatement {
   receiptUrlARS?: string;
   receiptUrlUSD?: string;
   exchangeRate?: number;
+  usdPaymentCurrency?: "usd" | "ars";
   createdAt: FirebaseFirestore.Timestamp;
 }
 
@@ -116,12 +117,13 @@ export type CardSessionState =
   | "card_stmt_awaiting_usd"
   | "card_stmt_awaiting_day"
   | "card_awaiting_receipt"
-  | "card_stmt_awaiting_receipt"
   | "card_stmt_awaiting_exchange_rate"
   | "card_stmt_awaiting_receipt_ars"
   | "card_stmt_awaiting_receipt_usd"
+  | "card_stmt_awaiting_usd_payment_currency"
   | "card_stmt_edit_awaiting_ars"
   | "card_stmt_edit_awaiting_usd"
+  | "card_stmt_edit_awaiting_usd_payment_currency"
   | "card_stmt_edit_awaiting_day"
   | "card_stmt_edit_awaiting_exchange_rate";
 
@@ -178,4 +180,6 @@ export interface Session {
   taxInstallmentId?: string;
   taxPaymentMethod?: ServicePaymentMethod;
   pendingEditValue?: string;
+  pendingExchangeRate?: number;
+  usdPaymentCurrency?: "usd" | "ars";
 }

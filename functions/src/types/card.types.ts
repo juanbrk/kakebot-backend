@@ -57,12 +57,19 @@ export interface BuildStmtPayARSKeyboardParams {
 export interface MarkStatementAsPaidParams {
   statementId: string;
   exchangeRate?: number;
+  usdPaymentCurrency?: "usd" | "ars";
 }
 
 export interface UpdateStatementUSDAndRateParams {
   statementId: string;
   amountUSD: number;
-  exchangeRate: number;
+  exchangeRate?: number;
+  usdPaymentCurrency?: "usd" | "ars";
+}
+
+export interface BuildStmtUsdCurrencyKeyboardParams {
+  statementId: string;
+  flow: "pay" | "edit";
 }
 
 export interface BuildStatementListKeyboardParams {

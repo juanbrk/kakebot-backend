@@ -274,6 +274,7 @@ export async function saveStatementReceiptUrl(
 export async function markStatementAsPaid({
   statementId,
   exchangeRate,
+  usdPaymentCurrency,
 }: MarkStatementAsPaidParams): Promise<void> {
   await getDb()
     .collection("card_statements")
@@ -282,6 +283,7 @@ export async function markStatementAsPaid({
       isPaid: true,
       paidAt: admin.firestore.Timestamp.now(),
       ...(exchangeRate !== undefined && { exchangeRate }),
+      ...(usdPaymentCurrency !== undefined && { usdPaymentCurrency }),
     });
 }
 
@@ -401,9 +403,14 @@ export async function updateStatementUSDAndRate({
   statementId,
   amountUSD,
   exchangeRate,
+  usdPaymentCurrency,
 }: UpdateStatementUSDAndRateParams): Promise<void> {
   await getDb()
     .collection("card_statements")
     .doc(statementId)
-    .update({ amountUSD, exchangeRate });
+    .update({
+      amountUSD,
+      ...(exchangeRate !== undefined && { exchangeRate }),
+      ...(usdPaymentCurrency !== undefined && { usdPaymentCurrency }),
+    });
 }

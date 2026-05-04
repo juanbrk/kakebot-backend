@@ -20,9 +20,9 @@ import {
   createCard,
   createStatement,
   updateStatementAmountARS,
-  updateStatementAmountUSD,
   updateStatementDueDay,
   markStatementAsPaid,
+  updateStatementUSDAndRate,
 } from "../../services/card.service";
 import { downloadFromUrl } from "../../services/storage.service";
 import {
@@ -44,6 +44,8 @@ import {
   buildStmtPayARSKeyboard,
   buildStmtPayUSDKeyboard,
   buildStmtReceiptsKeyboard,
+  buildStmtUsdCurrencyKeyboard,
+  buildPaymentSummaryText,
 } from "../keyboards/card";
 
 async function handleCardsHub(ctx: Context): Promise<void> {
@@ -849,13 +851,22 @@ async function handleConfirmEdit(ctx: Context): Promise<void> {
   const value = match[3];
   const telegramUserId = String(ctx.from!.id);
 
-  await clearSession(telegramUserId);
-
   if (field === "ars") {
+    await clearSession(telegramUserId);
     await updateStatementAmountARS({ statementId, amount: parseFloat(value) });
   } else if (field === "usd") {
-    await updateStatementAmountUSD({ statementId, amount: parseFloat(value) });
+    const session = await getSession(telegramUserId);
+    const exchangeRate = session?.pendingExchangeRate;
+    const usdPaymentCurrency = session?.usdPaymentCurrency;
+    await clearSession(telegramUserId);
+    await updateStatementUSDAndRate({
+      statementId,
+      amountUSD: parseFloat(value),
+      exchangeRate,
+      usdPaymentCurrency,
+    });
   } else {
+    await clearSession(telegramUserId);
     await updateStatementDueDay({ statementId, newDay: parseInt(value, 10) });
   }
 
@@ -971,7 +982,7 @@ async function handleMarkStatementAsPaid(ctx: Context): Promise<void> {
   if (statement.amountUSD > 0) {
     await setSession(telegramUserId, {
       ...emptySessionForPartial(telegramUserId),
-      state: "card_stmt_awaiting_exchange_rate",
+      state: "card_stmt_awaiting_usd_payment_currency",
       statementId,
       cardLabel,
       statementMonth: statement.month,
@@ -980,9 +991,12 @@ async function handleMarkStatementAsPaid(ctx: Context): Promise<void> {
     });
     await ctx.editMessageText(
       `_${monthLabel} · ${cardLabel}_\n\n`
-      + "*Ingresá el TCV (tipo de cambio vendedor) para registrar el pago.*\n"
-      + `_El resumen incluye ${formatUSD(statement.amountUSD)} USD._`,
-      { parse_mode: "Markdown" },
+      + `*El resumen incluye ${formatUSD(statement.amountUSD)} USD.*\n`
+      + "*¿Con qué moneda pagaste los dólares?*",
+      {
+        parse_mode: "Markdown",
+        ...buildStmtUsdCurrencyKeyboard({ statementId, flow: "pay" }),
+      },
     );
     return;
   }
@@ -998,6 +1012,138 @@ async function handleMarkStatementAsPaid(ctx: Context): Promise<void> {
       parse_mode: "Markdown",
       ...buildStmtPayARSKeyboard({ statementId, hasUSD: false }),
     },
+  );
+}
+
+/**
+ * User selected "Dólares" as payment currency for the USD component.
+ * Marks the statement as paid (no TCV needed) and shows the ARS receipt prompt.
+ *
+ * @param {Context} ctx
+ */
+async function handleUsdPaymentCurrencyUSD(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const session = await getSession(telegramUserId);
+  const cardLabel = session?.cardLabel || "";
+
+  await markStatementAsPaid({ statementId, usdPaymentCurrency: "usd" });
+
+  await ctx.editMessageText(
+    "✅ Resumen marcado como pagado.",
+    { parse_mode: "Markdown" },
+  );
+  await ctx.reply(
+    "*¿Querés adjuntar el comprobante de pago en ARS?*",
+    {
+      parse_mode: "Markdown",
+      ...buildStmtPayARSKeyboard({ statementId, hasUSD: true }),
+    },
+  );
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_awaiting_receipt_ars",
+    statementId,
+    cardLabel,
+    cardId: session?.cardId || "",
+    statementMonth: session?.statementMonth || "",
+    statementAmountUSD: session?.statementAmountUSD || 0,
+  });
+}
+
+/**
+ * User selected "Pesos" as payment currency for the USD component.
+ * Saves currency choice and prompts for TCV.
+ *
+ * @param {Context} ctx
+ */
+async function handleUsdPaymentCurrencyARS(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const session = await getSession(telegramUserId);
+  const cardLabel = session?.cardLabel || "";
+  const amountUSD = session?.statementAmountUSD || 0;
+
+  await setSession(telegramUserId, {
+    ...emptySessionForPartial(telegramUserId),
+    state: "card_stmt_awaiting_exchange_rate",
+    statementId,
+    cardLabel,
+    cardId: session?.cardId || "",
+    statementMonth: session?.statementMonth || "",
+    statementAmountUSD: amountUSD,
+    usdPaymentCurrency: "ars",
+  });
+
+  await ctx.editMessageText(
+    "*Ingresá el tipo de cambio al que pagaste los dólares*",
+    { parse_mode: "Markdown" },
+  );
+}
+
+/**
+ * User selected "Dólares" when editing the USD amount.
+ * No TCV needed — shows the edit confirm screen.
+ *
+ * @param {Context} ctx
+ */
+async function handleEditUsdPaymentCurrencyUSD(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+  const telegramUserId = String(ctx.from!.id);
+
+  const session = await getSession(telegramUserId);
+  const amountUSD = parseFloat(session?.pendingEditValue || "0");
+
+  await setSession(telegramUserId, {
+    ...session!,
+    usdPaymentCurrency: "usd",
+  });
+
+  await ctx.editMessageText(
+    `*Vas a cambiar el monto en dólares a ${formatUSD(amountUSD)}. ¿Confirmás?*`,
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: Markup.inlineKeyboard([[
+        Markup.button.callback("Cancelar", `card_stmt_edit:${statementId}`),
+        Markup.button.callback("Confirmar", `card_edit_ok:usd:${statementId}:${amountUSD}`),
+      ]]).reply_markup as any,
+    },
+  );
+}
+
+/**
+ * User selected "Pesos" when editing the USD amount.
+ * Saves currency choice and prompts for TCV.
+ *
+ * @param {Context} ctx
+ */
+async function handleEditUsdPaymentCurrencyARS(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  const telegramUserId = String(ctx.from!.id);
+
+  const session = await getSession(telegramUserId);
+  const amountUSD = parseFloat(session?.pendingEditValue || "0");
+
+  await setSession(telegramUserId, {
+    ...session!,
+    state: "card_stmt_edit_awaiting_exchange_rate",
+    usdPaymentCurrency: "ars",
+  });
+
+  await ctx.editMessageText(
+    `*Monto En USD*: ${formatUSD(amountUSD)}\n` +
+    "*Ingresá el tipo de cambio al que pagaste los dólares*",
+    { parse_mode: "Markdown" },
   );
 }
 
@@ -1138,7 +1284,7 @@ async function handleStmtReceiptsAttachARS(ctx: Context): Promise<void> {
 
 /**
  * Skips the ARS payment receipt. If the statement has USD (hasUSD encoded in callback),
- * shows the USD receipt prompt; otherwise closes the flow.
+ * shows the USD receipt prompt; otherwise shows the payment summary.
  *
  * @param {Context} ctx
  */
@@ -1149,8 +1295,10 @@ async function handleSkipARSReceipt(ctx: Context): Promise<void> {
   const statementId = match[1];
   const hasUSD = match[2] === "1";
 
+  await ctx.editMessageText("Omitiste cargar el comprobante de pago en ARS.");
+
   if (hasUSD) {
-    await ctx.editMessageText(
+    await ctx.reply(
       "*¿Querés adjuntar el comprobante de pago en USD?*",
       {
         parse_mode: "Markdown",
@@ -1158,9 +1306,12 @@ async function handleSkipARSReceipt(ctx: Context): Promise<void> {
       },
     );
   } else {
-    await ctx.editMessageText(
-      "Podés adjuntar el comprobante más tarde desde el detalle del resumen.",
-    );
+    const statement = await getStatementById(statementId);
+    if (statement) {
+      const card = await getCardById(statement.cardId);
+      const cardLabel = card ? buildCardLabel(card) : "";
+      await ctx.reply(buildPaymentSummaryText(statement, cardLabel), { parse_mode: "Markdown" });
+    }
   }
 }
 
@@ -1207,15 +1358,23 @@ async function handleAttachReceiptUSD(ctx: Context): Promise<void> {
 }
 
 /**
- * Skips the USD payment receipt and closes the post-payment flow.
+ * Skips the USD payment receipt, notifies the user, and shows the payment summary.
  *
  * @param {Context} ctx
  */
 async function handleSkipUSDReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    "Podés adjuntar el comprobante USD más tarde desde el detalle del resumen.",
-  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statementId = ((ctx as any).match as string[])[1];
+
+  await ctx.editMessageText("Omitiste cargar el comprobante de pago en USD.");
+
+  const statement = await getStatementById(statementId);
+  if (statement) {
+    const card = await getCardById(statement.cardId);
+    const cardLabel = card ? buildCardLabel(card) : "";
+    await ctx.reply(buildPaymentSummaryText(statement, cardLabel), { parse_mode: "Markdown" });
+  }
 }
 
 /**
@@ -1398,13 +1557,17 @@ export function registerCardHandler(bot: Telegraf<Context>): void {
 
   // Statement payment
   bot.action(/^card_stmt_pay:(.+)$/, handleMarkStatementAsPaid);
+  bot.action(/^card_stmt_usd_pay_usd:(.+)$/, handleUsdPaymentCurrencyUSD);
+  bot.action(/^card_stmt_usd_pay_ars:(.+)$/, handleUsdPaymentCurrencyARS);
+  bot.action(/^card_stmt_edit_usd_pay_usd:(.+)$/, handleEditUsdPaymentCurrencyUSD);
+  bot.action(/^card_stmt_edit_usd_pay_ars:(.+)$/, handleEditUsdPaymentCurrencyARS);
   bot.action(/^card_stmt_receipts:(.+)$/, handleStmtReceiptsMenu);
   bot.action(/^card_stmt_pay_attach_ars:(.+)$/, handleAttachPaymentReceiptARS);
   bot.action(/^card_stmt_receipts_attach_ars:(.+)$/, handleStmtReceiptsAttachARS);
   bot.action(/^card_stmt_pay_ars_skip:(.+):(0|1)$/, handleSkipARSReceipt);
   bot.action(/^card_stmt_pay_attach_usd:(.+)$/, handleAttachReceiptUSD);
   bot.action(/^card_stmt_receipts_attach_usd:(.+)$/, handleAttachReceiptUSD);
-  bot.action("card_stmt_pay_usd_skip", handleSkipUSDReceipt);
+  bot.action(/^card_stmt_pay_usd_skip:(.+)$/, handleSkipUSDReceipt);
   bot.action(/^card_stmt_pay_download_ars:(.+)$/, handleDownloadPaymentReceiptARS);
   bot.action(/^card_stmt_pay_download_usd:(.+)$/, handleDownloadPaymentReceiptUSD);
 }

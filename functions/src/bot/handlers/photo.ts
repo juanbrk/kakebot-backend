@@ -1,15 +1,21 @@
 import { Telegraf, Context, Markup } from "telegraf";
 import { Session, PendingFileType } from "../../types/index";
+import { StatementReceiptUploadParams } from "../../types/handlers.types";
 import https from "https";
 import { MONTH_NAMES } from "../../helpers/format";
 import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
 import {
-  uploadReceipt, uploadInvoice, uploadStatementReceipt, uploadTaxReceipt, uploadStatementPaymentReceipt,
+  uploadReceipt, uploadInvoice, uploadStatementReceipt, uploadTaxReceipt,
+  uploadStatementPaymentReceipt, uploadStatementPaymentReceiptUSD,
 } from "../../services/storage.service";
 import { saveReceiptUrl, saveInvoiceUrl } from "../../services/service.service";
-import { saveStatementReceiptUrl, saveStatementPaymentReceiptUrl } from "../../services/card.service";
+import {
+  saveStatementReceiptUrl, saveStatementReceiptUrlARS, saveStatementReceiptUrlUSD,
+  getStatementById,
+} from "../../services/card.service";
+import { buildStmtPayUSDKeyboard, buildPaymentSummaryText } from "../keyboards/card";
 import { saveTaxReceiptUrl } from "../../services/tax.service";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
 import { log } from "../../helpers/logger";
@@ -38,8 +44,13 @@ async function handlePhoto(ctx: Context): Promise<void> {
     return;
   }
 
-  if (session?.state === "card_stmt_awaiting_receipt") {
-    await handleStatementPaymentReceiptUpload({ ctx, telegramUserId, session, fileType: "photo" });
+  if (session?.state === "card_stmt_awaiting_receipt_ars") {
+    await handleStatementARSReceiptUpload({ ctx, telegramUserId, session, fileType: "photo" });
+    return;
+  }
+
+  if (session?.state === "card_stmt_awaiting_receipt_usd") {
+    await handleStatementUSDReceiptUpload({ ctx, telegramUserId, session, fileType: "photo" });
     return;
   }
 
@@ -96,8 +107,15 @@ async function handleDocument(ctx: Context): Promise<void> {
     return;
   }
 
-  if (session?.state === "card_stmt_awaiting_receipt") {
-    await handleStatementPaymentReceiptUpload({
+  if (session?.state === "card_stmt_awaiting_receipt_ars") {
+    await handleStatementARSReceiptUpload({
+      ctx, telegramUserId, session, fileType: "pdf", documentFileId: document.file_id,
+    });
+    return;
+  }
+
+  if (session?.state === "card_stmt_awaiting_receipt_usd") {
+    await handleStatementUSDReceiptUpload({
       ctx, telegramUserId, session, fileType: "pdf", documentFileId: document.file_id,
     });
     return;
@@ -406,19 +424,19 @@ async function handleTaxReceiptUploadFromDocument({
   }
 }
 
-async function handleStatementPaymentReceiptUpload({
+/**
+ * Uploads the ARS payment receipt for a statement and optionally prompts for the USD receipt
+ * when session.statementAmountUSD > 0 (post-payment flow only).
+ *
+ * @param {StatementReceiptUploadParams} params
+ */
+async function handleStatementARSReceiptUpload({
   ctx,
   telegramUserId,
   session,
   fileType,
   documentFileId,
-}: {
-  ctx: Context;
-  telegramUserId: string;
-  session: Session;
-  fileType: PendingFileType;
-  documentFileId?: string;
-}): Promise<void> {
+}: StatementReceiptUploadParams): Promise<void> {
   const statementId = session.statementId || "";
   if (!statementId) {
     await ctx.reply("Error: datos de sesión incompletos.");
@@ -426,7 +444,6 @@ async function handleStatementPaymentReceiptUpload({
   }
 
   let fileId: string;
-
   if (fileType === "pdf" && documentFileId) {
     fileId = documentFileId;
   } else {
@@ -439,33 +456,98 @@ async function handleStatementPaymentReceiptUpload({
     fileId = photos[photos.length - 1].file_id;
   }
 
-  const stmtMonth = session.statementMonth || "";
   const cardLabel = session.cardLabel || "";
-  const [year, month] = stmtMonth.split("-");
-  const monthLabel = stmtMonth
-    ? `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`
-    : "el mes seleccionado";
+  const amountUSD = session.statementAmountUSD || 0;
 
   try {
     const fileLink = await ctx.telegram.getFileLink(fileId);
     const fileBuffer = await downloadFile(fileLink.href);
-
     const mimeType = fileType === "pdf"
       ? "application/pdf"
       : (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
 
-    const paymentReceiptUrl = await uploadStatementPaymentReceipt({
+    const receiptUrl = await uploadStatementPaymentReceipt({
       telegramUserId, installmentId: statementId, fileBuffer, mimeType,
     });
 
-    await saveStatementPaymentReceiptUrl(statementId, paymentReceiptUrl);
+    await saveStatementReceiptUrlARS(statementId, receiptUrl);
     await clearSession(telegramUserId);
-    await ctx.reply(
-      `✅ Comprobante de pago guardado.\n_${monthLabel} · ${cardLabel}_`,
-      { parse_mode: "Markdown" },
-    );
+    await ctx.reply("✅ Comprobante de pago en Pesos guardado.");
+
+    if (amountUSD > 0) {
+      await ctx.reply(
+        "*¿Querés adjuntar el comprobante de pago en USD?*",
+        {
+          parse_mode: "Markdown",
+          ...buildStmtPayUSDKeyboard(statementId),
+        },
+      );
+    } else {
+      const updatedStatement = await getStatementById(statementId);
+      if (updatedStatement) {
+        await ctx.reply(buildPaymentSummaryText(updatedStatement, cardLabel), { parse_mode: "Markdown" });
+      }
+    }
   } catch (error) {
-    log.error("Error uploading statement payment receipt", error, { module: "photo", userId: telegramUserId });
+    log.error("Error uploading ARS payment receipt", error, { module: "photo", userId: telegramUserId });
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+  }
+}
+
+/**
+ * Uploads the USD payment receipt for a statement.
+ *
+ * @param {StatementReceiptUploadParams} params
+ */
+async function handleStatementUSDReceiptUpload({
+  ctx,
+  telegramUserId,
+  session,
+  fileType,
+  documentFileId,
+}: StatementReceiptUploadParams): Promise<void> {
+  const statementId = session.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  let fileId: string;
+  if (fileType === "pdf" && documentFileId) {
+    fileId = documentFileId;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const photos = (ctx.message as any).photo as Array<{ file_id: string }>;
+    if (!photos || photos.length === 0) {
+      await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
+      return;
+    }
+    fileId = photos[photos.length - 1].file_id;
+  }
+
+  const cardLabel = session.cardLabel || "";
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const fileBuffer = await downloadFile(fileLink.href);
+    const mimeType = fileType === "pdf"
+      ? "application/pdf"
+      : (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
+
+    const receiptUrl = await uploadStatementPaymentReceiptUSD({
+      telegramUserId, installmentId: statementId, fileBuffer, mimeType,
+    });
+
+    await saveStatementReceiptUrlUSD(statementId, receiptUrl);
+    await clearSession(telegramUserId);
+    await ctx.reply("✅ Comprobante de pago en Dólares guardado.");
+
+    const updatedStatement = await getStatementById(statementId);
+    if (updatedStatement) {
+      await ctx.reply(buildPaymentSummaryText(updatedStatement, cardLabel), { parse_mode: "Markdown" });
+    }
+  } catch (error) {
+    log.error("Error uploading USD payment receipt", error, { module: "photo", userId: telegramUserId });
     await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
   }
 }

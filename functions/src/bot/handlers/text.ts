@@ -38,8 +38,12 @@ import {
   buildStmtConfirmText,
   buildCardStmtConfirmKeyboard,
   buildStmtEditConfirmKeyboard,
+  buildStmtPayARSKeyboard,
+  buildStmtUsdCurrencyKeyboard,
 } from "../keyboards/card";
-import { getStatementById } from "../../services/card.service";
+import {
+  getStatementById, markStatementAsPaid,
+} from "../../services/card.service";
 import { handleTaxName, handleTaxDay, handleTaxAmount } from "./tax";
 
 const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
@@ -204,6 +208,16 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
       return;
     }
 
+    if (session?.state === "card_stmt_awaiting_usd_payment_currency") {
+      await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
+      return;
+    }
+
+    if (session?.state === "card_stmt_awaiting_exchange_rate") {
+      await handleCardStmtExchangeRate({ ctx, session, telegramUserId, messageText });
+      return;
+    }
+
     if (session?.state === "card_stmt_edit_awaiting_ars") {
       await handleCardStmtEditArs({ ctx, session, telegramUserId, messageText });
       return;
@@ -211,6 +225,16 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "card_stmt_edit_awaiting_usd") {
       await handleCardStmtEditUsd({ ctx, session, telegramUserId, messageText });
+      return;
+    }
+
+    if (session?.state === "card_stmt_edit_awaiting_usd_payment_currency") {
+      await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
+      return;
+    }
+
+    if (session?.state === "card_stmt_edit_awaiting_exchange_rate") {
+      await handleCardStmtEditExchangeRate({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -1192,6 +1216,11 @@ async function handleCardStmtEditArs({
   );
 }
 
+/**
+ * Phase 1 of USD edit: validates the new USD amount.
+ * If the statement is already paid → asks for payment currency (TCV may follow).
+ * If not paid → skips currency/TCV and shows the confirm screen directly.
+ */
 async function handleCardStmtEditUsd({
   ctx,
   session,
@@ -1212,15 +1241,80 @@ async function handleCardStmtEditUsd({
   }
 
   const statement = await getStatementById(statementId);
-  const currentLabel = statement && statement.amountUSD > 0 ? formatUSD(statement.amountUSD) : "sin monto en dólares";
+  const isStatementPaid = statement?.isPaid === true;
 
-  await setSession(telegramUserId, { ...session, pendingEditValue: String(parsed) });
+  if (!isStatementPaid) {
+    const currentLabel = statement && statement.amountUSD > 0
+      ? formatUSD(statement.amountUSD)
+      : "sin monto en dólares";
+
+    await setSession(telegramUserId, { ...session, pendingEditValue: String(parsed) });
+
+    await ctx.reply(
+      `*Monto U$S actual*: ${currentLabel}\n*Nuevo monto*: ${formatUSD(parsed)}\n\n*¿Confirmar el cambio?*`,
+      {
+        parse_mode: "Markdown",
+        ...buildStmtEditConfirmKeyboard({ field: "usd", statementId, value: String(parsed) }),
+      },
+    );
+    return;
+  }
+
+  await setSession(telegramUserId, {
+    ...session,
+    state: "card_stmt_edit_awaiting_usd_payment_currency",
+    pendingEditValue: String(parsed),
+  });
 
   await ctx.reply(
-    `*Monto U$S actual*: ${currentLabel}\n*Nuevo monto*: ${formatUSD(parsed)}\n\n*¿Confirmar el cambio?*`,
+    `*Nuevo monto U$S*: ${formatUSD(parsed)}\n*¿Con qué moneda pagaste los dólares?*`,
     {
       parse_mode: "Markdown",
-      ...buildStmtEditConfirmKeyboard({ field: "usd", statementId, value: String(parsed) }),
+      ...buildStmtUsdCurrencyKeyboard({ statementId, flow: "edit" }),
+    },
+  );
+}
+
+/**
+ * Phase 2 of USD edit: validates the TCV, shows confirmation with both new USD amount and rate.
+ */
+async function handleCardStmtEditExchangeRate({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
+  const rate = parseArgentineAmount(messageText.trim());
+
+  if (rate === null || rate <= 0) {
+    await ctx.reply("TCV inválido. Ingresá un número mayor a cero, por ejemplo: 1250,50");
+    return;
+  }
+
+  const statementId = session.statementId || "";
+  const pendingUSD = parseFloat(session.pendingEditValue || "0");
+
+  if (!statementId || !pendingUSD) {
+    await ctx.reply("Error: no se encontró el resumen en la sesión.");
+    return;
+  }
+
+  const statement = await getStatementById(statementId);
+  const currentLabel = statement && statement.amountUSD > 0
+    ? formatUSD(statement.amountUSD)
+    : "sin monto en dólares";
+
+  await setSession(telegramUserId, { ...session, pendingExchangeRate: rate });
+
+  await ctx.reply(
+    `*Monto U$S actual*: ${currentLabel}\n`
+    + `*Nuevo monto*: ${formatUSD(pendingUSD)}\n`
+    + `*Tipo de cambio*: ${formatARS(rate)}\n`
+    + `*Total*: ${formatARS(pendingUSD * rate)}\n\n`
+    + "*¿Confirmar el cambio?*",
+    {
+      parse_mode: "Markdown",
+      ...buildStmtEditConfirmKeyboard({ field: "usd", statementId, value: String(pendingUSD) }),
     },
   );
 }
@@ -1261,6 +1355,47 @@ async function handleCardStmtEditDay({
     {
       parse_mode: "Markdown",
       ...buildStmtEditConfirmKeyboard({ field: "day", statementId, value: String(day) }),
+    },
+  );
+}
+
+/**
+ * Handles TCV input after "Pesos" currency selection on a statement with USD.
+ * Marks the statement as paid with the exchange rate and currency, then prompts for ARS receipt.
+ */
+async function handleCardStmtExchangeRate({
+  ctx,
+  session,
+  telegramUserId,
+  messageText,
+}: TextHandlerParams): Promise<void> {
+  const rate = parseArgentineAmount(messageText.trim());
+
+  if (rate === null || rate <= 0) {
+    await ctx.reply("TCV inválido. Ingresá un número mayor a cero, por ejemplo: 1250,50");
+    return;
+  }
+
+  const statementId = session.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: no se encontró el resumen en la sesión.");
+    return;
+  }
+
+  const amountUSD = session.statementAmountUSD || 0;
+
+  await markStatementAsPaid({ statementId, exchangeRate: rate, usdPaymentCurrency: "ars" });
+  await clearSession(telegramUserId);
+
+  await ctx.reply(
+    "✅ Resumen marcado como pagado.\n" +
+    `Pagaste ${formatUSD(amountUSD)} a ${formatARS(rate)}. Total: ${formatARS(amountUSD * rate)}`,
+  );
+  await ctx.reply(
+    "*¿Querés adjuntar el comprobante de pago en ARS?*",
+    {
+      parse_mode: "Markdown",
+      ...buildStmtPayARSKeyboard({ statementId, hasUSD: amountUSD > 0 }),
     },
   );
 }

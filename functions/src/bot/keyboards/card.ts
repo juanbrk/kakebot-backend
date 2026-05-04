@@ -8,6 +8,7 @@ import {
   BuildStmtEditConfirmKeyboardParams,
   BuildStmtReceiptsKeyboardParams,
   BuildStmtPayARSKeyboardParams,
+  BuildStmtUsdCurrencyKeyboardParams,
 } from "../../types/card.types";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
 
@@ -434,7 +435,7 @@ export function buildStatementDetailText(
   lines.push(` • *Estado*: ${statement.isPaid ? "✅ Pagado" : "Pendiente"}`);
 
   if (statement.isPaid && statement.amountUSD > 0 && statement.exchangeRate) {
-    lines.push(` • *TCV*: ${formatARS(statement.exchangeRate)}`);
+    lines.push(` • *Tipo de cambio USD*: ${formatARS(statement.exchangeRate)}`);
   }
 
   return lines.join("\n");
@@ -529,7 +530,7 @@ export function buildStmtPayARSKeyboard({ statementId, hasUSD }: BuildStmtPayARS
 export function buildStmtPayUSDKeyboard(statementId: string) {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback("Omitir", "card_stmt_pay_usd_skip"),
+      Markup.button.callback("Omitir", `card_stmt_pay_usd_skip:${statementId}`),
       Markup.button.callback("Adjuntar USD", `card_stmt_pay_attach_usd:${statementId}`),
     ],
   ]);
@@ -604,6 +605,54 @@ export function buildStmtConfirmText(params: StmtConfirmTextParams): string {
     lines.push(`*Consumos en dólares*: ${formatUSD(amountUSD)}`);
   }
   lines.push(`*Vencimiento*: ${dueDateStr}`);
+
+  return lines.join("\n");
+}
+
+/**
+ * Keyboard for selecting the currency used to pay the USD portion of a statement.
+ * Used in both the payment flow and the edit-USD flow.
+ *
+ * @param {BuildStmtUsdCurrencyKeyboardParams} params
+ * @return {object} Inline keyboard markup
+ */
+export function buildStmtUsdCurrencyKeyboard({ statementId, flow }: BuildStmtUsdCurrencyKeyboardParams) {
+  const prefix = flow === "pay" ? "card_stmt_usd_pay" : "card_stmt_edit_usd_pay";
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Dólares", `${prefix}_usd:${statementId}`),
+      Markup.button.callback("Pesos", `${prefix}_ars:${statementId}`),
+    ],
+  ]);
+}
+
+/**
+ * Builds the payment summary text shown at the end of the pay flow.
+ * Shown after all receipt decisions have been made.
+ *
+ * @param {CardStatement} statement - Re-fetched statement with all payment fields set
+ * @param {string} cardLabel - e.g. "Visa 5477 - Galicia"
+ * @return {string}
+ */
+export function buildPaymentSummaryText(statement: CardStatement, cardLabel: string): string {
+  const yearMonth = statement.month.split("-");
+  const year = yearMonth[0];
+  const month = yearMonth[1];
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  const lines = [`*Resumen ${monthLabel} de ${cardLabel} marcado como pagado*`];
+
+  if (statement.amountUSD > 0) {
+    let usdLine = formatUSD(statement.amountUSD);
+    if (statement.usdPaymentCurrency === "ars" && statement.exchangeRate) {
+      const arsEquiv = formatARS(statement.amountUSD * statement.exchangeRate);
+      const rateFormatted = formatARS(statement.exchangeRate);
+      usdLine += ` (${arsEquiv} | ${rateFormatted})`;
+    }
+    lines.push(` • *Monto en Dólares*: ${usdLine}`);
+  }
+
+  lines.push(` • *Monto en Pesos*: ${formatARS(statement.amountARS)}`);
 
   return lines.join("\n");
 }
