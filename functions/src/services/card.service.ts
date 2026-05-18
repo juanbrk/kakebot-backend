@@ -342,24 +342,6 @@ export async function getUpcomingUnpaidCardStatements(
     }));
 }
 
-/**
- * Saves the payment receipt URL on an existing statement document.
- * This is separate from receiptUrl (bank statement PDF) — it stores the
- * proof-of-payment uploaded after marking the statement as paid.
- * Kept for backward compatibility with photo.ts until Commit 2 migration.
- *
- * @param {string} statementId
- * @param {string} paymentReceiptUrl
- */
-export async function saveStatementPaymentReceiptUrl(
-  statementId: string,
-  paymentReceiptUrl: string,
-): Promise<void> {
-  await getDb()
-    .collection("card_statements")
-    .doc(statementId)
-    .update({ paymentReceiptUrl });
-}
 
 /**
  * Saves the ARS payment receipt URL on a statement document.

@@ -73,3 +73,9 @@ emulator-data/
 
 # Claude Code — local settings (contain absolute paths, machine-specific)
 .claude/settings.local.json
+
+# Worktree ticket (created per-worktree by /worktree skill, not shared)
+TICKET.md
+
+# Scratch / manual test notes
+functions/a.txt

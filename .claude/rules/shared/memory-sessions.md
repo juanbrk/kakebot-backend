@@ -1,14 +1,20 @@
 # Session Log
 
+## 2026-05-18: Sección TARJETAS completa en reporte mensual
+
+### Completado
+- Resúmenes de tarjeta en reporte: montos ARS/USD por tarjeta, equivalente en pesos al TCV, desglose en balance
+- USD pendiente de conversión correcto en título y balance (no muestra USD ya pagados en ARS)
+- Dead code eliminado (`saveStatementPaymentReceiptUrl`)
+
+### Pendiente
+- Ninguno
+
 ## 2026-05-04: Pulido UX del flujo de pago multicurrency
 
 ### Completado
 - Prompts TCV simplificados, etiquetas "TCV" → "Tipo de cambio", summary con TCV en paréntesis
 - Edición USD en resúmenes no pagados va directo a confirmar (sin moneda ni TCV)
-
-### Pendiente
-- Commit 3: sección TARJETAS en reporte mensual
-- Dead code: eliminar `saveStatementPaymentReceiptUrl`
 
 ## 2026-04-29: UX de pago multicurrency en resúmenes de tarjeta (Commit 2b)
 
