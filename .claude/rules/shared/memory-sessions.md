@@ -1,5 +1,60 @@
 # Session Log
 
+## 2026-05-18: Sección TARJETAS completa en reporte mensual
+
+### Completado
+- Resúmenes de tarjeta en reporte: montos ARS/USD por tarjeta, equivalente en pesos al TCV, desglose en balance
+- USD pendiente de conversión correcto en título y balance (no muestra USD ya pagados en ARS)
+- Dead code eliminado (`saveStatementPaymentReceiptUrl`)
+
+### Pendiente
+- Ninguno
+
+## 2026-05-04: Pulido UX del flujo de pago multicurrency
+
+### Completado
+- Prompts TCV simplificados, etiquetas "TCV" → "Tipo de cambio", summary con TCV en paréntesis
+- Edición USD en resúmenes no pagados va directo a confirmar (sin moneda ni TCV)
+
+## 2026-04-29: UX de pago multicurrency en resúmenes de tarjeta (Commit 2b)
+
+### Completado
+- **`usdPaymentCurrency`** agregado a `CardStatement`, `Session`, `MarkStatementAsPaidParams`, `UpdateStatementUSDAndRateParams`
+- **Nuevo keyboard `buildStmtUsdCurrencyKeyboard`**: muestra "Dólares" / "Pesos"; flow=`"pay"` o `"edit"` determina el prefijo del callback
+- **`buildPaymentSummaryText`**: muestra el resumen final al terminar el flujo de pago; si pagó en pesos incluye equivalente ARS del monto USD
+- **`buildStmtPayUSDKeyboard`**: skip callback ahora incluye `statementId` (`card_stmt_pay_usd_skip:{id}`)
+- **`handleMarkStatementAsPaid`**: para USD → muestra teclado de moneda en lugar del TCV directamente; para ARS-only → igual que antes
+- **4 nuevos handlers en `card.ts`**: `handleUsdPaymentCurrencyUSD`, `handleUsdPaymentCurrencyARS`, `handleEditUsdPaymentCurrencyUSD`, `handleEditUsdPaymentCurrencyARS`
+- **`handleSkipARSReceipt`**: agrega "Omitiste..." + summary en terminal (sin USD); agrega "Omitiste..." antes de prompt USD
+- **`handleSkipUSDReceipt`**: extrae statementId del callback, agrega "Omitiste..." + summary
+- **`handleCardStmtEditUsd` (text.ts)**: en lugar de TCV, muestra teclado de moneda
+- **`handleCardStmtEditExchangeRate` (text.ts)**: agrega línea "Total: $X" en el confirm
+- **`handleCardStmtExchangeRate` (text.ts)**: pasa `usdPaymentCurrency: "ars"` al mark-paid; muestra "Pagaste USD X a $Y. Total $Z"
+- **`handleStatementARSReceiptUpload` (photo.ts)**: confirmación "Comprobante de pago en Pesos guardado."; summary al terminal
+- **`handleStatementUSDReceiptUpload` (photo.ts)**: confirmación "Comprobante de pago en Dólares guardado."; summary siempre
+- Build ✅ 0 errores — Lint ✅ 0 errores
+
+### Pendiente
+- Testing en emuladores: flujo completo de pago con USD (selección moneda, TCV, comprobantes, summary)
+- Commit 3: sección TARJETAS en el reporte mensual con equivalentes ARS
+
+## 2026-04-28: Comprobantes multicurrency en resúmenes de tarjeta (Commit 1)
+
+### Completado
+- **Schema `CardStatement`**: `paymentReceiptUrl` reemplazado por `receiptUrlARS?`, `receiptUrlUSD?`, `exchangeRate?`
+- **Nuevos estados de sesión**: `card_stmt_awaiting_exchange_rate`, `card_stmt_awaiting_receipt_ars`, `card_stmt_awaiting_receipt_usd`, `card_stmt_edit_awaiting_exchange_rate`; `statementAmountUSD?` agregado a `Session`
+- **`markStatementAsPaid`**: migrado a `MarkStatementAsPaidParams` — acepta `exchangeRate?` opcional
+- **Nuevas funciones en `card.service.ts`**: `saveStatementReceiptUrlARS`, `saveStatementReceiptUrlUSD`, `updateStatementUSDAndRate`
+- **Nuevo folder GCS** en `storage.service.ts`: `uploadStatementPaymentReceiptUSD` → `stmt_receipts_usd/`
+- **Keyboards reestructurados**: `buildStatementDetailKeyboard` simplificado; reemplazado `buildStmtPayReceiptKeyboard` por `buildStmtPayARSKeyboard`, `buildStmtPayUSDKeyboard`, `buildStmtReceiptsKeyboard`
+- **Handlers reescritos en `card.ts`**: flujo de pago con TCV, 9 handlers nuevos para Comprobantes, `registerCardHandler` actualizado
+- Build ✅ 0 errores — Lint ✅ 0 errores
+
+### Pendiente
+- **Commit 2**: `photo.ts` (despachar `card_stmt_awaiting_receipt_ars/usd`) + `text.ts` (handlers TCV + edición USD en dos pasos)
+- **Commit 3**: `report.service.ts` — sección TARJETAS con equivalente ARS en reporte mensual
+- `card_stmt_awaiting_receipt` y `saveStatementPaymentReceiptUrl` aún presentes (compat. Commit 2); eliminar en Commit 2
+
 ## 2026-04-27: Ordenamiento cronológico en historial de cuotas de servicios e impuestos
 
 ### Completado

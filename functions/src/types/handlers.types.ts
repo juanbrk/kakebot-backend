@@ -63,3 +63,14 @@ export interface AttachReceiptParams {
   session: Session;
   successMessage?: string;
 }
+
+/**
+ * Parameters for uploading a statement payment receipt (ARS or USD).
+ */
+export interface StatementReceiptUploadParams {
+  ctx: Context;
+  telegramUserId: string;
+  session: Session;
+  fileType: import("./index").PendingFileType;
+  documentFileId?: string;
+}

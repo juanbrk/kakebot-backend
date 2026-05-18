@@ -94,6 +94,18 @@ export async function uploadStatementPaymentReceipt(params: FileUploadParams): P
 }
 
 /**
+ * Uploads a card statement USD payment receipt to GCS under the "stmt_receipts_usd/" folder.
+ * Distinct from uploadStatementPaymentReceipt (ARS) — kept in a separate path for clarity.
+ *
+ * @param {FileUploadParams} params
+ * @param {string} params.installmentId - Firestore statement document ID (mapped as installmentId)
+ * @return {Promise<string>} Public URL of the uploaded file
+ */
+export async function uploadStatementPaymentReceiptUSD(params: FileUploadParams): Promise<string> {
+  return uploadFile({ folder: "stmt_receipts_usd", ...params });
+}
+
+/**
  * Downloads a stored file using the Admin SDK by extracting the GCS path from its Firebase Storage URL.
  * Works in both emulator and production — Admin SDK bypasses storage security rules in both environments.
  *
