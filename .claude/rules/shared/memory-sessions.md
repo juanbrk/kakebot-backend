@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-05-21: Recordatorio percepción RG 5617 al pagar resumen en USD
+
+### Completado
+- `handleUsdPaymentCurrencyUSD` (card.ts) envía `ctx.reply()` con recordatorio de descontar percepción RG 5617 entre el confirm y el prompt de comprobante ARS
+- Solo aplica a la rama "Dólares"; rama "Pesos" sin cambios
+- Build + lint: 0 errores, 0 warnings nuevos
+
+### Pendiente
+- Test en emuladores y commit
+
 ## 2026-05-21: Bug fix — Cuotas duplicadas en servicios e impuestos
 
 ### Completado

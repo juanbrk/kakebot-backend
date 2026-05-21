@@ -1037,6 +1037,9 @@ async function handleUsdPaymentCurrencyUSD(ctx: Context): Promise<void> {
     { parse_mode: "Markdown" },
   );
   await ctx.reply(
+    "Recordá descontar el item correspondiente a la percepción RG 5617 del total a pagar en pesos, correspondiente al 30% de tus gastos en dolares alcanzados por la Resolución General",
+  );
+  await ctx.reply(
     "*¿Querés adjuntar el comprobante de pago en ARS?*",
     {
       parse_mode: "Markdown",
