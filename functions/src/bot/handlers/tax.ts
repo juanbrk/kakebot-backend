@@ -36,6 +36,7 @@ import {
   buildTaxActionKeyboard,
   buildTaxEditOptionsKeyboard,
   buildTaxMonthKeyboard,
+  buildFilteredTaxMonthKeyboard,
   buildTaxPaidPromptKeyboard,
   buildTaxReceiptPromptKeyboard,
   buildTaxInstallmentHistoryKeyboard,
@@ -205,10 +206,35 @@ async function handleRegisterInstallment(ctx: Context): Promise<void> {
   const session = await getSession(telegramUserId);
   const taxName = session?.taxName || "";
 
+  const existingInstallments = await getTaxInstallmentsByTaxId(taxId);
+  const existingMonths = new Set(
+    existingInstallments.map((inst) => inst.dueMonth),
+  );
+
+  const now = new Date();
+  const availableMonths: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const dueMonth = `${date.getFullYear()}-${month}`;
+    if (!existingMonths.has(dueMonth)) {
+      availableMonths.push(dueMonth);
+    }
+  }
+
+  if (availableMonths.length === 0) {
+    await replyOrEdit(
+      ctx,
+      "No hay meses disponibles para crear cuotas.\n" +
+        "Ya tenés cuotas registradas para los próximos 3 meses.",
+    );
+    return;
+  }
+
   const text =
     buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"]) +
     "*¿A qué mes corresponde la cuota?*";
-  const keyboard = buildTaxMonthKeyboard(taxId);
+  const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, taxId);
   await replyOrEdit(ctx, text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

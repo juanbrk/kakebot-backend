@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-05-21: Bug fix — Cuotas duplicadas en servicios e impuestos
+
+### Completado
+- Selector de mes filtra meses con cuota existente antes de mostrar el teclado (servicios e impuestos)
+- Guard: si los 3 meses próximos ya tienen cuota, se muestra mensaje y se corta el flujo
+
+### Pendiente
+- Ninguno
+
 ## 2026-05-18: Sección TARJETAS completa en reporte mensual
 
 ### Completado
