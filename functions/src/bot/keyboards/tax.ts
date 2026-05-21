@@ -149,6 +149,30 @@ export function buildTaxMonthKeyboard(taxId: string) {
 }
 
 /**
+ * Builds a month selector keyboard showing only months without an existing installment.
+ *
+ * @param {string[]} availableMonths - Months in "YYYY-MM" format with no existing installment
+ * @param {string} taxId - Tax document ID used in callback data
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildFilteredTaxMonthKeyboard(
+  availableMonths: string[],
+  taxId: string,
+) {
+  const rows = availableMonths.map((dueMonth) => {
+    const [year, month] = dueMonth.split("-");
+    const label = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+    return [Markup.button.callback(label, `tax_month:${taxId}:${dueMonth}`)];
+  });
+
+  rows.push([
+    Markup.button.callback("← Volver a impuestos", "tax_view"),
+  ]);
+
+  return Markup.inlineKeyboard(rows);
+}
+
+/**
  * Builds the prompt keyboard asking whether to mark a new installment as paid.
  *
  * @param {string} installmentId - Tax installment document ID

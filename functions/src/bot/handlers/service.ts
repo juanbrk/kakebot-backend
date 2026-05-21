@@ -26,7 +26,6 @@ import {
   buildServiceListKeyboard,
   buildServiceActionKeyboard,
   buildServiceEditKeyboard,
-  buildMonthKeyboard,
   buildDeleteConfirmKeyboard,
   buildServiceViewText,
   buildInstallmentDetailText,
@@ -402,6 +401,34 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
     return;
   }
 
+  const existingInstallments = await getInstallmentsByService(
+    serviceId,
+    telegramUserId,
+  );
+  const existingMonths = new Set(
+    existingInstallments.map((inst) => inst.dueMonth),
+  );
+
+  const now = new Date();
+  const availableMonths: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const dueMonth = `${date.getFullYear()}-${month}`;
+    if (!existingMonths.has(dueMonth)) {
+      availableMonths.push(dueMonth);
+    }
+  }
+
+  if (availableMonths.length === 0) {
+    await replyOrEdit(
+      ctx,
+      "No hay meses disponibles para crear cuotas.\n" +
+        "Ya tenés cuotas registradas para los próximos 3 meses.",
+    );
+    return;
+  }
+
   await setSession(telegramUserId, {
     ...emptySessionForPartial(telegramUserId),
     state: "svc_awaiting_amount",
@@ -415,7 +442,7 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
     { parse_mode: "Markdown" },
   );
 
-  const keyboard = buildMonthKeyboard(serviceId);
+  const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
   await ctx.reply(`*Seleccioná el mes para ${service.name}:*`, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
