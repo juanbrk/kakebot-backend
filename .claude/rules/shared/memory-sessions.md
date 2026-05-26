@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-05-25: POC — Flujo de ingresos migrado a WizardScene de Telegraf
+
+### Completado
+- Income flow migrado a `Scenes.WizardScene` nativo; store Firestore (`telegraf_sessions`) para persistencia en Cloud Functions stateless
+- Bug fix: texto en paso de confirmación sobreescribía `state.reason`; guard `if (state.reason)` previene la sobreescritura
+- Normativa de wizards documentada en `conventions.md`: input inválido → mensaje de contexto + repetición completa del paso actual
+
+### Pendiente
+- Deploy a botitio_testitoBot en modo webhook para validación final
+- Camino C: migrar flujos restantes (servicio, impuesto, tarjeta, gasto, etc.)
+
 ## 2026-05-21: Recordatorio percepción RG 5617 al pagar resumen en USD
 
 ### Completado

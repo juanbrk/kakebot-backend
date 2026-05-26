@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { generatePaymentMethodReport } from "../../services/payment-method-report.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
@@ -7,7 +8,7 @@ import { buildBreadcrumb } from "../../helpers/breadcrumb";
  *
  * @param {Telegraf<Context>} bot - The Telegraf bot instance
  */
-export function registerPaymentMethodReportHandler(bot: Telegraf<Context>): void {
+export function registerPaymentMethodReportHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("menu_payment_methods", handlePaymentMethodsReport);
 }
 

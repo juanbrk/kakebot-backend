@@ -1,9 +1,10 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { saveExpense } from "../../services/expense.service";
 import { formatARS } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 
-export function registerExpenseHandler(bot: Telegraf<Context>): void {
+export function registerExpenseHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^confirm:(.+):(.+)$/, async (ctx) => {
     await ctx.answerCbQuery();
 

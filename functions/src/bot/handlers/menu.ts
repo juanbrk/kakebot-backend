@@ -1,4 +1,5 @@
-import { Telegraf, Markup, Context } from "telegraf";
+import { Telegraf, Markup } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 
 const MAIN_MENU_KEYBOARD = Markup.inlineKeyboard([
   [Markup.button.callback("Reportes", "menu_reportes")],
@@ -13,7 +14,7 @@ const MAIN_MENU_KEYBOARD = Markup.inlineKeyboard([
 
 const MAIN_MENU_TEXT = "¿Qué querés hacer?";
 
-export function registerMenuHandler(bot: Telegraf<Context>): void {
+export function registerMenuHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("menu", async (ctx) => {
     await ctx.reply(MAIN_MENU_TEXT, MAIN_MENU_KEYBOARD);
   });

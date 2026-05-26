@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { Session, PendingDescEntry } from "../../types/index";
 import { Expense } from "../../types/expense.types";
 import { getDb } from "../../services/db";
@@ -96,7 +97,7 @@ async function startCategorizationFlow(
   await setSession(telegramUserId, newSession);
 }
 
-export function registerCategorizeHandler(bot: Telegraf<Context>): void {
+export function registerCategorizeHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("categorizar", async (ctx) => {
     const telegramUserId = ctx.from?.id.toString() || "";
     await startCategorizationFlow(ctx, telegramUserId);

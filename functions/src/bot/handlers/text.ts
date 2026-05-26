@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { Session, CreditCardProcessor } from "../../types/index";
 import { TextHandlerParams } from "../../types/handlers.types";
 import {
@@ -23,9 +24,6 @@ import {
   buildInvoicePromptKeyboard,
   buildPaymentMethodKeyboard,
 } from "../keyboards/service";
-import {
-  buildIncomeConfirmKeyboard, buildIncomeConfirmText,
-} from "../keyboards/income";
 import { showInstallmentDetail } from "./service";
 import { buildInvoiceMonthKeyboard, buildReceiptMonthKeyboard } from "../keyboards/invoice";
 import { attachInvoiceToInstallment } from "./invoice";
@@ -48,7 +46,7 @@ import { handleTaxName, handleTaxDay, handleTaxAmount } from "./tax";
 
 const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
 
-export function registerTextHandler(bot: Telegraf<Context>): void {
+export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
   bot.on("text", async (ctx) => {
     const messageText = ctx.message.text;
     const telegramUserId = ctx.from?.id.toString() || "";
@@ -88,16 +86,6 @@ export function registerTextHandler(bot: Telegraf<Context>): void {
 
     if (session?.state === "categorizing") {
       await handleCategorizingText({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "inc_awaiting_amount") {
-      await handleIncomeAmount({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "inc_awaiting_reason") {
-      await handleIncomeReason({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -857,77 +845,6 @@ async function handleCompAmount({
     "✅ Comprobante adjunto. Cuota marcada como pagada.";
 
   await attachReceiptToInstallment({ ctx, telegramUserId, installmentId, session, successMessage });
-}
-
-/**
- * Handles amount input during income registration.
- */
-async function handleIncomeAmount({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-
-  const isValidAmount = amount !== null && amount > 0;
-  if (!isValidAmount) {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\n" +
-      "Ej: 5000 o 14.819,50"
-    );
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "inc_awaiting_reason",
-    partialAmount: amount,
-  });
-
-  await ctx.reply(
-    "*Ingresá el motivo (30 caracteres max)*\n" +
-    "_Escribí \"cancelar\" o \"salir\" para anular._",
-    { parse_mode: "Markdown" }
-  );
-}
-
-/**
- * Handles reason input during income registration.
- */
-async function handleIncomeReason({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const reason = messageText.trim();
-
-  const isReasonTooLong = reason.length > 30;
-  if (isReasonTooLong) {
-    await ctx.reply(
-      "El motivo no puede superar los 30 caracteres. Ingresalo de nuevo."
-    );
-    return;
-  }
-
-  const isReasonEmpty = reason.length === 0;
-  if (isReasonEmpty) {
-    await ctx.reply("El motivo no puede estar vacío.");
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "inc_awaiting_reason",
-    partialDescription: reason,
-  });
-
-  const amount = session.partialAmount || 0;
-  await ctx.reply(
-    buildIncomeConfirmText(amount, reason),
-    buildIncomeConfirmKeyboard()
-  );
 }
 
 /**

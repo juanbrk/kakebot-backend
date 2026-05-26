@@ -1,4 +1,5 @@
 import { Telegraf, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { log } from "../../helpers/logger";
 import {
   getSession, setSession, clearSession,
@@ -21,7 +22,7 @@ import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { MONTH_NAMES } from "../../helpers/format";
 import { AttachReceiptParams } from "../../types/handlers.types";
 
-export function registerReceiptDirectHandler(bot: Telegraf<Context>): void {
+export function registerReceiptDirectHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("doc_type_receipt", handleDocTypeReceipt);
   bot.action(/^comp_pick:(.+)$/, handlePickServiceForReceipt);
   bot.action("comp_new_service", handleNewServiceForReceipt);

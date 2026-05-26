@@ -1,4 +1,5 @@
 import { Telegraf, Context, Markup } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { CreditCardProcessor, StatementCurrency } from "../../types/index";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -1517,7 +1518,7 @@ async function handleAddStatementFromList(ctx: Context): Promise<void> {
  *
  * @param {Telegraf<Context>} bot
  */
-export function registerCardHandler(bot: Telegraf<Context>): void {
+export function registerCardHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("tarjetas", handleCardsHub);
   bot.action("menu_tarjetas", handleCardsHub);
   bot.action("card_select", handleOpenCards);

@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { getUpcomingDues } from "../../services/upcoming-dues.service";
 import { formatARS } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -9,7 +10,7 @@ import { UpcomingDueItem, UpcomingDuesBucket } from "../../types/upcoming-dues.t
  *
  * @param {Telegraf<Context>} bot - The Telegraf bot instance
  */
-export function registerUpcomingDuesHandler(bot: Telegraf<Context>): void {
+export function registerUpcomingDuesHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("menu_upcoming", handleUpcomingDues);
 }
 

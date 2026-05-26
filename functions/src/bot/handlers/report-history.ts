@@ -1,4 +1,6 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
+import { INCOME_SCENE_ID } from "../scenes/income.scene";
 import {
   getSession,
   clearSession,
@@ -17,7 +19,7 @@ import { replyOrEdit } from "../../helpers/telegram";
  *
  * @param {Telegraf<Context>} bot - The Telegraf bot instance
  */
-export function registerReportHistoryHandler(bot: Telegraf<Context>): void {
+export function registerReportHistoryHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("menu_reportes", handleReportesMenu);
   bot.action("rep_balances", handleBalancesMenu);
   bot.action("rep_pagos", handlePagosMenu);
@@ -317,33 +319,23 @@ async function handleRepExp(ctx: Context): Promise<void> {
 }
 
 /**
- * Initiates retroactive income registration for a past month.
- * Sets session state and shows context message + prompt.
+ * Initiates retroactive income registration for a past month by entering the
+ * income wizard with the target month preset.
  *
- * @param {Context} ctx - Telegraf context
+ * @param {KakebotContext} ctx - Telegraf context
  */
-async function handleRepInc(ctx: Context): Promise<void> {
+async function handleRepInc(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const yearMonth = ((ctx as any).match as string[])[1];
   const [year, month] = yearMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-  const telegramUserId = ctx.from?.id.toString() || "";
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "inc_awaiting_amount",
-    reportMonth: yearMonth,
-  });
 
   await ctx.editMessageText(
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando ingreso",
     { parse_mode: "Markdown" },
   );
-  await ctx.reply(
-    "*Ingresá el monto percibido*\n_Escribí cancelar para salir._",
-    { parse_mode: "Markdown" },
-  );
+  await ctx.scene.enter(INCOME_SCENE_ID, { reportMonth: yearMonth });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { Telegraf, Context, Markup } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { Session, PendingFileType } from "../../types/index";
 import { StatementReceiptUploadParams } from "../../types/handlers.types";
 import https from "https";
@@ -20,7 +21,7 @@ import { saveTaxReceiptUrl } from "../../services/tax.service";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
 import { log } from "../../helpers/logger";
 
-export function registerPhotoHandler(bot: Telegraf<Context>): void {
+export function registerPhotoHandler(bot: Telegraf<KakebotContext>): void {
   bot.on("photo", handlePhoto);
   bot.on("document", handleDocument);
 }

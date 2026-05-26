@@ -1,6 +1,7 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 
-export function registerStartHandler(bot: Telegraf<Context>): void {
+export function registerStartHandler(bot: Telegraf<KakebotContext>): void {
   bot.start(async (ctx) => {
     const firstName = ctx.from?.first_name || "Usuario";
     await ctx.reply(

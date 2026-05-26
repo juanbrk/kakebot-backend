@@ -1,4 +1,5 @@
 import { Telegraf, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { log } from "../../helpers/logger";
 import {
   getSession,
@@ -23,7 +24,7 @@ import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { AttachInvoiceParams } from "../../types/handlers.types";
 
-export function registerInvoiceHandler(bot: Telegraf<Context>): void {
+export function registerInvoiceHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("doc_type_invoice", handleDocTypeInvoice);
   bot.action(/^inv_pick:(.+)$/, handlePickServiceForInvoice);
   bot.action("inv_new_service", handleNewServiceForInvoice);
