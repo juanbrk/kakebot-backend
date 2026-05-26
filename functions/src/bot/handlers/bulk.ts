@@ -1,10 +1,11 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { getSession, clearSession } from "../../services/session.service";
 import { saveBulkExpenses } from "../../services/expense.service";
 import { buildBulkSummaryText } from "../../helpers/bulk-parse";
 import { replyOrEdit } from "../../helpers/telegram";
 
-export function registerBulkHandler(bot: Telegraf<Context>): void {
+export function registerBulkHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("bulk_confirm", async (ctx) => {
     await ctx.answerCbQuery();
 

@@ -1,5 +1,16 @@
 # Decisions Log
 
+## 2026-05-25: Adoptar Telegraf WizardScene en lugar de WizardFlow custom
+
+### Decisiones tomadas
+- **Camino B completado**: flujo de ingresos migrado a `Scenes.WizardScene` nativo como POC; los archivos `wizard.service.ts` y `wizard.types.ts` del custom WizardFlow fueron eliminados
+- **Store Firestore obligatorio**: colección `telegraf_sessions` (separada de `sessions` legacy) — requerido por el runtime stateless de Cloud Functions; `getSessionKey = ctx.from?.id.toString()`
+- **Normativa: asteriscos visibles prohibidos** — cualquier mensaje con `*...*` debe incluir `parse_mode: "Markdown"`
+- **Normativa WizardScene — input inválido**: siempre enviar (1) mensaje de contexto + (2) repetición completa del paso actual (texto + teclado); nunca re-mostrar solo el teclado sin contexto; documentado en `conventions.md`
+- **Camino C pendiente**: migrar flujos restantes una vez validado el POC en webhook
+
+---
+
 ## 2026-04-28: Diseño del flujo multicurrency en comprobantes de resúmenes de tarjeta
 
 ### Decisiones tomadas

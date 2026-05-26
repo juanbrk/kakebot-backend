@@ -138,6 +138,34 @@ function createCard({
   (`function getDb() { return admin.firestore(); }`) because Firebase CLI
   analyzes modules before `initializeApp()` runs
 
+## WizardScene — Invalid Input Handling
+
+When a wizard step receives input that doesn't match what's expected (text when a button is required, an image when text is expected, etc.), always:
+
+1. Send a context message explaining what's needed.
+2. Re-send the current step's full prompt — including text and keyboard — so the user has all the context to continue.
+
+**Never** re-show only the keyboard without the accompanying text. The user must be able to understand what they're confirming or selecting.
+
+```typescript
+// ❌ WRONG — keyboard without context
+if (state.reason) {
+  await ctx.reply("Usá los botones para confirmar o cancelar.", buildConfirmKeyboard());
+  return;
+}
+
+// ✅ RIGHT — context message + full step re-presented
+if (state.reason) {
+  await ctx.reply("Usá los botones para confirmar o cancelar.");
+  await ctx.reply(buildConfirmText(state.amount, state.reason), buildConfirmKeyboard());
+  return;
+}
+```
+
+Also applies to: text received while waiting for a photo, a command received mid-flow, etc.
+
+---
+
 ## Telegram Bot (Telegraf)
 - Bot token from `process.env.TELEGRAM_BOT_TOKEN`
 - Webhook handler exported as `bot` Cloud Function

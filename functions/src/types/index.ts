@@ -104,10 +104,6 @@ export type ReceiptSessionState =
   | "comp_awaiting_day"
   | "comp_awaiting_amount";
 
-export type IncomeSessionState =
-  | "inc_awaiting_amount"
-  | "inc_awaiting_reason";
-
 export type CardSessionState =
   | "card_awaiting_digits"
   | "card_awaiting_bank"
@@ -141,7 +137,6 @@ export type SessionState =
   | DocSessionState
   | InvoiceSessionState
   | ReceiptSessionState
-  | IncomeSessionState
   | CardSessionState
   | TaxSessionState;
 

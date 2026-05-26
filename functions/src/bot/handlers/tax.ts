@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { Session } from "../../types/index";
 import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxTextHandlerParams } from "../../types/tax.types";
@@ -50,7 +51,7 @@ import {
  * @param {Telegraf<Context>} bot - Telegraf bot instance
  * @return {void}
  */
-export function registerTaxHandler(bot: Telegraf<Context>): void {
+export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("impuestos", openTaxesMenu);
   bot.action("menu_impuestos", openTaxesMenu);
   bot.action("menu_mis_impuestos", handleMisImpuestos);

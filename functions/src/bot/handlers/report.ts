@@ -1,8 +1,9 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { generateMonthlyReport } from "../../services/report.service";
 import { replyOrEdit } from "../../helpers/telegram";
 
-export function registerReportHandler(bot: Telegraf<Context>): void {
+export function registerReportHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("reporte", async (ctx) => {
     const telegramUserId = ctx.from?.id.toString() || "";
     const report = await generateMonthlyReport(telegramUserId);

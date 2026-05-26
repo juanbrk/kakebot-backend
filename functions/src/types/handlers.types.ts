@@ -7,7 +7,7 @@ import { ServiceInstallment } from "./service.types";
  * Used by handlers: handleAwaitingAmount, handleAwaitingDescription, handleCategorizingText,
  * handleServiceAmount, handleServiceDay, handleEditServiceNameText, handleEditServiceAmountText,
  * handleEditServiceDayText, handleInvoiceServiceName, handleInvoiceDay, handleInvoiceAmount,
- * handleCompServiceName, handleCompDay, handleCompAmount, handleIncomeAmount, handleIncomeReason,
+ * handleCompServiceName, handleCompDay, handleCompAmount,
  * handleRepAwaitingExpense, handleCardDigits, handleCardBank, handleCardExpiry, handleCardStmtArs,
  * handleCardStmtUsd, handleCardStmtDay.
  */

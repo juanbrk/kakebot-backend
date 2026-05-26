@@ -1,4 +1,5 @@
 import { Telegraf, Context, Markup } from "telegraf";
+import { KakebotContext } from "../../types/telegraf-context.types";
 import { ServiceInstallment, ServicePaymentMethod } from "../../types/service.types";
 import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
 import {
@@ -124,7 +125,7 @@ async function showServiceActionView(
   });
 }
 
-export function registerServiceHandler(bot: Telegraf<Context>): void {
+export function registerServiceHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("servicios", openServicesMenu);
   bot.action("menu_servicios", openServicesMenu);
 

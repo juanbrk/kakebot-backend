@@ -1,5 +1,8 @@
-import { Telegraf } from "telegraf";
+import { Telegraf, session, Scenes } from "telegraf";
 import { log } from "../helpers/logger";
+import { KakebotContext } from "../types/telegraf-context.types";
+import { buildTelegrafSessionStore } from "../services/telegraf-session.store";
+import { incomeScene } from "./scenes/income.scene";
 import { authMiddleware } from "./middleware/auth";
 import { registerStartHandler } from "./handlers/start";
 import { registerMenuHandler } from "./handlers/menu";
@@ -21,9 +24,16 @@ import { registerTextHandler } from "./handlers/text";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 
-export const telegramBot = new Telegraf(BOT_TOKEN);
+export const telegramBot = new Telegraf<KakebotContext>(BOT_TOKEN);
 
 telegramBot.use(authMiddleware);
+telegramBot.use(session({
+  store: buildTelegrafSessionStore(),
+  getSessionKey: (ctx) => ctx.from?.id.toString(),
+}));
+
+const stage = new Scenes.Stage<KakebotContext>([incomeScene]);
+telegramBot.use(stage.middleware());
 
 registerStartHandler(telegramBot);
 registerMenuHandler(telegramBot);
