@@ -20,6 +20,10 @@
           {
             "type": "command",
             "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-param-patterns.js"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-wizard-scene.js"
           }
         ]
       }

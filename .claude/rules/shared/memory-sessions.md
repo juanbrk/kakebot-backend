@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-05-28: Reglamento de WizardScenes + hook estructural + refactor de income/tax
+
+### Completado
+- Reglamento creado: `.claude/rules/shared/wizard-scenes.md` (16 secciones + checklist pre-PR). Cubre anatomía, naming, cursor guards, entry points con entryArgs, UX (breadcrumbs prohibidos dentro del scene), logging, `scene.leave()` ordering. tax.scene como referencia estructural canónica.
+- Hook PreToolUse `check-wizard-scene.js`: 8 chequeos estructurales sobre archivos `*.scene.ts`. Registrado en settings.json y settings.example.json. Documentado en hooks-error-log.md.
+- conventions.md: 3 secciones legacy de WizardScene reemplazadas por puntero a wizard-scenes.md.
+- CLAUDE.md: fila nueva en tabla de rules.
+- Refactor income.scene.ts (Fase 3a): `promptAmount/handleAmount/handleReason` → `stepInit/stepHandleAmount/stepHandleReason`; cursor guard extraído a `stepGuardConfirm` (step 3); logging estructurado en `handleConfirm`; orden corregido (mensaje final antes de `scene.leave()`).
+- Cleanup tax.scene.ts (Fase 3b): 5 llamadas a `buildBreadcrumb` removidas de dentro del scene; import eliminado; duplicación de "Vas a registrar un nuevo impuesto" en stepInit eliminada (ahora el handler externo `handleAddTax` lo provee).
+- `handleAddTax` (handlers/tax.ts): mensaje de contexto con breadcrumb pre-scene agregado para consistencia con `handleRegisterInstallment`.
+- Build + lint: 0 errores, 0 warnings nuevos. Hook pasa sobre income.scene.ts y tax.scene.ts.
+
+### Pendiente
+- Deploy a botitio_testitoBot y verificar manualmente income y tax flows tras los cambios (UX sin breadcrumbs internos, cursor guard en income separado).
+- Sync del hook `check-wizard-scene.js` al repo principal `kakebot-backend/.claude/hooks/` cuando se haga merge (los paths en settings.json apuntan ahí por consistencia con los demás hooks).
+- Iniciar Fase 4 — Oleada A: migración de flujos simples (expense, bulk, doc-router) usando el reglamento.
+
 ## 2026-05-27: TaxWizardScene completo con selector de mes integrado y normalización de patrones
 
 ### Completado

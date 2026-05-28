@@ -31,6 +31,7 @@ firebase deploy --only functions  # Deploy to production
 | `core/session-protocol.md` | Start/end behavior, memory updates |
 | `shared/workflow.md` | Dev → test → deploy pipeline |
 | `shared/conventions.md` | Code style, project patterns |
+| `shared/wizard-scenes.md` | WizardScene migration & creation standard (gold: tax.scene) |
 | `shared/code-docs.md` | Documentation philosophy, naming conventions |
 | `shared/guard-conditions.md` | Guard clauses, named preconditions pattern |
 | `shared/firestore-indexes.md` | Composite index creation & verification for Firestore |

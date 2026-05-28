@@ -4,6 +4,33 @@ Registro estructurado de pain points, bugs detectados por hooks, y estado de imp
 
 ---
 
+## 2026-05-28: check-wizard-scene.js — hook estructural para WizardScenes
+
+**Status:** ✅ Implementado
+
+Hook PreToolUse `Edit|Write` que valida la estructura mínima de archivos `functions/src/bot/scenes/*.scene.ts` contra el reglamento `shared/wizard-scenes.md`.
+
+Chequeos:
+1. Importa `getMessageText` desde `helpers/wizard`
+2. Define `CANCEL_REGEX` con literal canónico (`/^\s*(salir|cancelar|terminar|stop)\s*$/i`)
+3. Exporta `[DOMAIN]_SCENE_ID` con sufijo `-wizard`
+4. Registra `scene.hears(CANCEL_REGEX, ...)`
+5. Registra `scene.on("photo", ...)` y `scene.on("document", ...)`
+6. Define función `repromptCurrentStep`
+7. Async functions usan prefijos sanctioned (`step`, `handle`, `reprompt`, `get`, `build`, etc.)
+8. Exporta el scene como `[domain]Scene = new Scenes.WizardScene<...>(...)`
+9. Cross-check: domain del export camelCase coincide con domain del `SCENE_ID` kebab-case
+
+**Activación:** solo archivos que matchean `/bot/scenes/[a-z][\w-]*\.scene\.ts$/`. Resto de archivos pasan transparentes.
+
+**Implementación:** lee el archivo del disco para Edit (aplicando el patch old→new) o usa `tool_input.content` para Write. Esto evita falsos negativos en edits parciales.
+
+**Testing:** verificado contra `tax.scene.ts` (pasa), `income.scene.ts` (falla por `promptAmount` — deuda técnica conocida, será corregida en refactor Fase 3a), y dummy file vacío (falla 8 chequeos).
+
+**Sync entre worktrees:** el archivo del hook vive en cada worktree bajo `.claude/hooks/check-wizard-scene.js`. Los paths en `settings.json` apuntan al repo principal (`kakebot-backend/.claude/hooks/...`) por consistencia con los demás hooks. Al hacer merge, sincronizar manualmente la copia del hook al repo principal.
+
+---
+
 ## 2026-04-14: Migración completa a .claude/hooks/
 
 **Status:** ✅ Implementado

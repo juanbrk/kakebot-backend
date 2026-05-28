@@ -4,7 +4,6 @@ import { getMessageText } from "../../helpers/wizard";
 import { ServicePaymentMethod } from "../../types/service.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
-import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { log } from "../../helpers/logger";
 import { buildPaymentMethodKeyboard } from "../../helpers/payment-method";
 import {
@@ -81,8 +80,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     }
     const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, state.taxId);
     await ctx.reply(
-      buildBreadcrumb(["Impuestos", state.taxName ?? "", "Nueva cuota"])
-        + "*¿A qué mes corresponde la cuota?*",
+      "*¿A qué mes corresponde la cuota?*",
       {
         parse_mode: "Markdown",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,11 +90,6 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await ctx.reply(
-    buildBreadcrumb(["Impuestos", "Registrar impuesto"])
-      + "*Vas a registrar un nuevo impuesto*\n\n_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
-  );
   await ctx.reply(
     "*¿Cómo se llama el impuesto?*\n_Ej: Monotributo, AFIP, Rentas Automotor_",
     { parse_mode: "Markdown" },
@@ -174,7 +167,6 @@ async function stepGuardPaymentMethod(ctx: KakebotContext): Promise<void> {
 async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as TaxWizardState;
   const taxId = state.taxId ?? "";
-  const taxName = state.taxName ?? "";
 
   await ctx.reply(
     "Elegí el mes del teclado, o escribí \"cancelar\" para anular.",
@@ -183,7 +175,7 @@ async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   const availableMonths = await getAvailableMonthsForTax(taxId);
   const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, taxId);
   await ctx.reply(
-    buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"]) + "*¿A qué mes corresponde la cuota?*",
+    "*¿A qué mes corresponde la cuota?*",
     {
       parse_mode: "Markdown",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -339,7 +331,7 @@ async function handlePaymentMethod(ctx: KakebotContext): Promise<void> {
 
   const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, taxId);
   await ctx.reply(
-    buildBreadcrumb(["Impuestos", name, "Nueva cuota"]) + "*¿A qué mes corresponde la cuota?*",
+    "*¿A qué mes corresponde la cuota?*",
     {
       parse_mode: "Markdown",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -471,8 +463,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
       const availableMonths = await getAvailableMonthsForTax(state.taxId);
       const monthKeyboard = buildFilteredTaxMonthKeyboard(availableMonths, state.taxId);
       await ctx.reply(
-        buildBreadcrumb(["Impuestos", state.taxName ?? "", "Nueva cuota"])
-          + "*¿A qué mes corresponde la cuota?*",
+        "*¿A qué mes corresponde la cuota?*",
         {
           parse_mode: "Markdown",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -99,6 +99,11 @@ async function handleMisImpuestos(ctx: Context): Promise<void> {
 
 async function handleAddTax(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
+  await ctx.editMessageText(
+    buildBreadcrumb(["Impuestos", "Registrar impuesto"])
+      + "*Vas a registrar un nuevo impuesto.*\n_Escribí cancelar para salir._",
+    { parse_mode: "Markdown" },
+  );
   await ctx.scene.enter(TAX_SCENE_ID);
 }
 

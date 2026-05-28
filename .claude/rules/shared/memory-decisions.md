@@ -1,5 +1,34 @@
 # Decisions Log
 
+## 2026-05-28: Reglamento de WizardScenes — estandarización para migración masiva
+
+Reglamento dedicado en `shared/wizard-scenes.md` + hook estructural `check-wizard-scene.js`. Establece el estándar único para crear y migrar `Scenes.WizardScene` de Telegraf, antes de iniciar las migraciones masivas de los 9 flujos pendientes (servicios, tarjetas, facturas, comprobantes, gastos, bulk, categorización, doc router, reporte retroactivo).
+
+### Decisiones tomadas
+- **Gold standard estructural**: `tax.scene.ts` es el baseline (logging, cursor guards explícitos, multi-entry con `entryArgs`, naming con prefijo `step*`/`handle*`). `income.scene.ts` quedó como deuda técnica → refactorizado en esta misma sesión para cumplir.
+- **Naming de steps**: prefijo `step*` obligatorio (`stepInit`, `stepHandleX`, `stepGuardX`). Action handlers: `handle*`. Esto distingue visualmente roles dentro del archivo.
+- **Cursor guards en función separada**: cada step que termina mostrando teclado tiene un `stepGuardX` dedicado a continuación. Prohibido el patrón inline `if (state.field) { reprompt; return; }` (deuda técnica de income.scene corregida).
+- **Breadcrumbs prohibidos dentro de steps del scene**: una vez que el usuario entra al wizard, ya se comprometió al flujo; mostrar la jerarquía en cada paso es ruido visual sin valor de navegación. Breadcrumbs son para árboles de decisión antes del commit, no dentro de él.
+- **Excepción permitida**: el handler externo que invoca `ctx.scene.enter(...)` puede usar `editMessageText` con breadcrumb + mensaje de contexto justo antes de entrar (cierre del menú + apertura del flujo). Aplicado en `handleAddTax`, `handleRegisterInstallment`.
+- **Enforcement**: hook PreToolUse `check-wizard-scene.js` valida estructura mínima (imports obligatorios, SCENE_ID exportado con sufijo `-wizard`, CANCEL_REGEX canónico, scene.hears/on registrados, repromptCurrentStep presente, naming de async functions). Lo semántico (logging en catches, breadcrumbs internos, parse_mode con asteriscos) queda al checklist humano del reglamento.
+- **Ubicación del reglamento**: archivo dedicado `shared/wizard-scenes.md` (no expansion de conventions.md). 3 secciones legacy de WizardScene removidas de conventions.md y reemplazadas por puntero.
+- **Orden de migración masiva**: validar primero (refactor income + cleanup tax = esta sesión) → simples (expense, bulk, doc-router) → medios (invoice, receipt-direct, categorize) → complejos (service, card-create, card-stmt). Cada PR por dominio, con build + lint + deploy a botitio_testitoBot + verificación manual.
+- **`scene.leave()` ordering**: mensaje final ANTES de `leave()` en salida normal. Excepción permitida en validación de state corrupto (ambos órdenes aceptables si es consistente dentro del scene).
+- **Try/catch + logging estructurado**: obligatorio en operaciones I/O. `log.error(message, error, { module: "[domain].scene", userId })`. El catch no llama `leave()` para permitir reintento.
+
+### Archivos creados/modificados
+- **NUEVO**: `.claude/rules/shared/wizard-scenes.md` (16 secciones + checklist pre-PR)
+- **NUEVO**: `.claude/hooks/check-wizard-scene.js` (8 chequeos estructurales)
+- **EDIT**: `.claude/rules/shared/conventions.md` (puntero a wizard-scenes.md)
+- **EDIT**: `CLAUDE.md` (fila en tabla de rules)
+- **EDIT**: `.claude/settings.json` + `.claude/settings.example.json` (registro del hook)
+- **EDIT**: `.claude/hooks-error-log.md` (documentación del hook)
+- **REFACTOR**: `functions/src/bot/scenes/income.scene.ts` (step naming + stepGuardConfirm extraído + logging + leave ordering)
+- **CLEANUP**: `functions/src/bot/scenes/tax.scene.ts` (removidos 5 breadcrumbs internos + import sin uso + duplicación de mensaje en stepInit)
+- **EDIT**: `functions/src/bot/handlers/tax.ts` (breadcrumb pre-scene agregado a `handleAddTax`)
+
+---
+
 ## 2026-05-27: WizardScene — Mensaje de contexto pre-escena y selector de mes integrado
 
 - **Decisión**: El mensaje de contexto de entrada ("Vas a registrar una nueva cuota para...") se muestra desde el handler global (antes de `scene.enter`), no desde `stepInit`
