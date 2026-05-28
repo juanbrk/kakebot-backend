@@ -166,6 +166,79 @@ Also applies to: text received while waiting for a photo, a command received mid
 
 ---
 
+## WizardScene — Cursor Guard
+
+When a wizard step shows a confirmation keyboard and waits for a button press, the step handler
+is called again if the user types text instead of pressing a button. Without a guard, the
+incoming text would be treated as new input for that step, potentially overwriting already-set
+state fields.
+
+**The cursor guard** checks whether the step's output field is already set. If it is, the step
+re-presents itself (context message + full prompt + keyboard) and returns without advancing the
+wizard cursor.
+
+```typescript
+// Step 2 example: waits for confirm/cancel button after reason is set
+async function handleReason(ctx: KakebotContext): Promise<void> {
+  const state = ctx.wizard.state as MyWizardState;
+
+  // Cursor guard: reason already set → confirmation keyboard is showing
+  if (state.reason) {
+    await ctx.reply("Usá los botones para confirmar o cancelar.");
+    await ctx.reply(buildConfirmText(state.amount ?? 0, state.reason), buildConfirmKeyboard());
+    return;
+  }
+
+  const reason = getMessageText(ctx);
+  // ... validate and set state.reason, then show confirm keyboard
+}
+```
+
+**Rules**:
+- Every step that ends by showing a confirmation keyboard **must** have a cursor guard at the top.
+- The guard condition is always: `if (state.<output_field_of_this_step>)`.
+- The guard body follows the Invalid Input Handling convention: context message + full step re-presentation (text + keyboard), then `return`.
+- Never call `ctx.wizard.next()` inside the guard body.
+- The `scene.action()` handlers for confirm/cancel are matched by callback data, not by the step index — they are not affected by the cursor guard.
+
+---
+
+## WizardScene — Template para nuevas escenas
+
+Checklist que toda `bot/scenes/[dominio].scene.ts` debe cumplir antes del primer PR:
+
+1. **`CANCEL_REGEX` + `scene.hears()`** — salida por palabra clave en cualquier paso
+2. **`getMessageText`** — importado desde `helpers/wizard.ts`, **no** definido localmente
+3. **Cursor guard en cada paso que termina con teclado** — re-presenta contexto + prompt completo (ver sección `§ WizardScene — Cursor Guard`)
+4. **`repromptCurrentStep(ctx)`** — función privada con `switch (ctx.wizard.cursor)`, una rama por paso que espera input del usuario; re-muestra "No esperaba un archivo aquí." + prompt completo del paso
+5. **`scene.on("photo", repromptCurrentStep)`** — siempre presente, aunque el flujo no acepte archivos
+6. **`scene.on("document", repromptCurrentStep)`** — ídem
+7. **`ctx.answerCbQuery()`** al inicio de todo `scene.action()` handler
+
+```typescript
+// Estructura mínima de una nueva escena
+import { getMessageText } from "../../helpers/wizard";
+
+const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
+
+async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
+  await ctx.reply("No esperaba un archivo aquí.");
+  switch (ctx.wizard.cursor) {
+    case 1: await ctx.reply("*Prompt del paso 1*", { parse_mode: "Markdown" }); break;
+    case 2: await ctx.reply("*Prompt del paso 2*", buildStep2Keyboard()); break;
+    default: break;
+  }
+}
+
+export const myScene = new Scenes.WizardScene<KakebotContext>(SCENE_ID, step0, step1, step2);
+myScene.hears(CANCEL_REGEX, handleCancelWord);
+myScene.action("my_confirm", handleConfirm);
+myScene.on("photo", repromptCurrentStep);
+myScene.on("document", repromptCurrentStep);
+```
+
+---
+
 ## Telegram Bot (Telegraf)
 - Bot token from `process.env.TELEGRAM_BOT_TOKEN`
 - Webhook handler exported as `bot` Cloud Function

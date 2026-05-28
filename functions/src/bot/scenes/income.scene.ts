@@ -1,5 +1,6 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, IncomeWizardState } from "../../types/telegraf-context.types";
+import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { formatARS, buildBackdatedTimestamp } from "../../helpers/format";
 import { buildIncomeConfirmKeyboard, buildIncomeConfirmText } from "../keyboards/income";
@@ -10,19 +11,6 @@ export const INCOME_SCENE_ID = "income-wizard";
 
 const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
 
-/**
- * Extracts the trimmed text of the incoming message, if any.
- *
- * @param {KakebotContext} ctx - Telegraf context
- * @return {string | undefined} The message text, or undefined for non-text updates.
- */
-function getMessageText(ctx: KakebotContext): string | undefined {
-  const message = ctx.message;
-  if (message && "text" in message) {
-    return message.text.trim();
-  }
-  return undefined;
-}
 
 /**
  * Step 0: prompts for the income amount. Runs on scene entry; the triggering
@@ -144,6 +132,39 @@ async function handleCancel(ctx: KakebotContext): Promise<void> {
 }
 
 /**
+ * Re-presents the prompt for the current wizard step when an unexpected file is received.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
+  const state = ctx.wizard.state as IncomeWizardState;
+  await ctx.reply("No esperaba un archivo aquí.");
+  switch (ctx.wizard.cursor) {
+  case 1:
+    await ctx.reply(
+      "*Ingresá el monto percibido*\n_Escribí cancelar o salir para anular._",
+      { parse_mode: "Markdown" },
+    );
+    break;
+  case 2:
+    if (state.reason) {
+      await ctx.reply(
+        buildIncomeConfirmText(state.amount || 0, state.reason),
+        buildIncomeConfirmKeyboard(),
+      );
+    } else {
+      await ctx.reply(
+        "*Ingresá el motivo (30 caracteres max)*\n_Escribí cancelar o salir para anular._",
+        { parse_mode: "Markdown" },
+      );
+    }
+    break;
+  default:
+    break;
+  }
+}
+
+/**
  * Cancels the income flow when the user types a cancel word at any step.
  *
  * @param {KakebotContext} ctx - Telegraf context
@@ -163,3 +184,5 @@ export const incomeScene = new Scenes.WizardScene<KakebotContext>(
 incomeScene.hears(CANCEL_REGEX, handleCancelWord);
 incomeScene.action("inc_confirm", handleConfirm);
 incomeScene.action("inc_cancel", handleCancel);
+incomeScene.on("photo", repromptCurrentStep);
+incomeScene.on("document", repromptCurrentStep);

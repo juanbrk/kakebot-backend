@@ -1,5 +1,36 @@
 # Session Log
 
+## 2026-05-27: TaxWizardScene completo con selector de mes integrado y normalización de patrones
+
+### Completado
+- Selector de mes movido dentro del wizard (step 0 muestra el selector cuando `taxId` llega sin `selectedMonth`); handler global muestra mensaje de contexto antes de `scene.enter`
+- Bug fixes: botón "Volver a impuestos" no hacía nada (doble `answerCbQuery`); archivo en cursor 0 no re-mostraba teclado (faltaba `case 0` en `repromptCurrentStep`)
+- Botón "← Volver a impuestos" eliminado del selector de meses — salida solo por `cancelar`
+- Income scene normalizada: `repromptCurrentStep` + handlers photo/document; `getMessageText` extraído a `helpers/wizard.ts` compartido
+
+### Pendiente
+- Deploy a botitio_testitoBot y testear flujo completo de impuestos
+- Fase 2: `invoice.scene.ts`
+
+## 2026-05-26: Fase 1 — Flujo de impuestos migrado a TaxWizardScene
+
+### Completado
+- `TICKET.md` actualizado con plan final (fases 0–7, tarjeta en dos escenas)
+- Fase 0: sección `§ WizardScene — Cursor Guard` documentada en `conventions.md`
+- Fase 1: `bot/scenes/tax.scene.ts` creado con 8 pasos + 8 action handlers + photo/document handlers
+  - Tres rutas de entrada: (1) creación completa, (2) solo cuota (`taxId + selectedMonth`), (3) solo comprobante (`installmentId`)
+  - `handleAddTax` → `ctx.scene.enter(TAX_SCENE_ID)`
+  - `handleTaxMonthSelected` → `ctx.scene.enter(TAX_SCENE_ID, { taxId, selectedMonth, taxName })`
+  - `handleAttachReceipt` → edita mensaje + `ctx.scene.enter(TAX_SCENE_ID, { installmentId })`
+  - `text.ts`: −4 bloques (`tax_awaiting_name`, `_day`, `_payment_method`, `_amount`)
+  - `photo.ts`: −2 bloques (`tax_awaiting_receipt` en photo y document) + 2 funciones eliminadas
+  - `telegram.ts`: `taxScene` registrado en `Scenes.Stage`
+- Build ✅ 0 errores — Lint ✅ 0 errores nuevos
+
+### Pendiente
+- Testear en botitio_testitoBot: crear impuesto, registrar cuota, marcar pagado, adjuntar comprobante
+- Fase 2: `invoice.scene.ts` (factura + comprobante directo)
+
 ## 2026-05-25: POC — Flujo de ingresos migrado a WizardScene de Telegraf
 
 ### Completado

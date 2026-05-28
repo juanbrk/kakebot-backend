@@ -3,6 +3,7 @@ import { log } from "../helpers/logger";
 import { KakebotContext } from "../types/telegraf-context.types";
 import { buildTelegrafSessionStore } from "../services/telegraf-session.store";
 import { incomeScene } from "./scenes/income.scene";
+import { taxScene } from "./scenes/tax.scene";
 import { authMiddleware } from "./middleware/auth";
 import { registerStartHandler } from "./handlers/start";
 import { registerMenuHandler } from "./handlers/menu";
@@ -32,7 +33,7 @@ telegramBot.use(session({
   getSessionKey: (ctx) => ctx.from?.id.toString(),
 }));
 
-const stage = new Scenes.Stage<KakebotContext>([incomeScene]);
+const stage = new Scenes.Stage<KakebotContext>([incomeScene, taxScene]);
 telegramBot.use(stage.middleware());
 
 registerStartHandler(telegramBot);

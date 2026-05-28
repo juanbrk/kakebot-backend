@@ -42,7 +42,6 @@ import {
 import {
   getStatementById, markStatementAsPaid,
 } from "../../services/card.service";
-import { handleTaxName, handleTaxDay, handleTaxAmount } from "./tax";
 
 const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
 
@@ -228,26 +227,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
 
     if (session?.state === "card_stmt_edit_awaiting_day") {
       await handleCardStmtEditDay({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "tax_awaiting_name") {
-      await handleTaxName(ctx, telegramUserId, messageText);
-      return;
-    }
-
-    if (session?.state === "tax_awaiting_day") {
-      await handleTaxDay({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "tax_awaiting_payment_method") {
-      await ctx.reply("Elegí un método de pago del teclado, o escribí \"cancelar\" para anular.");
-      return;
-    }
-
-    if (session?.state === "tax_awaiting_amount") {
-      await handleTaxAmount({ ctx, session, telegramUserId, messageText });
       return;
     }
 

@@ -1,5 +1,19 @@
 # Decisions Log
 
+## 2026-05-27: WizardScene — Mensaje de contexto pre-escena y selector de mes integrado
+
+- **Decisión**: El mensaje de contexto de entrada ("Vas a registrar una nueva cuota para...") se muestra desde el handler global (antes de `scene.enter`), no desde `stepInit`
+- **Motivo**: `stepInit` ya tiene que enviar el selector de mes como nuevo mensaje; mostrar el contexto desde el handler global permite editar el mensaje que contenía el botón y luego iniciar el scene limpiamente
+- **Decisión**: El selector de mes para "Nueva cuota" en impuesto existente es un paso dentro del WizardScene (step 0), no un paso previo manejado externamente
+- **Motivo**: mantiene toda la lógica del flujo cohesiva en la escena; simplifica `handleRegisterInstallment` a solo contexto + `scene.enter`
+- **Decisión**: No hay botón "Volver" en el selector de meses; la única salida es escribir `cancelar`
+- **Motivo**: elimina la necesidad del `tax_back_tax` en el scene y del doble `answerCbQuery` que causaba el bug de botón sin efecto
+
+## 2026-05-26: Migración WizardScene — Flujo de tarjeta separado en dos escenas
+
+- **Decisión**: `card.scene.ts` se divide en dos escenas independientes: `card-create.scene.ts` (creación de tarjeta: banco → procesador → dígitos → expiry → confirm) y `card-stmt.scene.ts` (resumen: currency → ARS → USD opcional → día → confirm + flujos de edición ARS/USD/día y pago con TCV/receipts)
+- **Motivo**: una sola escena con `flowType` branching para 13 estados sería difícil de leer y mantener; escenas separadas son autónomas y más fáciles de testear
+
 ## 2026-05-25: Adoptar Telegraf WizardScene en lugar de WizardFlow custom
 
 ### Decisiones tomadas

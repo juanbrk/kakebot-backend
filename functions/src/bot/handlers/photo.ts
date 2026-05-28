@@ -8,7 +8,7 @@ import {
   getSession, setSession, clearSession, emptySessionForPartial,
 } from "../../services/session.service";
 import {
-  uploadReceipt, uploadInvoice, uploadStatementReceipt, uploadTaxReceipt,
+  uploadReceipt, uploadInvoice, uploadStatementReceipt,
   uploadStatementPaymentReceipt, uploadStatementPaymentReceiptUSD,
 } from "../../services/storage.service";
 import { saveReceiptUrl, saveInvoiceUrl } from "../../services/service.service";
@@ -17,7 +17,6 @@ import {
   getStatementById,
 } from "../../services/card.service";
 import { buildStmtPayUSDKeyboard, buildPaymentSummaryText } from "../keyboards/card";
-import { saveTaxReceiptUrl } from "../../services/tax.service";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
 import { log } from "../../helpers/logger";
 
@@ -52,11 +51,6 @@ async function handlePhoto(ctx: Context): Promise<void> {
 
   if (session?.state === "card_stmt_awaiting_receipt_usd") {
     await handleStatementUSDReceiptUpload({ ctx, telegramUserId, session, fileType: "photo" });
-    return;
-  }
-
-  if (session?.state === "tax_awaiting_receipt") {
-    await handleTaxReceiptUpload(ctx, telegramUserId, session);
     return;
   }
 
@@ -119,11 +113,6 @@ async function handleDocument(ctx: Context): Promise<void> {
     await handleStatementUSDReceiptUpload({
       ctx, telegramUserId, session, fileType: "pdf", documentFileId: document.file_id,
     });
-    return;
-  }
-
-  if (session?.state === "tax_awaiting_receipt") {
-    await handleTaxReceiptUploadFromDocument({ ctx, telegramUserId, session, documentFileId: document.file_id });
     return;
   }
 
@@ -361,69 +350,6 @@ async function handleCardReceiptUpload({
   }
 }
 
-async function handleTaxReceiptUpload(
-  ctx: Context,
-  telegramUserId: string,
-  session: Session
-): Promise<void> {
-  const installmentId = session.taxInstallmentId || "";
-  if (!installmentId) {
-    await ctx.reply("Error: datos de sesión incompletos.");
-    return;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const photos = (ctx.message as any).photo as Array<{ file_id: string }>;
-  if (!photos || photos.length === 0) {
-    await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
-    return;
-  }
-
-  const largestPhoto = photos[photos.length - 1];
-
-  try {
-    const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
-    const fileBuffer = await downloadFile(fileLink.href);
-    const mimeType = fileLink.href.includes(".png") ? "image/png" : "image/jpeg";
-    const receiptUrl = await uploadTaxReceipt({ telegramUserId, installmentId, fileBuffer, mimeType });
-    await saveTaxReceiptUrl(installmentId, receiptUrl);
-    await clearSession(telegramUserId);
-    await ctx.reply("✅ Comprobante guardado.");
-  } catch (error) {
-    log.error("Error uploading tax receipt", error, { module: "photo", userId: telegramUserId });
-    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
-  }
-}
-
-async function handleTaxReceiptUploadFromDocument({
-  ctx,
-  telegramUserId,
-  session,
-  documentFileId,
-}: {
-  ctx: Context;
-  telegramUserId: string;
-  session: Session;
-  documentFileId: string;
-}): Promise<void> {
-  const installmentId = session.taxInstallmentId || "";
-  if (!installmentId) {
-    await ctx.reply("Error: datos de sesión incompletos.");
-    return;
-  }
-
-  try {
-    const fileLink = await ctx.telegram.getFileLink(documentFileId);
-    const fileBuffer = await downloadFile(fileLink.href);
-    const receiptUrl = await uploadTaxReceipt({ telegramUserId, installmentId, fileBuffer, mimeType: "application/pdf" });
-    await saveTaxReceiptUrl(installmentId, receiptUrl);
-    await clearSession(telegramUserId);
-    await ctx.reply("✅ Comprobante guardado.");
-  } catch (error) {
-    log.error("Error uploading tax receipt PDF", error, { module: "photo", userId: telegramUserId });
-    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
-  }
-}
 
 /**
  * Uploads the ARS payment receipt for a statement and optionally prompts for the USD receipt
