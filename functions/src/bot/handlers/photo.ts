@@ -1,11 +1,11 @@
 import { Telegraf, Context, Markup } from "telegraf";
-import { KakebotContext } from "../../types/telegraf-context.types";
+import { KakebotContext, DocRouterWizardState } from "../../types/telegraf-context.types";
 import { Session, PendingFileType } from "../../types/index";
 import { StatementReceiptUploadParams } from "../../types/handlers.types";
 import https from "https";
 import { MONTH_NAMES } from "../../helpers/format";
 import {
-  getSession, setSession, clearSession, emptySessionForPartial,
+  getSession, clearSession,
 } from "../../services/session.service";
 import {
   uploadReceipt, uploadInvoice, uploadStatementReceipt,
@@ -17,7 +17,7 @@ import {
   getStatementById,
 } from "../../services/card.service";
 import { buildStmtPayUSDKeyboard, buildPaymentSummaryText } from "../keyboards/card";
-import { buildDocTypeKeyboard } from "../keyboards/invoice";
+import { DOC_ROUTER_SCENE_ID } from "../scenes/doc-router.scene";
 import { log } from "../../helpers/logger";
 
 export function registerPhotoHandler(bot: Telegraf<KakebotContext>): void {
@@ -25,7 +25,7 @@ export function registerPhotoHandler(bot: Telegraf<KakebotContext>): void {
   bot.on("document", handleDocument);
 }
 
-async function handlePhoto(ctx: Context): Promise<void> {
+async function handlePhoto(ctx: KakebotContext): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   const session = await getSession(telegramUserId);
 
@@ -64,10 +64,10 @@ async function handlePhoto(ctx: Context): Promise<void> {
   }
 
   const largestPhoto = photos[photos.length - 1];
-  await startDocTypeFlow({ ctx, telegramUserId, fileId: largestPhoto.file_id, fileType: "photo" });
+  await ctx.scene.enter(DOC_ROUTER_SCENE_ID, { pendingFileId: largestPhoto.file_id, pendingFileType: "photo" } as DocRouterWizardState);
 }
 
-async function handleDocument(ctx: Context): Promise<void> {
+async function handleDocument(ctx: KakebotContext): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,32 +116,7 @@ async function handleDocument(ctx: Context): Promise<void> {
     return;
   }
 
-  await startDocTypeFlow({ ctx, telegramUserId, fileId: document.file_id, fileType: "pdf" });
-}
-
-async function startDocTypeFlow({
-  ctx,
-  telegramUserId,
-  fileId,
-  fileType,
-}: {
-  ctx: Context;
-  telegramUserId: string;
-  fileId: string;
-  fileType: PendingFileType;
-}): Promise<void> {
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "doc_awaiting_type",
-    pendingFileId: fileId,
-    pendingFileType: fileType,
-  });
-
-  const keyboard = buildDocTypeKeyboard();
-  await ctx.reply(
-    "¿Qué tipo de documento es?\nEnviá \"cancelar\" para anular la carga.",
-    keyboard
-  );
+  await ctx.scene.enter(DOC_ROUTER_SCENE_ID, { pendingFileId: document.file_id, pendingFileType: "pdf" } as DocRouterWizardState);
 }
 
 async function handleReceiptUpload(

@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-05-29: Oleada A — expense, bulk y doc-router migrados a WizardScene
+
+### Completado
+- `expense.scene.ts`, `bulk.scene.ts`, `doc-router.scene.ts` creados e integrados al Stage
+- `ExpenseSessionState` y `DocSessionState` eliminados de `SessionState`; `handlers/expense.ts` y `handlers/bulk.ts` eliminados
+- Retroactivo de gastos (`report-history`) y entry foto/PDF (`photo.ts`) usan `ctx.scene.enter`; acciones `doc_type_*` eliminadas de `invoice.ts` y `receipt-direct.ts`
+- Validado en botitio_testitoBot — 4 rutas de expense + bulk + doc-router (foto y PDF) sin regresiones
+
+### Pendiente
+- Oleada B: migrar factura, comprobante directo y categorización
+- `pendingFileId`/`pendingFileType` permanecen en `Session` hasta Oleada B (handlers legacy los leen después de `scene.leave()`)
+
 ## 2026-05-28: Reglamento de WizardScenes + hook estructural + refactor de income/tax
 
 ### Completado

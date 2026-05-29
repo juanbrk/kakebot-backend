@@ -23,56 +23,11 @@ import { MONTH_NAMES } from "../../helpers/format";
 import { AttachReceiptParams } from "../../types/handlers.types";
 
 export function registerReceiptDirectHandler(bot: Telegraf<KakebotContext>): void {
-  bot.action("doc_type_receipt", handleDocTypeReceipt);
   bot.action(/^comp_pick:(.+)$/, handlePickServiceForReceipt);
   bot.action("comp_new_service", handleNewServiceForReceipt);
   bot.action(/^comp_month:(.+):(\d{4}-\d{2})$/, handleReceiptMonthSelected);
   bot.action(/^comp_pg:(\d+)$/, handleReceiptPagination);
   bot.action("comp_cancel", handleReceiptCancel);
-}
-
-async function handleDocTypeReceipt(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await ctx.answerCbQuery();
-
-  const services = await getServicesByUser(telegramUserId);
-
-  if (services.length === 0) {
-    await setSession(telegramUserId, {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...await getSession(telegramUserId) as any,
-      state: "comp_awaiting_name",
-    });
-    const breadcrumb = buildBreadcrumb(["Comprobante"]);
-    await replyOrEdit(
-      ctx,
-      breadcrumb
-      + "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n"
-      + "_Enviá la palabra cancelar para salir._",
-      { parse_mode: "Markdown" }
-    );
-    return;
-  }
-
-  const session = await getSession(telegramUserId);
-  if (session) {
-    await setSession(telegramUserId, {
-      ...session,
-      state: "comp_awaiting_service",
-    });
-  }
-
-  const breadcrumb = buildBreadcrumb(["Comprobante"]);
-  const keyboard = buildReceiptServiceListKeyboard(services);
-  await replyOrEdit(
-    ctx,
-    breadcrumb + "¿A qué servicio corresponde este comprobante?",
-    {
-      parse_mode: "Markdown",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      reply_markup: keyboard.reply_markup as any,
-    }
-  );
 }
 
 async function handlePickServiceForReceipt(ctx: Context): Promise<void> {

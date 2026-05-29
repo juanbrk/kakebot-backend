@@ -1,4 +1,3 @@
-import { BulkExpenseEntry } from "./expense.types";
 import { ServicePaymentMethod } from "./service.types";
 
 export interface SubcategoryMapping {
@@ -68,12 +67,6 @@ export interface CardStatement {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
-export type ExpenseSessionState =
-  | "awaiting_amount"
-  | "awaiting_description"
-  | "bulk_pending"
-  | "rep_awaiting_expense";
-
 export type CategorySessionState =
   | "categorizing"
   | "awaiting_new_category_name";
@@ -87,8 +80,6 @@ export type ServiceSessionState =
   | "svc_awaiting_edit_day"
   | "svc_awaiting_receipt"
   | "svc_awaiting_invoice";
-
-export type DocSessionState = "doc_awaiting_type";
 
 export type InvoiceSessionState =
   | "invoice_awaiting_service"
@@ -131,10 +122,8 @@ export type TaxSessionState =
   | "tax_awaiting_receipt";
 
 export type SessionState =
-  | ExpenseSessionState
   | CategorySessionState
   | ServiceSessionState
-  | DocSessionState
   | InvoiceSessionState
   | ReceiptSessionState
   | CardSessionState
@@ -153,7 +142,6 @@ export interface Session {
   sessionExpenses: SessionExpenseEntry[];
   partialDescription?: string;
   partialAmount?: number;
-  bulkExpenses?: BulkExpenseEntry[];
   serviceId?: string;
   serviceName?: string;
   installmentId?: string;
@@ -169,7 +157,6 @@ export interface Session {
   partialAmountUSD?: number;
   statementCurrency?: StatementCurrency;
   statementAmountUSD?: number;
-  reportMonth?: string;
   taxId?: string;
   taxName?: string;
   taxInstallmentId?: string;

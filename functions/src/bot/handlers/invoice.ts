@@ -5,7 +5,6 @@ import {
   getSession,
   setSession,
   clearSession,
-  emptySessionForPartial,
 } from "../../services/session.service";
 import {
   getServicesByUser,
@@ -25,53 +24,11 @@ import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { AttachInvoiceParams } from "../../types/handlers.types";
 
 export function registerInvoiceHandler(bot: Telegraf<KakebotContext>): void {
-  bot.action("doc_type_invoice", handleDocTypeInvoice);
   bot.action(/^inv_pick:(.+)$/, handlePickServiceForInvoice);
   bot.action("inv_new_service", handleNewServiceForInvoice);
   bot.action(/^inv_month:(.+):(\d{4}-\d{2})$/, handleInvoiceMonthSelected);
   bot.action(/^inv_pg:(\d+)$/, handleInvoicePagination);
   bot.action("inv_cancel", handleInvoiceCancel);
-}
-
-async function handleDocTypeInvoice(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await ctx.answerCbQuery();
-
-  const services = await getServicesByUser(telegramUserId);
-
-  if (services.length === 0) {
-    await setSession(telegramUserId, {
-      ...((await getSession(telegramUserId)) as ReturnType<
-        typeof emptySessionForPartial
-      >),
-      state: "invoice_awaiting_name",
-    });
-    const breadcrumb = buildBreadcrumb(["Factura"]);
-    await replyOrEdit(
-      ctx,
-      breadcrumb +
-      "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
-        "_Enviá la palabra cancelar para salir._",
-      { parse_mode: "Markdown" },
-    );
-    return;
-  }
-
-  const session = await getSession(telegramUserId);
-  if (session) {
-    await setSession(telegramUserId, {
-      ...session,
-      state: "invoice_awaiting_service",
-    });
-  }
-
-  const breadcrumb = buildBreadcrumb(["Factura"]);
-  const keyboard = buildInvoiceServiceListKeyboard(services);
-  await replyOrEdit(ctx, breadcrumb + "¿A qué servicio corresponde esta factura?", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
 }
 
 async function handlePickServiceForInvoice(ctx: Context): Promise<void> {

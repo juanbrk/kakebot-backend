@@ -1,16 +1,17 @@
-import { Telegraf, Markup, Context } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { Session, CreditCardProcessor } from "../../types/index";
 import { TextHandlerParams } from "../../types/handlers.types";
 import {
-  getSession, setSession, clearSession, emptySessionForPartial,
+  getSession, setSession, clearSession,
 } from "../../services/session.service";
 import { handleNewCategoryInput, advanceOrFinish } from "../../services/category.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
 import { formatARS, formatUSD, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
-import {
-  isBulkMessage, parseBulkLines, buildBulkConfirmText, MAX_BULK_LINES,
-} from "../../helpers/bulk-parse";
+import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bulk-parse";
+import { BULK_SCENE_ID } from "../scenes/bulk.scene";
+import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
+import { BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
 import {
   createService,
   getInstallment,
@@ -61,35 +62,14 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       return;
     }
 
-    if (session?.state === "doc_awaiting_type") {
-      await ctx.reply(
-        "Elegí una opción del menú, o escribí \"cancelar\" para anular."
-      );
-      return;
-    }
-
     if (session?.state === "awaiting_new_category_name") {
       await handleNewCategoryInput(ctx, session, messageText.trim());
       return;
     }
 
-    if (session?.state === "awaiting_amount") {
-      await handleAwaitingAmount({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "awaiting_description") {
-      await handleAwaitingDescription({ ctx, session, telegramUserId, messageText });
-      return;
-    }
 
     if (session?.state === "categorizing") {
       await handleCategorizingText({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "rep_awaiting_expense") {
-      await handleRepAwaitingExpense({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -231,23 +211,33 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
     }
 
     if (isBulkMessage(messageText)) {
-      await handleBulkInput(ctx, telegramUserId, messageText);
+      const nonEmptyLines = messageText.split("\n").filter((l) => l.trim().length > 0);
+      if (nonEmptyLines.length > MAX_BULK_LINES) {
+        await ctx.reply(
+          `El mensaje tiene ${nonEmptyLines.length} líneas. El máximo es ${MAX_BULK_LINES}.`
+        );
+        return;
+      }
+      const { parsed, failedLines } = parseBulkLines(messageText);
+      if (failedLines.length > 0) {
+        const errorLines = failedLines.map((line) => `• ${line}`);
+        await ctx.reply(
+          `No pude interpretar ${failedLines.length} línea(s):\n\n` +
+          errorLines.join("\n") +
+          "\n\nRevisá el formato: descripcion monto"
+        );
+        return;
+      }
+      await ctx.scene.enter(BULK_SCENE_ID, { bulkExpenses: parsed } as BulkWizardState);
       return;
     }
 
     const expense = parseExpenseMessage(messageText);
-
     if (expense) {
-      await ctx.reply(
-        `Registrar gasto?\n${expense.description} ${formatARS(expense.amount)}`,
-        Markup.inlineKeyboard([
-          Markup.button.callback("Cancelar", "cancel"),
-          Markup.button.callback(
-            "Confirmar",
-            `confirm:${expense.description}:${expense.amount}`
-          ),
-        ])
-      );
+      await ctx.scene.enter(EXPENSE_SCENE_ID, {
+        description: expense.description,
+        amount: expense.amount,
+      } as ExpenseWizardState);
       return;
     }
 
@@ -257,32 +247,14 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
     if (isJustAmount) {
       const amount = parseArgentineAmount(trimmed);
       if (amount !== null && amount > 0) {
-        await setSession(telegramUserId, {
-          ...emptySessionForPartial(telegramUserId),
-          state: "awaiting_description",
-          partialAmount: amount,
-        });
-        await ctx.reply(
-          `¿En qué gastaste ${formatARS(amount)}?\n` +
-          "_Enviá la palabra cancelar para salir._",
-          { parse_mode: "Markdown" }
-        );
+        await ctx.scene.enter(EXPENSE_SCENE_ID, { amount } as ExpenseWizardState);
         return;
       }
     }
 
     const isJustText = !/\d/.test(trimmed);
     if (isJustText) {
-      await setSession(telegramUserId, {
-        ...emptySessionForPartial(telegramUserId),
-        state: "awaiting_amount",
-        partialDescription: trimmed,
-      });
-      await ctx.reply(
-        `¿Cuánto gastaste en ${trimmed}?\n` +
-        "_Enviá la palabra cancelar para salir._",
-        { parse_mode: "Markdown" }
-      );
+      await ctx.scene.enter(EXPENSE_SCENE_ID, { description: trimmed } as ExpenseWizardState);
       return;
     }
 
@@ -292,55 +264,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       "Ej: Panaderia 5000"
     );
   });
-}
-
-async function handleAwaitingAmount({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-  if (amount !== null && amount > 0) {
-    await clearSession(telegramUserId);
-    const description = session.partialDescription || "";
-    await ctx.reply(
-      `Registrar gasto?\n${description} ${formatARS(amount)}`,
-      Markup.inlineKeyboard([
-        Markup.button.callback("Cancelar", "cancel"),
-        Markup.button.callback(
-          "Confirmar",
-          `confirm:${description}:${amount}`
-        ),
-      ])
-    );
-  } else {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\n" +
-      "Ej: 5000 o 14.819,50"
-    );
-  }
-}
-
-async function handleAwaitingDescription({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  await clearSession(telegramUserId);
-  const amount = session.partialAmount || 0;
-  const description = messageText.trim();
-  await ctx.reply(
-    `Registrar gasto?\n${description} ${formatARS(amount)}`,
-    Markup.inlineKeyboard([
-      Markup.button.callback("Cancelar", "cancel"),
-      Markup.button.callback(
-        "Confirmar",
-        `confirm:${description}:${amount}`
-      ),
-    ])
-  );
 }
 
 async function handleCategorizingText({
@@ -380,50 +303,6 @@ async function handleCategorizingText({
   await ctx.reply(
     "Tenés una sesión de categorización activa." +
     " Elegí una categoría, o enviá \"omitir\" para saltar."
-  );
-}
-
-async function handleBulkInput(
-  ctx: Context,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
-  const nonEmptyLines = messageText.split("\n")
-    .filter((l) => l.trim().length > 0);
-
-  if (nonEmptyLines.length > MAX_BULK_LINES) {
-    await ctx.reply(
-      `El mensaje tiene ${nonEmptyLines.length} líneas.` +
-      ` El máximo es ${MAX_BULK_LINES}.`
-    );
-    return;
-  }
-
-  const { parsed, failedLines } = parseBulkLines(messageText);
-
-  if (failedLines.length > 0) {
-    const errorLines = failedLines
-      .map((line) => `• ${line}`);
-    await ctx.reply(
-      `No pude interpretar ${failedLines.length} línea(s):\n\n` +
-      errorLines.join("\n") +
-      "\n\nRevisá el formato: descripcion monto"
-    );
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "bulk_pending",
-    bulkExpenses: parsed,
-  });
-
-  await ctx.reply(
-    buildBulkConfirmText(parsed),
-    Markup.inlineKeyboard([
-      Markup.button.callback("Cancelar", "bulk_cancel"),
-      Markup.button.callback("Confirmar", "bulk_confirm"),
-    ])
   );
 }
 
@@ -824,47 +703,6 @@ async function handleCompAmount({
     "✅ Comprobante adjunto. Cuota marcada como pagada.";
 
   await attachReceiptToInstallment({ ctx, telegramUserId, installmentId, session, successMessage });
-}
-
-/**
- * Handles expense input during retroactive registration for a past month.
- * Requires the complete message with description and amount in one shot.
- */
-async function handleRepAwaitingExpense({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const expense = parseExpenseMessage(messageText);
-
-  if (!expense) {
-    await ctx.reply(
-      "No pude interpretar el mensaje. Necesito descripción y monto juntos.\n" +
-      "Ej: Panaderia 5000",
-    );
-    return;
-  }
-
-  const reportMonth = session.reportMonth as string;
-  const [year, month] = reportMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-
-  await setSession(telegramUserId, {
-    ...session,
-    partialDescription: expense.description,
-    partialAmount: expense.amount,
-  });
-
-  await ctx.reply(
-    `Registrar gasto en ${monthLabel}?\n${expense.description}  ${formatARS(expense.amount)}`,
-    Markup.inlineKeyboard([
-      [
-        Markup.button.callback("Cancelar", "rep_exp_cancel"),
-        Markup.button.callback("Confirmar", "rep_exp_confirm"),
-      ],
-    ]),
-  );
 }
 
 async function handleCardDigits({
