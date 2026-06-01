@@ -67,10 +67,6 @@ export interface CardStatement {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
-export type CategorySessionState =
-  | "categorizing"
-  | "awaiting_new_category_name";
-
 export type ServiceSessionState =
   | "svc_awaiting_name"
   | "svc_awaiting_amount"
@@ -122,7 +118,7 @@ export type TaxSessionState =
   | "tax_awaiting_receipt";
 
 export type SessionState =
-  | CategorySessionState
+  | "categorizing"
   | ServiceSessionState
   | InvoiceSessionState
   | ReceiptSessionState

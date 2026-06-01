@@ -216,7 +216,7 @@ async function finishCategorizingFlow(
     { displayName: string; amount: number }[]
   > = {};
 
-  for (const entry of session.sessionExpenses) {
+  for (const entry of session.sessionExpenses.filter((e) => e.categoryName !== "")) {
     if (!grouped[entry.categoryName]) {
       grouped[entry.categoryName] = [];
     }

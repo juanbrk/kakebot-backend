@@ -1,15 +1,21 @@
 # Session Log
 
-## 2026-06-01: Oleada B — Diagnóstico, prereq y invoice.scene.ts
+## 2026-06-01: Oleada B — categorize.scene.ts + UX fixes post-testing
 
 ### Completado
-- Investigación completa de los tres flujos (factura, comprobante, categorización) y sus dependencias cruzadas
-- Prereq: `getMonthLabel` movido de `invoice.ts` a `helpers/format.ts` (desbloquea el borrado futuro de `invoice.ts`)
-- `invoice.scene.ts` creada con 6 steps, dos rutas (`flow: invoice | receipt`), 5 action handlers y `AttachFileParams`
-- `InvoiceWizardState` e interfaz `AttachFileParams` definidas en `types/`
+- `categorize.scene.ts`: 3 steps, 7 action handlers (cat_sel, cat_pg, cat_new, cat_skip, cat_back_to_list, cat_cancel, cancel_word)
+- Keyboard: `[Omitir | + Nueva cat.]` reemplaza `[+ Agregar categoría]`; `buildExpensePromptText` simplificado
+- Bug fix: `handleCatNew` usa `ctx.editMessageText` (no `ctx.reply`) para mantener el `session.messageId` apuntando al picker — `advanceOrFinish` edita el mismo mensaje in-place
+- Counter fix: `skipCurrentItem` agrega el ítem omitido a `sessionExpenses` con `categoryName: ""` para que `advanceOrFinish` calcule `total` y `current` correctamente; `finishCategorizingFlow` filtra esas entradas del resumen
+- Confirmación nueva categoría: `stepHandleNewCategoryName` envía `✅ Agregaste X $Y a Z.` después de crear + asignar
+- `CategorySessionState` eliminado de `types/index.ts`; bloques de categorización eliminados de `text.ts`
+- `categorize.ts` reducido a entry points únicamente; `CategorizeWizardState` definido en `telegraf-context.types.ts`
+- Prereq (sesión anterior): `invoice.scene.ts` con rutas `flow: invoice | receipt`
 
 ### Pendiente
-- Commits 2–5: `categorize.scene.ts`, rewiring doc-router, limpieza `text.ts`, eliminación handlers legacy y tipos
+- B3: rewire `doc-router.scene.ts` → `ctx.scene.enter(INVOICE_SCENE_ID)`
+- B4: eliminar handlers invoice/comp legacy de `text.ts` (líneas ~498-708)
+- B5: borrar `InvoiceSessionState`, `ReceiptSessionState` de `types/index.ts`; `pendingFileId`/`pendingFileType` de `Session`
 
 ## 2026-05-29: Oleada A — expense, bulk y doc-router migrados a WizardScene
 

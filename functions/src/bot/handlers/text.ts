@@ -1,11 +1,10 @@
 import { Telegraf, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
-import { Session, CreditCardProcessor } from "../../types/index";
+import { CreditCardProcessor } from "../../types/index";
 import { TextHandlerParams } from "../../types/handlers.types";
 import {
   getSession, setSession, clearSession,
 } from "../../services/session.service";
-import { handleNewCategoryInput, advanceOrFinish } from "../../services/category.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
 import { formatARS, formatUSD, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bulk-parse";
@@ -59,17 +58,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
     if (isCancelWord && session) {
       await clearSession(telegramUserId);
       await ctx.reply("Operación cancelada.");
-      return;
-    }
-
-    if (session?.state === "awaiting_new_category_name") {
-      await handleNewCategoryInput(ctx, session, messageText.trim());
-      return;
-    }
-
-
-    if (session?.state === "categorizing") {
-      await handleCategorizingText({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -264,46 +252,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       "Ej: Panaderia 5000"
     );
   });
-}
-
-async function handleCategorizingText({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const lowerText = messageText.trim().toLowerCase();
-
-  if (lowerText === "omitir") {
-    const nextPendingDescs = session.pendingDescs.slice(1);
-    const nextDesc = nextPendingDescs.length > 0 ?
-      nextPendingDescs[0].normalizedDesc :
-      "";
-    const nextDisplayName = nextPendingDescs.length > 0 ?
-      nextPendingDescs[0].displayName :
-      "";
-    const nextTotalAmount = nextPendingDescs.length > 0 ?
-      nextPendingDescs[0].totalAmount :
-      0;
-
-    const updatedSession: Session = {
-      ...session,
-      pendingDescs: nextPendingDescs,
-      currentDesc: nextDesc,
-      currentDisplayName: nextDisplayName,
-      currentTotalAmount: nextTotalAmount,
-      currentPage: 0,
-    };
-
-    await setSession(telegramUserId, updatedSession);
-    await advanceOrFinish(ctx, updatedSession);
-    return;
-  }
-
-  await ctx.reply(
-    "Tenés una sesión de categorización activa." +
-    " Elegí una categoría, o enviá \"omitir\" para saltar."
-  );
 }
 
 async function handleServiceName(

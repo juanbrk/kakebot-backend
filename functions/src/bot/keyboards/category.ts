@@ -36,7 +36,8 @@ export function buildCategoryKeyboard(categories: Category[], page: number) {
   }
 
   buttons.push([
-    Markup.button.callback("+ Agregar categoría", "cat_new"),
+    Markup.button.callback("Omitir", "cat_skip"),
+    Markup.button.callback("+ Nueva cat.", "cat_new"),
   ]);
 
   return Markup.inlineKeyboard(buttons);
@@ -56,7 +57,6 @@ export function buildExpensePromptText({
   return (
     `*${displayName}* ${formatARS(totalAmount)} (${current} de ${total})\n` +
     "• Elegí una categoría o creá una nueva\n" +
-    "• Enviá \"omitir\" para saltar\n" +
-    "• Enviá \"cancelar\" para salir"
+    "• Escribí \"cancelar\" para salir"
   );
 }

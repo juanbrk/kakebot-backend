@@ -69,6 +69,16 @@ export interface InvoiceWizardState {
 }
 
 /**
+ * Persistent state for the categorize wizard, held in `ctx.wizard.state`.
+ * Note: categorization loop state (pendingDescs, currentDesc, etc.) is managed
+ * in the Firestore session via getSession/setSession to leverage existing helpers
+ * in category.service.ts without changes to their signatures.
+ */
+export interface CategorizeWizardState {
+  // No wizard-level state — all loop state lives in the Firestore session.
+}
+
+/**
  * Persistent state for the doc-router wizard, held in `ctx.wizard.state`.
  * Bridge scene: captures the uploaded file info and routes to the invoice or receipt flow.
  * `pendingFileId` and `pendingFileType` are written back to Firestore session before leave()
