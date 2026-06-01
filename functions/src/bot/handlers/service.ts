@@ -38,11 +38,10 @@ import {
   PAYMENT_METHOD_LABELS,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, getDaysInMonth, MONTH_NAMES, getMonthLabel } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { getMonthLabel } from "./invoice";
 
 /**
  * Gets the service name from session cache, falling back to Firestore.

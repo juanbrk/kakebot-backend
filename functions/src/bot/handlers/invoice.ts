@@ -18,7 +18,7 @@ import {
   buildInvoiceServiceListKeyboard,
   buildInvoiceMonthKeyboard,
 } from "../keyboards/invoice";
-import { MONTH_NAMES } from "../../helpers/format";
+import { getMonthLabel } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { AttachInvoiceParams } from "../../types/handlers.types";
@@ -195,10 +195,3 @@ export async function attachInvoiceToInstallment({
   }
 }
 
-export function getMonthLabel(dueMonth: string, monthNameOnly = false): string {
-  const [year, month] = dueMonth.split("-");
-  const monthIndex = parseInt(month, 10) - 1;
-  const monthName = MONTH_NAMES[monthIndex];
-  const fullDate = monthName + year;
-  return `${monthNameOnly ? monthName : fullDate}`;
-}

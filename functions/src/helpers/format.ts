@@ -39,6 +39,21 @@ export function buildBackdatedTimestamp(yearMonth: string): FirebaseFirestore.Ti
 }
 
 /**
+ * Returns a human-readable month label from a YYYY-MM string.
+ *
+ * @param {string} dueMonth - Month in "YYYY-MM" format
+ * @param {boolean} monthNameOnly - If true, returns only the month name (e.g. "Abril");
+ *   otherwise appends the year (e.g. "Abril2026")
+ * @return {string} Formatted month label
+ */
+export function getMonthLabel(dueMonth: string, monthNameOnly = false): string {
+  const [year, month] = dueMonth.split("-");
+  const monthIndex = parseInt(month, 10) - 1;
+  const monthName = MONTH_NAMES[monthIndex];
+  return monthNameOnly ? monthName : `${monthName}${year}`;
+}
+
+/**
  * Formats a number as USD currency string using Argentine locale conventions.
  *
  * @param {number} amount - Dollar amount to format
