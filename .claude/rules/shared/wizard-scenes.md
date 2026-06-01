@@ -609,12 +609,55 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] Scene importado y registrado en `bot/telegram.ts`.
 - [ ] Si reemplaza un flujo legacy: bloques de `session.state` correspondientes eliminados de `handlers/text.ts` y `handlers/photo.ts`.
 - [ ] Sub-types de `SessionState` legacy eliminados de `types/index.ts` (o `session.types.ts`).
+  ⚠️ **Eliminar DESPUÉS de que**: (1) la escena esté completa y registrada en `telegram.ts`, y (2) todas las referencias al estado anterior hayan sido removidas de `text.ts`, `photo.ts` y cualquier handler que las mencionara. Eliminar antes provoca errores en cascada en múltiples archivos.
 
 ### Verificación local
 - [ ] `npm run build` (cd functions) limpio.
 - [ ] `npm run lint` limpio.
 - [ ] Hook `check-wizard-scene.js` no falla al editar el archivo.
 - [ ] Flujo testeado end-to-end en `botitio_testitoBot`.
+
+---
+
+## 17. Patrón bridge — handoff a handlers legacy
+
+Algunos scenes actúan como un puente temporal: al terminar, escriben estado a la sesión de Firestore y llaman `scene.leave()` para que un handler global (ya registrado con `bot.action(...)`) continúe el flujo desde donde el scene lo dejó.
+
+### Cuándo aplica
+
+Cuando el scene reemplaza solo la primera parte de un flujo (ej. selección de tipo de documento), pero los pasos siguientes aún viven en handlers legacy que leen de la sesión Firestore.
+
+### Patrón canónico
+
+```typescript
+async function handleDocTypeInvoice(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  const telegramUserId = ctx.from?.id.toString() ?? "";
+  const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
+
+  // 1. Escribe al store Firestore para que el handler legacy pueda leerlo.
+  await setSession(telegramUserId, {
+    ...(existing ?? emptySessionForPartial(telegramUserId)),
+    state: "invoice_awaiting_service",   // estado que espera el handler global
+    pendingFileId,
+    pendingFileType,
+  });
+
+  // 2. Muestra el teclado / mensaje que inicia el flujo legacy.
+  await replyOrEdit(ctx, "...", { reply_markup: keyboard.reply_markup as any });
+
+  // 3. Sale del scene — el handler legacy toma el control desde aquí.
+  await ctx.scene.leave();
+}
+```
+
+Referencia: `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` / `handleDocTypeReceipt`.
+
+### Reglas del patrón bridge
+
+- Los campos escritos a Firestore (ej. `pendingFileId`, `pendingFileType`) deben **permanecer en la interfaz `Session`** mientras el handler legacy los use. Eliminarlos antes rompe el handoff.
+- Al migrar el handler legacy a su propio WizardScene (Oleada B/C), el bridge se vuelve obsoleto: el flujo completo queda en el nuevo scene y la escritura a Firestore ya no es necesaria.
+- Documentar en el TICKET.md o en el comentario del bridge qué campos son temporales y cuándo se eliminarán.
 
 ---
 
@@ -635,3 +678,4 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 | Registro de event handlers | `tax.scene.ts:653-665` |
 | `WizardState` interface | `types/telegraf-context.types.ts` (buscar `[Domain]WizardState`) |
 | `getMessageText` helper | `helpers/wizard.ts` |
+| Patrón bridge (handoff a handler legacy) | `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` |

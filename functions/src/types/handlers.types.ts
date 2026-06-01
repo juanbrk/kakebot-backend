@@ -1,6 +1,7 @@
 import { Context } from "telegraf";
 import { Session } from "./index";
 import { ServiceInstallment } from "./service.types";
+import { InvoiceWizardState, KakebotContext } from "./telegraf-context.types";
 
 /**
  * Parameters for text input handlers that require context, user ID, session, and message text.
@@ -62,6 +63,18 @@ export interface AttachReceiptParams {
   installmentId: string;
   session: Session;
   successMessage?: string;
+}
+
+/**
+ * Parameters for the invoice scene's internal file-attach helper.
+ * Used by attachFile() in invoice.scene.ts for both invoice and receipt flows.
+ */
+export interface AttachFileParams {
+  ctx: KakebotContext;
+  state: InvoiceWizardState;
+  telegramUserId: string;
+  installmentId: string;
+  successMessage: string;
 }
 
 /**

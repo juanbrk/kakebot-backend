@@ -52,6 +52,23 @@ export interface BulkWizardState {
 }
 
 /**
+ * Persistent state for the invoice/receipt wizard, held in `ctx.wizard.state`.
+ * Handles both flows (invoice and receipt) via the `flow` discriminator.
+ * Always entered from the doc-router scene with `pendingFileId` and `pendingFileType` pre-set.
+ */
+export interface InvoiceWizardState {
+  flow: "invoice" | "receipt";
+  pendingFileId: string;
+  pendingFileType: PendingFileType;
+  serviceId?: string;
+  serviceName?: string;
+  selectedMonth?: string;
+  /** Due day as a string, stored between stepHandleDay and stepHandleAmount. */
+  partialDescription?: string;
+  isNewService?: boolean;
+}
+
+/**
  * Persistent state for the doc-router wizard, held in `ctx.wizard.state`.
  * Bridge scene: captures the uploaded file info and routes to the invoice or receipt flow.
  * `pendingFileId` and `pendingFileType` are written back to Firestore session before leave()

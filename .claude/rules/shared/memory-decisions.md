@@ -1,5 +1,21 @@
 # Decisions Log
 
+## 2026-05-29: Oleada B (factura + comprobante + categorización) — diagnóstico y decisiones de diseño
+
+Investigación previa a la migración de la oleada más grande. Hallazgos y decisiones:
+
+### Decisiones tomadas
+- **invoice + comprobante = UNA escena (`invoice.scene.ts`) con dos rutas** vía `entryArgs { flow: "invoice" | "receipt" }`. Son código gemelo (picker → mes → día → monto → adjuntar; comprobante además marca cuota pagada). `stepInit` ramifica según `flow` y según si hay servicios. Cumple literalmente el ticket.
+- **Categorización SÍ se migra a WizardScene**, pese a que el modelo de cursor casi no aplica (es un loop con edición in-place de un único mensaje, no pasos lineales). Será ~2 steps con la lógica en `scene.action` + un text-guard. Es el punto más frágil de la oleada.
+
+### Hechos verificados (trazado de consumidores)
+- `pendingFileId`/`pendingFileType` solo los consumen el bridge (`doc-router.scene`), `invoice.ts`, `receipt-direct.ts` y `photo.ts` (los 4 dentro de la oleada) → **eliminables al terminar**. `isNewService` y `attach*ToInstallment` ídem (solo `text.ts` + sus archivos).
+- **RIESGO CRÍTICO**: `getMonthLabel` se exporta desde `invoice.ts:198` y lo importa `service.ts:45`. Borrar `invoice.ts` rompe `service.ts`. **Mover `getMonthLabel` a `helpers/format.ts` ANTES de borrar el handler.**
+- Categorización está totalmente desacoplada del bridge (se entra por `/categorizar` y `menu_categorizar`, nunca por foto). Eliminar `pendingFile*` no depende de ella → su migración es ortogonal a invoice/comp.
+- Bug preexistente: `invoice_awaiting_service/month` y `comp_awaiting_service/month` no tienen text-guard en `text.ts`; escribir durante esos teclados cae al parser de gastos. La migración a `stepGuardX` lo corrige.
+- Categorización depende de 8 campos de `Session` exclusivos (`pendingDescs`, `currentDesc`, `currentDisplayName`, `currentTotalAmount`, `currentPage`, `messageId`, `chatId`, `sessionExpenses`); `finishCategorizingFlow` re-consulta Firestore al terminar para reiniciar el loop.
+- Sub-types a eliminar al final (orden del reglamento §16): `InvoiceSessionState`, `ReceiptSessionState`, `CategorySessionState`.
+
 ## 2026-05-28: Reglamento de WizardScenes — estandarización para migración masiva
 
 Reglamento dedicado en `shared/wizard-scenes.md` + hook estructural `check-wizard-scene.js`. Establece el estándar único para crear y migrar `Scenes.WizardScene` de Telegraf, antes de iniciar las migraciones masivas de los 9 flujos pendientes (servicios, tarjetas, facturas, comprobantes, gastos, bulk, categorización, doc router, reporte retroactivo).

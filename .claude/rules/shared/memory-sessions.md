@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-06-01: Oleada B — Diagnóstico, prereq y invoice.scene.ts
+
+### Completado
+- Investigación completa de los tres flujos (factura, comprobante, categorización) y sus dependencias cruzadas
+- Prereq: `getMonthLabel` movido de `invoice.ts` a `helpers/format.ts` (desbloquea el borrado futuro de `invoice.ts`)
+- `invoice.scene.ts` creada con 6 steps, dos rutas (`flow: invoice | receipt`), 5 action handlers y `AttachFileParams`
+- `InvoiceWizardState` e interfaz `AttachFileParams` definidas en `types/`
+
+### Pendiente
+- Commits 2–5: `categorize.scene.ts`, rewiring doc-router, limpieza `text.ts`, eliminación handlers legacy y tipos
+
 ## 2026-05-29: Oleada A — expense, bulk y doc-router migrados a WizardScene
 
 ### Completado
