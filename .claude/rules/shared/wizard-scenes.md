@@ -610,6 +610,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] Si reemplaza un flujo legacy: bloques de `session.state` correspondientes eliminados de `handlers/text.ts` y `handlers/photo.ts`.
 - [ ] Sub-types de `SessionState` legacy eliminados de `types/index.ts` (o `session.types.ts`).
   ⚠️ **Eliminar DESPUÉS de que**: (1) la escena esté completa y registrada en `telegram.ts`, y (2) todas las referencias al estado anterior hayan sido removidas de `text.ts`, `photo.ts` y cualquier handler que las mencionara. Eliminar antes provoca errores en cascada en múltiples archivos.
+  ⚠️ **Verificar literales antes de eliminar**: correr `grep -rn 'state: "' functions/src/services/ functions/src/bot/scenes/` para confirmar que ningún service ni scene sigue escribiendo un literal del sub-type a eliminar. Si alguno lo usa (e.g. `state: "categorizing"` en `finishCategorizingFlow`), el literal debe permanecer como valor standalone en `SessionState` aunque se elimine el type alias. Omitir este paso produce un error `'literal' is not assignable to type 'SessionState'` en build.
 
 ### Verificación local
 - [ ] `npm run build` (cd functions) limpio.

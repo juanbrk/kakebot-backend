@@ -59,7 +59,6 @@ function buildServicePickerKeyboard(services: Service[], page = 0) {
   if (navRow.length > 0) rows.push(navRow);
 
   rows.push([Markup.button.callback("Nuevo servicio", "invr_new")]);
-  rows.push([Markup.button.callback("Cancelar", "invr_cancel")]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -79,7 +78,6 @@ function buildMonthKeyboard(serviceId: string) {
     const yearMonth = `${d.getFullYear()}-${mm}`;
     rows.push([Markup.button.callback(getMonthLabel(yearMonth, true), `invr_month:${serviceId}:${yearMonth}`)]);
   }
-  rows.push([Markup.button.callback("Cancelar", "invr_cancel")]);
   return Markup.inlineKeyboard(rows);
 }
 
@@ -499,20 +497,6 @@ async function handlePagination(ctx: KakebotContext): Promise<void> {
   }
 }
 
-/**
- * Handles the "Cancelar" button from any keyboard inside the scene.
- *
- * @param {KakebotContext} ctx - Telegraf context
- */
-async function handleInvoiceCancel(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  const flow = (ctx.wizard.state as InvoiceWizardState).flow;
-  await ctx.editMessageText(
-    flow === "receipt" ? "Carga de comprobante cancelada." : "Carga de factura cancelada.",
-  );
-  await ctx.scene.leave();
-}
-
 // ─── reprompt ─────────────────────────────────────────────────────────────────
 
 /**
@@ -600,6 +584,5 @@ invoiceScene.action(/^invr_pick:(.+)$/, handlePickService);
 invoiceScene.action("invr_new", handleNewService);
 invoiceScene.action(/^invr_month:(.+):(\d{4}-\d{2})$/, handleMonthSelected);
 invoiceScene.action(/^invr_pg:(\d+)$/, handlePagination);
-invoiceScene.action("invr_cancel", handleInvoiceCancel);
 invoiceScene.on("photo", repromptCurrentStep);
 invoiceScene.on("document", repromptCurrentStep);

@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-06-02: Oleada B — Paso 3: doc-router.scene conectado directo a invoice.scene
+
+### Completado
+- `doc-router.scene.ts` abandona el patrón bridge: los handlers de Factura/Comprobante llaman `ctx.scene.enter(INVOICE_SCENE_ID)` directamente en lugar de escribir a Firestore y dejar la escena
+- UX fixes en `invoice.scene.ts`: botón Cancelar eliminado del picker de servicios y del picker de meses; salida únicamente por palabra "cancelar"
+- Comportamiento de foto recibida mientras se espera selección de tipo: actualiza estado silenciosamente y re-presenta el teclado (sin mensaje de error)
+- Validado en botitio_testitoBot — 8 rutas (foto+PDF × factura+comprobante × servicio existente con/sin cuota) sin regresiones
+
+### Pendiente
+- B4: eliminar handlers invoice/comp legacy de `text.ts` (líneas ~498-708)
+- B5: borrar `InvoiceSessionState`, `ReceiptSessionState` de `types/index.ts`; `pendingFileId`/`pendingFileType` de `Session`
+
 ## 2026-06-01: Oleada B — categorize.scene.ts + UX fixes post-testing
 
 ### Completado

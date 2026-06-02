@@ -1,17 +1,7 @@
 import { Scenes } from "telegraf";
-import { KakebotContext, DocRouterWizardState } from "../../types/telegraf-context.types";
-import {
-  getSession, setSession, emptySessionForPartial,
-} from "../../services/session.service";
-import { getServicesByUser } from "../../services/service.service";
-import {
-  buildDocTypeKeyboard,
-  buildInvoiceServiceListKeyboard,
-  buildReceiptServiceListKeyboard,
-} from "../keyboards/invoice";
-import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { replyOrEdit } from "../../helpers/telegram";
-import { log } from "../../helpers/logger";
+import { KakebotContext, DocRouterWizardState, InvoiceWizardState } from "../../types/telegraf-context.types";
+import { buildDocTypeKeyboard } from "../keyboards/invoice";
+import { INVOICE_SCENE_ID } from "./invoice.scene";
 
 export const DOC_ROUTER_SCENE_ID = "doc-router-wizard";
 
@@ -47,140 +37,65 @@ async function stepGuardType(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Routes to the invoice flow: writes pendingFileId/pendingFileType to Firestore session,
- * sets the appropriate invoice state, shows the service-picker keyboard, then leaves the scene.
- * After leave(), the legacy invoice handlers continue from Firestore session.
+ * Routes to the invoice scene with flow="invoice".
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function handleDocTypeInvoice(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() ?? "";
   const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
-
-  try {
-    const services = await getServicesByUser(telegramUserId);
-
-    if (services.length === 0) {
-      await setSession(telegramUserId, {
-        ...emptySessionForPartial(telegramUserId),
-        state: "invoice_awaiting_name",
-        pendingFileId,
-        pendingFileType,
-      });
-      await replyOrEdit(
-        ctx,
-        buildBreadcrumb(["Factura"]) +
-        "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
-        "_Enviá la palabra cancelar para salir._",
-        { parse_mode: "Markdown" },
-      );
-      await ctx.scene.leave();
-      return;
-    }
-
-    const existing = await getSession(telegramUserId);
-    await setSession(telegramUserId, {
-      ...(existing ?? emptySessionForPartial(telegramUserId)),
-      state: "invoice_awaiting_service",
-      pendingFileId,
-      pendingFileType,
-    });
-
-    const keyboard = buildInvoiceServiceListKeyboard(services);
-    await replyOrEdit(
-      ctx,
-      buildBreadcrumb(["Factura"]) + "¿A qué servicio corresponde esta factura?",
-      {
-        parse_mode: "Markdown",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        reply_markup: keyboard.reply_markup as any,
-      },
-    );
-  } catch (error) {
-    log.error("Error routing to invoice flow", error, {
-      module: "doc-router.scene",
-      userId: telegramUserId,
-    });
-    await ctx.reply("Error al procesar la solicitud. Intentá de nuevo.");
-  }
-
-  await ctx.scene.leave();
+  await ctx.editMessageText("Factura");
+  await ctx.scene.enter(INVOICE_SCENE_ID, { flow: "invoice", pendingFileId, pendingFileType } as InvoiceWizardState);
 }
 
 /**
- * Routes to the receipt flow: writes pendingFileId/pendingFileType to Firestore session,
- * sets the appropriate receipt state, shows the service-picker keyboard, then leaves the scene.
- * After leave(), the legacy receipt handlers continue from Firestore session.
+ * Routes to the invoice scene with flow="receipt".
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function handleDocTypeReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() ?? "";
   const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
-
-  try {
-    const services = await getServicesByUser(telegramUserId);
-
-    if (services.length === 0) {
-      const existing = await getSession(telegramUserId);
-      await setSession(telegramUserId, {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(existing as any ?? emptySessionForPartial(telegramUserId)),
-        state: "comp_awaiting_name",
-        pendingFileId,
-        pendingFileType,
-      });
-      await replyOrEdit(
-        ctx,
-        buildBreadcrumb(["Comprobante"]) +
-        "No tenés servicios registrados.\n¿Cómo se llama el servicio?\n" +
-        "_Enviá la palabra cancelar para salir._",
-        { parse_mode: "Markdown" },
-      );
-      await ctx.scene.leave();
-      return;
-    }
-
-    const existing = await getSession(telegramUserId);
-    await setSession(telegramUserId, {
-      ...(existing ?? emptySessionForPartial(telegramUserId)),
-      state: "comp_awaiting_service",
-      pendingFileId,
-      pendingFileType,
-    });
-
-    const keyboard = buildReceiptServiceListKeyboard(services);
-    await replyOrEdit(
-      ctx,
-      buildBreadcrumb(["Comprobante"]) + "¿A qué servicio corresponde este comprobante?",
-      {
-        parse_mode: "Markdown",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        reply_markup: keyboard.reply_markup as any,
-      },
-    );
-  } catch (error) {
-    log.error("Error routing to receipt flow", error, {
-      module: "doc-router.scene",
-      userId: telegramUserId,
-    });
-    await ctx.reply("Error al procesar la solicitud. Intentá de nuevo.");
-  }
-
-  await ctx.scene.leave();
+  await ctx.editMessageText("Comprobante");
+  await ctx.scene.enter(INVOICE_SCENE_ID, { flow: "receipt", pendingFileId, pendingFileType } as InvoiceWizardState);
 }
 
 /**
- * Re-presents the doc-type keyboard when the user unexpectedly sends a file.
+ * Handles a photo arriving while waiting for doc-type selection.
+ * Updates pendingFileId/pendingFileType in state and re-presents the keyboard.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
-async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
-  await ctx.reply("No esperaba un archivo aquí.");
+async function handlePhotoWhileWaiting(ctx: KakebotContext): Promise<void> {
+  const state = ctx.wizard.state as DocRouterWizardState;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const photos = (ctx.message as any)?.photo as Array<{ file_id: string }> | undefined;
+  if (photos?.length) {
+    state.pendingFileId = photos[photos.length - 1].file_id;
+    state.pendingFileType = "photo";
+  }
   await ctx.reply(
-    "¿Qué tipo de documento es?",
+    "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.",
+    buildDocTypeKeyboard(),
+  );
+}
+
+/**
+ * Handles a PDF document arriving while waiting for doc-type selection.
+ * Updates pendingFileId/pendingFileType in state and re-presents the keyboard.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleDocumentWhileWaiting(ctx: KakebotContext): Promise<void> {
+  const state = ctx.wizard.state as DocRouterWizardState;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const document = (ctx.message as any)?.document as { file_id: string; mime_type?: string } | undefined;
+  if (document?.mime_type === "application/pdf") {
+    state.pendingFileId = document.file_id;
+    state.pendingFileType = "pdf";
+  }
+  await ctx.reply(
+    "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.",
     buildDocTypeKeyboard(),
   );
 }
@@ -204,5 +119,5 @@ export const docRouterScene = new Scenes.WizardScene<KakebotContext>(
 docRouterScene.hears(CANCEL_REGEX, handleCancelWord);
 docRouterScene.action("doc_type_invoice", handleDocTypeInvoice);
 docRouterScene.action("doc_type_receipt", handleDocTypeReceipt);
-docRouterScene.on("photo", repromptCurrentStep);
-docRouterScene.on("document", repromptCurrentStep);
+docRouterScene.on("photo", handlePhotoWhileWaiting);
+docRouterScene.on("document", handleDocumentWhileWaiting);
