@@ -89,6 +89,24 @@ export interface DocRouterWizardState {
 }
 
 /**
+ * Persistent state for the service wizard, held in `ctx.wizard.state`.
+ * Covers seven entry flows: create, installment, edit_name, edit_amount, edit_day, receipt, invoice.
+ */
+export interface ServiceWizardState {
+  flow?: "create" | "installment" | "edit_name" | "edit_amount" | "edit_day" | "receipt" | "invoice";
+  serviceId?: string;
+  serviceName?: string;
+  installmentId?: string;
+  selectedMonth?: string;
+  /** Pre-computed list of available months (YYYY-MM) for the month picker. */
+  availableMonths?: string[];
+  /** Due day (1-31) stored between stepHandleDay and stepHandleAmount. */
+  dueDay?: number;
+  /** Temporary amount stored while awaiting duplicate resolution. */
+  partialAmount?: number;
+}
+
+/**
  * Session object persisted per user by the Telegraf `session()` middleware.
  * Carries the active scene and step cursor under `__scenes`.
  */

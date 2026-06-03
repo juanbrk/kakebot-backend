@@ -1,4 +1,4 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { CreditCardProcessor } from "../../types/index";
 import { TextHandlerParams } from "../../types/handlers.types";
@@ -11,20 +11,6 @@ import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bul
 import { BULK_SCENE_ID } from "../scenes/bulk.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
-import {
-  createService,
-  getInstallment,
-  saveInstallment,
-  updateServiceName,
-  updateInstallmentAmount,
-  updateInstallmentDueDay,
-} from "../../services/service.service";
-import {
-  buildDuplicateKeyboard,
-  buildInvoicePromptKeyboard,
-  buildPaymentMethodKeyboard,
-} from "../keyboards/service";
-import { showInstallmentDetail } from "./service";
 import {
   buildCardProcessorKeyboard,
   buildCardConfirmText,
@@ -55,36 +41,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
     if (isCancelWord && session) {
       await clearSession(telegramUserId);
       await ctx.reply("Operación cancelada.");
-      return;
-    }
-
-    if (session?.state === "svc_awaiting_name") {
-      await handleServiceName(ctx, telegramUserId, messageText);
-      return;
-    }
-
-    if (session?.state === "svc_awaiting_amount") {
-      await handleServiceAmount({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "svc_awaiting_day") {
-      await handleServiceDay({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "svc_awaiting_edit_name") {
-      await handleEditServiceNameText({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "svc_awaiting_edit_amount") {
-      await handleEditServiceAmountText({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "svc_awaiting_edit_day") {
-      await handleEditServiceDayText({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -219,195 +175,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       "Ej: Panaderia 5000"
     );
   });
-}
-
-async function handleServiceName(
-  ctx: Context,
-  telegramUserId: string,
-  messageText: string
-): Promise<void> {
-  const name = messageText.trim();
-
-  const hasValidName = name.length > 0;
-  if (!hasValidName) {
-    await ctx.reply("El nombre no puede estar vacío.");
-    return;
-  }
-
-  const serviceId = await createService(telegramUserId, name);
-  await clearSession(telegramUserId);
-
-  const keyboard = buildPaymentMethodKeyboard(serviceId, "new");
-  await ctx.reply("Seleccioná el método de pago", {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}
-
-async function handleServiceAmount({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-
-  if (amount === null || amount <= 0) {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
-    );
-    return;
-  }
-
-  const serviceId = session.serviceId || "";
-  const serviceName = session.serviceName || "";
-  const selectedMonth = session.selectedMonth || "";
-  const dayStr = session.partialDescription || "";
-  const day = parseInt(dayStr, 10);
-
-  const hasRequiredSessionData =
-    serviceId && serviceName && selectedMonth && dayStr;
-  if (!hasRequiredSessionData) {
-    await ctx.reply("Error: datos de sesión incompletos.");
-    return;
-  }
-
-  const [year, month] = selectedMonth.split("-");
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
-
-  const existing = await getInstallment(serviceId, selectedMonth);
-
-  if (existing) {
-    await setSession(telegramUserId, {
-      ...session,
-      state: "svc_awaiting_amount",
-      partialAmount: amount,
-    });
-
-    const keyboard = buildDuplicateKeyboard(existing.id || "");
-    await ctx.reply(
-      "Ya existe cuota registrada para este mes.",
-      keyboard
-    );
-    return;
-  }
-
-  const installmentId = await saveInstallment({
-    telegramUserId,
-    serviceId,
-    serviceName,
-    amount,
-    dueDate,
-    dueMonth: selectedMonth,
-  });
-  await clearSession(telegramUserId);
-
-  const day2 = String(dueDate.getDate()).padStart(2, "0");
-  const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
-
-  await ctx.reply(
-    `✅ Cuota registrada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`
-  );
-
-  const keyboard = buildInvoicePromptKeyboard(installmentId);
-  await ctx.reply("¿Deseas adjuntar factura?", keyboard);
-}
-
-async function handleServiceDay({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const dayStr = messageText.trim();
-  const day = parseInt(dayStr, 10);
-
-  const selectedMonth = session.selectedMonth || "";
-  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
-  if (!isValidDay) {
-    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "svc_awaiting_amount",
-    partialDescription: dayStr,
-  });
-
-  await ctx.reply(
-    "*¿Cuál es el monto de la cuota?*",
-    { parse_mode: "Markdown" }
-  );
-}
-
-async function handleEditServiceNameText({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const newName = messageText.trim();
-  const serviceId = session.serviceId || "";
-
-  const hasValidName = newName.length > 0;
-  if (!hasValidName) {
-    await ctx.reply("El nombre no puede estar vacío.");
-    return;
-  }
-
-  await updateServiceName(serviceId, newName);
-  await clearSession(telegramUserId);
-
-  await ctx.reply(`✅ Nombre actualizado a '${newName}'.`);
-}
-
-async function handleEditServiceAmountText({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-  const installmentId = session.installmentId || "";
-
-  const isValidAmount = amount !== null && amount > 0;
-  if (!isValidAmount) {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
-    );
-    return;
-  }
-
-  await updateInstallmentAmount(installmentId, amount);
-  await clearSession(telegramUserId);
-
-  await showInstallmentDetail({ ctx, installmentId });
-}
-
-async function handleEditServiceDayText({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const dayStr = messageText.trim();
-  const day = parseInt(dayStr, 10);
-  const installmentId = session.installmentId || "";
-
-  const selectedMonth = session.selectedMonth || "";
-  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
-  if (!isValidDay) {
-    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
-    return;
-  }
-
-  await updateInstallmentDueDay(installmentId, day);
-  await clearSession(telegramUserId);
-
-  await showInstallmentDetail({ ctx, installmentId });
 }
 
 async function handleCardDigits({

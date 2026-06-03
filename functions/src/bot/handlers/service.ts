@@ -1,5 +1,5 @@
 import { Telegraf, Context, Markup } from "telegraf";
-import { KakebotContext } from "../../types/telegraf-context.types";
+import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context.types";
 import { ServiceInstallment, ServicePaymentMethod } from "../../types/service.types";
 import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
 import {
@@ -15,12 +15,12 @@ import {
   getInstallmentById,
   getInstallmentsByService,
   getInstallmentsForMonth,
-  replaceInstallment,
   deleteService,
   markInstallmentAsPaid,
   getUpcomingUnpaidInstallments,
   updateServicePaymentMethod,
 } from "../../services/service.service";
+import { SERVICE_SCENE_ID } from "../scenes/service.scene";
 import {
   buildServicesSubmenuKeyboard,
   buildMyServicesSubmenuKeyboard,
@@ -31,14 +31,12 @@ import {
   buildServiceViewText,
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
-  buildReceiptPromptKeyboard,
   buildInstallmentListKeyboard,
-  buildFilteredMonthKeyboard,
   buildPaymentMethodKeyboard,
   PAYMENT_METHOD_LABELS,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { formatARS, getDaysInMonth, MONTH_NAMES, getMonthLabel } from "../../helpers/format";
+import { formatARS, MONTH_NAMES } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -135,14 +133,9 @@ export function registerServiceHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("svc_list", handleListServices);
   bot.action("svc_upcoming", handleShowUpcoming);
   bot.action("svc_back", handleBackToMenu);
-  bot.action("svc_no_cuota", handleSkipInstallmentAfterCreate);
 
   bot.action(/^svc_pick:(.+)$/, handlePickServiceForInstallment);
   bot.action(/^svc_view_pick:(.+)$/, handlePickServiceForAction);
-  bot.action(/^svc_month:(.+):(\d{4}-\d{2})$/, handleMonthSelected);
-
-  bot.action("svc_skip", handleSkipDuplicate);
-  bot.action(/^svc_replace:(.+)$/, handleReplaceDuplicate);
 
   bot.action(/^svc_edit:(.+)$/, handleEditService);
   bot.action(/^svc_reg:(.+)$/, handleRegFromEdit);
@@ -170,7 +163,6 @@ export function registerServiceHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^svc_cuota_detail:(.+)$/, handleInstallmentDetailFromHistory);
   bot.action(/^svc_back_svc:(.+)$/, handleBackToServiceAction);
 
-  bot.action(/^svc_pm_new:([^:]+):([^:]+)$/, handleSetPaymentMethod);
   bot.action(/^svc_edit_pm:(.+)$/, handleEditPaymentMethod);
   bot.action(/^svc_pm_edit:([^:]+):([^:]+)$/, handleUpdatePaymentMethod);
 
@@ -189,24 +181,13 @@ async function openServicesMenu(ctx: Context): Promise<void> {
 }
 
 async function handleAddService(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_name",
-  });
-
   await ctx.editMessageText(
     "*Vas a crear un nuevo servicio*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply(
-    "*¿Cómo se llama el servicio?*\nEj: Expensas, Gas, Flow, Netflix",
-    { parse_mode: "Markdown" },
-  );
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, { flow: "create" } as ServiceWizardState);
 }
 
 async function handleRegisterInstallment(ctx: Context): Promise<void> {
@@ -401,23 +382,15 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
     return;
   }
 
-  const existingInstallments = await getInstallmentsByService(
-    serviceId,
-    telegramUserId,
-  );
-  const existingMonths = new Set(
-    existingInstallments.map((inst) => inst.dueMonth),
-  );
-
+  const existingInstallments = await getInstallmentsByService(serviceId, telegramUserId);
+  const existingMonths = new Set(existingInstallments.map((inst) => inst.dueMonth));
   const now = new Date();
   const availableMonths: string[] = [];
   for (let i = 0; i < 3; i++) {
     const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const dueMonth = `${date.getFullYear()}-${month}`;
-    if (!existingMonths.has(dueMonth)) {
-      availableMonths.push(dueMonth);
-    }
+    if (!existingMonths.has(dueMonth)) availableMonths.push(dueMonth);
   }
 
   if (availableMonths.length === 0) {
@@ -429,111 +402,19 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
     return;
   }
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_amount",
-    serviceId,
-    serviceName: service.name,
-  });
-
   await ctx.editMessageText(
     `*Vas a agregar una nueva cuota para ${service.name}*\n` +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
-  await ctx.reply(`*Seleccioná el mes para ${service.name}:*`, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}
-
-async function handleMonthSelected(ctx: Context): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match = (ctx as any).match as string[];
-  const serviceId = match[1];
-  const dueMonth = match[2];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
-  await ctx.answerCbQuery();
-
-  const session = await getSession(telegramUserId);
-  if (!session) {
-    await replyOrEdit(ctx, "Error: sesión perdida.");
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "svc_awaiting_day",
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "installment",
     serviceId,
-    selectedMonth: dueMonth,
-  });
-
-  const maxDay = getDaysInMonth(dueMonth);
-  await replyOrEdit(
-    ctx,
-    `*¿Qué día de ${getMonthLabel(dueMonth, true)} vence el servicio? (1-${maxDay})*`,
-    {
-      parse_mode: "Markdown",
-    },
-  );
+    serviceName: service.name,
+    availableMonths,
+  } as ServiceWizardState);
 }
 
-async function handleSkipDuplicate(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await ctx.answerCbQuery();
-  await clearSession(telegramUserId);
-  await ctx.editMessageText("Registro de cuota omitido.");
-}
-
-async function handleReplaceDuplicate(ctx: Context): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const installmentId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
-  await ctx.answerCbQuery();
-
-  const session = await getSession(telegramUserId);
-  const hasRequiredSessionData =
-    session && session.selectedMonth && session.partialAmount;
-  if (!hasRequiredSessionData) {
-    await ctx.editMessageText("Error: datos de sesión incompletos.");
-    return;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const amount = session.partialAmount!;
-  const dayStr = (session.partialDescription || "").trim();
-  const day = parseInt(dayStr, 10);
-
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const selectedMonth = session.selectedMonth!;
-  const maxDay = getDaysInMonth(selectedMonth);
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
-  if (!isValidDay) {
-    await ctx.editMessageText(
-      `Día inválido. Ingresá un número entre 1 y ${maxDay}.`,
-    );
-    return;
-  }
-
-  const [year, month] = selectedMonth.split("-");
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
-
-  await replaceInstallment(installmentId, amount, dueDate);
-  await clearSession(telegramUserId);
-
-  const serviceName = session.serviceName || "";
-  const day2 = String(dueDate.getDate()).padStart(2, "0");
-  const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
-
-  await ctx.editMessageText(
-    `✅ Cuota reemplazada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`,
-  );
-}
 
 async function handleEditService(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -574,23 +455,15 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     return;
   }
 
-  const existingInstallments = await getInstallmentsByService(
-    serviceId,
-    telegramUserId,
-  );
-  const existingMonths = new Set(
-    existingInstallments.map((inst) => inst.dueMonth),
-  );
-
+  const existingInstallments = await getInstallmentsByService(serviceId, telegramUserId);
+  const existingMonths = new Set(existingInstallments.map((inst) => inst.dueMonth));
   const now = new Date();
   const availableMonths: string[] = [];
   for (let i = 0; i < 3; i++) {
     const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const dueMonth = `${date.getFullYear()}-${month}`;
-    if (!existingMonths.has(dueMonth)) {
-      availableMonths.push(dueMonth);
-    }
+    if (!existingMonths.has(dueMonth)) availableMonths.push(dueMonth);
   }
 
   if (availableMonths.length === 0) {
@@ -602,25 +475,17 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     return;
   }
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_amount",
-    serviceId,
-    serviceName,
-  });
-
   await ctx.editMessageText(
     `*Vas a agregar una nueva cuota para ${serviceName}*\n` +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
-  await ctx.reply(
-    "*Seleccioná el mes de la nueva cuota.*\n" +
-      "Podés crear cuotas solo para meses que aún no tengan una.",
-    { parse_mode: "Markdown", ...keyboard },
-  );
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "installment",
+    serviceId,
+    serviceName,
+    availableMonths,
+  } as ServiceWizardState);
 }
 
 async function handleEditInstallment(ctx: Context): Promise<void> {
@@ -678,12 +543,11 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
 
   await ctx.answerCbQuery();
   await markInstallmentAsPaid(installmentId);
-
-  const keyboard = buildReceiptPromptKeyboard(installmentId);
-  await ctx.editMessageText(
-    "✅ Cuota marcada como pagada. ¿Deseas adjuntar comprobante?",
-    keyboard,
-  );
+  await ctx.editMessageText("✅ Cuota marcada como pagada.");
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "receipt",
+    installmentId,
+  } as ServiceWizardState);
 }
 
 async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
@@ -703,36 +567,25 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
   }
 
   await markInstallmentAsPaid(installment.id || "");
-
-  const keyboard = buildReceiptPromptKeyboard(installment.id || "");
-  await ctx.editMessageText(
-    "✅ Cuota marcada como pagada. ¿Deseas adjuntar comprobante?",
-    keyboard,
-  );
+  await ctx.editMessageText("✅ Cuota marcada como pagada.");
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "receipt",
+    installmentId: installment.id || "",
+  } as ServiceWizardState);
 }
 
 async function handleAttachReceipt(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
   await ctx.answerCbQuery();
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_receipt",
-    installmentId,
-  });
-
   await ctx.editMessageText(
-    "*Adjuntar comprobante*\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
+    "*Adjuntar comprobante*\n_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply("*Enviá la foto o PDF del comprobante.*", {
-    parse_mode: "Markdown",
-  });
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "receipt",
+    installmentId,
+  } as ServiceWizardState);
 }
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
@@ -747,25 +600,15 @@ async function handleSkipReceipt(ctx: Context): Promise<void> {
 async function handleAttachInvoice(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
   await ctx.answerCbQuery();
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_invoice",
-    installmentId,
-  });
-
   await ctx.editMessageText(
-    "*Adjuntar factura*\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
+    "*Adjuntar factura*\n_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply("*Enviá la foto o PDF de la factura.*", {
-    parse_mode: "Markdown",
-  });
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "invoice",
+    installmentId,
+  } as ServiceWizardState);
 }
 
 async function handleSkipInvoice(ctx: Context): Promise<void> {
@@ -777,42 +620,23 @@ async function handleSkipInvoice(ctx: Context): Promise<void> {
   );
 }
 
-async function handleSkipInstallmentAfterCreate(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await ctx.answerCbQuery();
-
-  const session = await getSession(telegramUserId);
-  const serviceName = session?.serviceName || "servicio";
-  await clearSession(telegramUserId);
-
-  await ctx.editMessageText(
-    `✅ Servicio '${serviceName}' creado sin cuota. Podés agregarla luego desde /servicios`
-  );
-}
 
 async function handleEditServiceName(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
   const telegramUserId = ctx.from?.id.toString() || "";
   const serviceName = await getServiceNameCached(telegramUserId, serviceId);
-
   await ctx.answerCbQuery();
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_edit_name",
-    serviceId,
-  });
-
   await ctx.editMessageText(
-    `*Vas a cambiar el nombre de ${serviceName}*\n
-      "_Escribí cancelar en cualquier momento para salir._`,
+    `*Vas a cambiar el nombre de ${serviceName || "el servicio"}*\n` +
+      "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply("*¿Cuál es el nuevo nombre del servicio?*", {
-    parse_mode: "Markdown",
-  });
+  await ctx.reply("*¿Cuál es el nuevo nombre del servicio?*", { parse_mode: "Markdown" });
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "edit_name",
+    serviceId,
+  } as ServiceWizardState);
 }
 
 async function handleDeleteService(ctx: Context): Promise<void> {
@@ -854,51 +678,36 @@ async function handleConfirmDelete(ctx: Context): Promise<void> {
 async function handleEditInstallmentAmount(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
   await ctx.answerCbQuery();
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_edit_amount",
-    installmentId,
-  });
-
   await ctx.editMessageText(
     "*Modificar monto*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
   await ctx.reply("*¿Cuál es el nuevo monto?*", { parse_mode: "Markdown" });
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "edit_amount",
+    installmentId,
+  } as ServiceWizardState);
 }
 
 async function handleEditInstallmentDay(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-
   await ctx.answerCbQuery();
-
   const installment = await getInstallmentById(installmentId);
   const selectedMonth = installment?.dueMonth || "";
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "svc_awaiting_edit_day",
-    installmentId,
-    selectedMonth,
-  });
-
   await ctx.editMessageText(
     "*Cambiar vencimiento*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply("*¿Cuál es el nuevo día de vencimiento? (1-31)*", {
-    parse_mode: "Markdown",
-  });
+  await ctx.reply("*¿Cuál es el nuevo día de vencimiento? (1-31)*", { parse_mode: "Markdown" });
+  await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
+    flow: "edit_day",
+    installmentId,
+    selectedMonth,
+  } as ServiceWizardState);
 }
 
 async function handlePagination(ctx: Context): Promise<void> {
@@ -1060,44 +869,6 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
-}
-
-/**
- * Handles payment method selection during service creation.
- * Saves the selected method and shows the installment prompt.
- *
- * @param {Context} ctx - Telegraf context
- */
-async function handleSetPaymentMethod(ctx: Context): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match = (ctx as any).match as string[];
-  const serviceId = match[1];
-  const method = match[2] as ServicePaymentMethod;
-  const telegramUserId = ctx.from?.id.toString() || "";
-
-  await updateServicePaymentMethod(serviceId, method);
-  await ctx.answerCbQuery("✅ Método de pago guardado.");
-
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    serviceId,
-    serviceName: serviceName || "",
-  });
-
-  await ctx.editMessageText(
-    `✅ Servicio '${serviceName || ""}' creado.\n\n¿Deseas agregar una cuota ahora?`,
-    {
-      parse_mode: "Markdown",
-      reply_markup: Markup.inlineKeyboard([
-        [
-          Markup.button.callback("Cancelar", "svc_no_cuota"),
-          Markup.button.callback("Aceptar", `svc_reg:${serviceId}`),
-        ],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ]).reply_markup as any,
-    },
-  );
 }
 
 /**

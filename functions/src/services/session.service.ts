@@ -22,7 +22,7 @@ export async function clearSession(telegramUserId: string): Promise<void> {
 export function emptySessionForPartial(telegramUserId: string): Session {
   return {
     telegramUserId,
-    state: "svc_awaiting_name",
+    state: "card_awaiting_digits",
     pendingDescs: [],
     currentDesc: "",
     currentDisplayName: "",

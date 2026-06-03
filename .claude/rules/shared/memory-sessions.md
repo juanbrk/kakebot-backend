@@ -1,5 +1,23 @@
 # Session Log
 
+## 2026-06-03: Oleada C — Commit 3: service.scene.ts completo y testeado
+
+### Completado
+- `service.scene.ts` creado (12 steps, 7 entry routes, 6 scene.actions, file upload handlers)
+- `ServiceWizardState` en `telegraf-context.types.ts`
+- `service.ts`: 8 entry points → `scene.enter`; 5 funciones eliminadas; registraciones removidas
+- `text.ts`: 6 bloques `svc_awaiting_*` + funciones eliminados
+- `photo.ts`: 4 dispatches `svc_awaiting_receipt/invoice` + funciones eliminados
+- `telegram.ts`: `serviceScene` agregado al Stage
+- `types/index.ts`: `ServiceSessionState` eliminado de `SessionState`
+- Bug fixes post-testing: `stepHandleAmount` ahora queda en escena al mostrar prompt de factura (`selectStep(INVOICE_STEP)`); `handleMarkAsPaid`/`handleMarkAsPaidFromService` entran al scene directamente — resuelve texto→expense y foto→doc-router
+- Validado en botitio_testitoBot: 9 flujos + casos de robustez ✅
+
+### Pendiente
+- Commit 4a: `card-create.scene.ts`
+- Commit 4b: `card-stmt.scene.ts`
+- Commit 5: cleanup final (session.service, Session fields, CardSessionState, TaxSessionState)
+
 ## 2026-06-02: Oleada B completa — limpieza final de handlers legacy y tipos huérfanos
 
 ### Completado
