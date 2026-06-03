@@ -80,9 +80,8 @@ export interface CategorizeWizardState {
 
 /**
  * Persistent state for the doc-router wizard, held in `ctx.wizard.state`.
- * Bridge scene: captures the uploaded file info and routes to the invoice or receipt flow.
- * `pendingFileId` and `pendingFileType` are written back to Firestore session before leave()
- * so the legacy invoice/receipt handlers can read them.
+ * Bridge scene: captures the uploaded file info and routes to the invoice or receipt flow
+ * by entering invoice.scene with pendingFileId/pendingFileType pre-set in InvoiceWizardState.
  */
 export interface DocRouterWizardState {
   pendingFileId: string;

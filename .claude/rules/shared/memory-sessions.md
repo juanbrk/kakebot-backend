@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-06-02: Oleada B completa — limpieza final de handlers legacy y tipos huérfanos
+
+### Completado
+- B4: handlers legacy de factura/comprobante eliminados de `text.ts`; archivos `invoice.ts` y `receipt-direct.ts` borrados; sus registros removidos de `telegram.ts`
+- B5: `InvoiceSessionState`, `ReceiptSessionState`, `pendingFileId`, `pendingFileType`, `isNewService` eliminados de `types/index.ts`; tipos `AttachInvoiceParams`/`AttachReceiptParams` removidos de `handlers.types.ts`; comentario desactualizado en `telegraf-context.types.ts` corregido
+- Oleada B totalmente cerrada: build ✅ lint ✅
+
+### Pendiente
+- Validar upload GCS en botitio_testitoBot (emulador local no tiene Storage disponible)
+- Oleada C: flujos complejos pendientes (service, card-create, card-stmt)
+
 ## 2026-06-02: Oleada B — Paso 3: doc-router.scene conectado directo a invoice.scene
 
 ### Completado
@@ -9,8 +20,7 @@
 - Validado en botitio_testitoBot — 8 rutas (foto+PDF × factura+comprobante × servicio existente con/sin cuota) sin regresiones
 
 ### Pendiente
-- B4: eliminar handlers invoice/comp legacy de `text.ts` (líneas ~498-708)
-- B5: borrar `InvoiceSessionState`, `ReceiptSessionState` de `types/index.ts`; `pendingFileId`/`pendingFileType` de `Session`
+- ~~B4~~, ~~B5~~ — completados en sesión siguiente
 
 ## 2026-06-01: Oleada B — categorize.scene.ts + UX fixes post-testing
 

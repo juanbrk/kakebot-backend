@@ -5,11 +5,9 @@ import { InvoiceWizardState, KakebotContext } from "./telegraf-context.types";
 
 /**
  * Parameters for text input handlers that require context, user ID, session, and message text.
- * Used by handlers: handleAwaitingAmount, handleAwaitingDescription, handleCategorizingText,
- * handleServiceAmount, handleServiceDay, handleEditServiceNameText, handleEditServiceAmountText,
- * handleEditServiceDayText, handleInvoiceServiceName, handleInvoiceDay, handleInvoiceAmount,
- * handleCompServiceName, handleCompDay, handleCompAmount,
- * handleRepAwaitingExpense, handleCardDigits, handleCardBank, handleCardExpiry, handleCardStmtArs,
+ * Used by handlers: handleServiceAmount, handleServiceDay, handleEditServiceNameText,
+ * handleEditServiceAmountText, handleEditServiceDayText,
+ * handleCardDigits, handleCardBank, handleCardExpiry, handleCardStmtArs,
  * handleCardStmtUsd, handleCardStmtDay.
  */
 export interface TextHandlerParams {
@@ -41,28 +39,6 @@ export interface RenderInstallmentsListParams {
   page: number;
   serviceId: string;
   serviceName: string;
-}
-
-/**
- * Parameters for attaching an invoice file to a service installment.
- */
-export interface AttachInvoiceParams {
-  ctx: Context;
-  telegramUserId: string;
-  installmentId: string;
-  session: Session;
-  successMessage?: string;
-}
-
-/**
- * Parameters for attaching a receipt file to a service installment.
- */
-export interface AttachReceiptParams {
-  ctx: Context;
-  telegramUserId: string;
-  installmentId: string;
-  session: Session;
-  successMessage?: string;
 }
 
 /**

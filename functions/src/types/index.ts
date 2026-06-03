@@ -77,20 +77,6 @@ export type ServiceSessionState =
   | "svc_awaiting_receipt"
   | "svc_awaiting_invoice";
 
-export type InvoiceSessionState =
-  | "invoice_awaiting_service"
-  | "invoice_awaiting_name"
-  | "invoice_awaiting_month"
-  | "invoice_awaiting_day"
-  | "invoice_awaiting_amount";
-
-export type ReceiptSessionState =
-  | "comp_awaiting_service"
-  | "comp_awaiting_name"
-  | "comp_awaiting_month"
-  | "comp_awaiting_day"
-  | "comp_awaiting_amount";
-
 export type CardSessionState =
   | "card_awaiting_digits"
   | "card_awaiting_bank"
@@ -120,8 +106,6 @@ export type TaxSessionState =
 export type SessionState =
   | "categorizing"
   | ServiceSessionState
-  | InvoiceSessionState
-  | ReceiptSessionState
   | CardSessionState
   | TaxSessionState;
 
@@ -142,9 +126,6 @@ export interface Session {
   serviceName?: string;
   installmentId?: string;
   selectedMonth?: string;
-  pendingFileId?: string;
-  pendingFileType?: PendingFileType;
-  isNewService?: boolean;
   cardId?: string;
   cardLabel?: string;
   cardProcessor?: CreditCardProcessor;
