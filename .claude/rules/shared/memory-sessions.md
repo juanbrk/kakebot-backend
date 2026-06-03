@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-06-02: Consolidación de memoria (/mem-consolidate)
+
+### Completado
+- 15 sesiones de abril colapsadas a one-liners; 5 más recientes (mayo) mantenidas completas
+- Tipos actualizados en MEMORY.md: agregados `handlers`, `logger`, `telegraf-context`
+- WizardScene (POC estado actual) documentado en `.claude/memory/MEMORY.md`
+- `dream-state.json` actualizado; fecha de hooks en global MEMORY.md corregida a 2026-06-02
+
+### Pendiente
+- Ninguno
+
 ## 2026-05-25: POC — Flujo de ingresos migrado a WizardScene de Telegraf
 
 ### Completado
@@ -46,303 +57,23 @@
 - Prompts TCV simplificados, etiquetas "TCV" → "Tipo de cambio", summary con TCV en paréntesis
 - Edición USD en resúmenes no pagados va directo a confirmar (sin moneda ni TCV)
 
-## 2026-04-29: UX de pago multicurrency en resúmenes de tarjeta (Commit 2b)
-
-### Completado
-- **`usdPaymentCurrency`** agregado a `CardStatement`, `Session`, `MarkStatementAsPaidParams`, `UpdateStatementUSDAndRateParams`
-- **Nuevo keyboard `buildStmtUsdCurrencyKeyboard`**: muestra "Dólares" / "Pesos"; flow=`"pay"` o `"edit"` determina el prefijo del callback
-- **`buildPaymentSummaryText`**: muestra el resumen final al terminar el flujo de pago; si pagó en pesos incluye equivalente ARS del monto USD
-- **`buildStmtPayUSDKeyboard`**: skip callback ahora incluye `statementId` (`card_stmt_pay_usd_skip:{id}`)
-- **`handleMarkStatementAsPaid`**: para USD → muestra teclado de moneda en lugar del TCV directamente; para ARS-only → igual que antes
-- **4 nuevos handlers en `card.ts`**: `handleUsdPaymentCurrencyUSD`, `handleUsdPaymentCurrencyARS`, `handleEditUsdPaymentCurrencyUSD`, `handleEditUsdPaymentCurrencyARS`
-- **`handleSkipARSReceipt`**: agrega "Omitiste..." + summary en terminal (sin USD); agrega "Omitiste..." antes de prompt USD
-- **`handleSkipUSDReceipt`**: extrae statementId del callback, agrega "Omitiste..." + summary
-- **`handleCardStmtEditUsd` (text.ts)**: en lugar de TCV, muestra teclado de moneda
-- **`handleCardStmtEditExchangeRate` (text.ts)**: agrega línea "Total: $X" en el confirm
-- **`handleCardStmtExchangeRate` (text.ts)**: pasa `usdPaymentCurrency: "ars"` al mark-paid; muestra "Pagaste USD X a $Y. Total $Z"
-- **`handleStatementARSReceiptUpload` (photo.ts)**: confirmación "Comprobante de pago en Pesos guardado."; summary al terminal
-- **`handleStatementUSDReceiptUpload` (photo.ts)**: confirmación "Comprobante de pago en Dólares guardado."; summary siempre
-- Build ✅ 0 errores — Lint ✅ 0 errores
-
-### Pendiente
-- Testing en emuladores: flujo completo de pago con USD (selección moneda, TCV, comprobantes, summary)
-- Commit 3: sección TARJETAS en el reporte mensual con equivalentes ARS
-
-## 2026-04-28: Comprobantes multicurrency en resúmenes de tarjeta (Commit 1)
-
-### Completado
-- **Schema `CardStatement`**: `paymentReceiptUrl` reemplazado por `receiptUrlARS?`, `receiptUrlUSD?`, `exchangeRate?`
-- **Nuevos estados de sesión**: `card_stmt_awaiting_exchange_rate`, `card_stmt_awaiting_receipt_ars`, `card_stmt_awaiting_receipt_usd`, `card_stmt_edit_awaiting_exchange_rate`; `statementAmountUSD?` agregado a `Session`
-- **`markStatementAsPaid`**: migrado a `MarkStatementAsPaidParams` — acepta `exchangeRate?` opcional
-- **Nuevas funciones en `card.service.ts`**: `saveStatementReceiptUrlARS`, `saveStatementReceiptUrlUSD`, `updateStatementUSDAndRate`
-- **Nuevo folder GCS** en `storage.service.ts`: `uploadStatementPaymentReceiptUSD` → `stmt_receipts_usd/`
-- **Keyboards reestructurados**: `buildStatementDetailKeyboard` simplificado; reemplazado `buildStmtPayReceiptKeyboard` por `buildStmtPayARSKeyboard`, `buildStmtPayUSDKeyboard`, `buildStmtReceiptsKeyboard`
-- **Handlers reescritos en `card.ts`**: flujo de pago con TCV, 9 handlers nuevos para Comprobantes, `registerCardHandler` actualizado
-- Build ✅ 0 errores — Lint ✅ 0 errores
-
-### Pendiente
-- **Commit 2**: `photo.ts` (despachar `card_stmt_awaiting_receipt_ars/usd`) + `text.ts` (handlers TCV + edición USD en dos pasos)
-- **Commit 3**: `report.service.ts` — sección TARJETAS con equivalente ARS en reporte mensual
-- `card_stmt_awaiting_receipt` y `saveStatementPaymentReceiptUrl` aún presentes (compat. Commit 2); eliminar en Commit 2
-
-## 2026-04-27: Ordenamiento cronológico en historial de cuotas de servicios e impuestos
-
-### Completado
-- **Sort servicios corregido**: `getInstallmentsByService` cambió de descendente (`b.localeCompare(a)`) a ascendente (`a.localeCompare(b)`) — cuotas ahora se muestran de más antigua a más reciente
-- **Tax sort verificado**: `getTaxInstallmentsByTaxId` ya usaba ascendente; sin cambio de código necesario
-- **JSDoc corregido** en `buildTaxInstallmentHistoryKeyboard` y `getTaxInstallmentsByTaxId`: eliminada referencia errónea a "sorted newest first"
-- Build ✅ 0 errores — Lint ✅ 0 errores
-
-### Pendiente
-- Test en emuladores: correr `seed-installments.js` y verificar que primera fila muestra Ene 2025 en historial de servicios
-- Verificar historial de cuotas de impuestos con data real en emulador
-
-## 2026-04-19: Automatización de creación de worktrees (/worktree)
-
-### Completado
-- **Nuevo script**: `scripts/new-worktree.sh` — crea worktree, corre `npm install`, copia `.env`/`.env.test`/`.env.prod` y `emulator-data/` del repo principal, abre VSCode
-- Acepta `$1` (slug) y `$2` (tipo: feature/fix/improv/techDebt); interactivo si no se pasa `$2`
-- **Nuevo skill**: `.claude/commands/worktree.md` — `/worktree [ticket]` extrae slug del campo `**Nombre:**`, pregunta tipo, llama al script y guarda el ticket como `TICKET.md` en el worktree
-- Convención de nombres consistente con worktrees existentes: `kakebot-[slug]`, rama `[tipo]/[slug]`
-- Un emulador a la vez (sin manejo de puertos múltiples)
-
-### Pendiente
-- Ninguno
-
-## 2026-04-19: Logging estructurado con firebase-functions/logger
-
-### Completado
-- **Nueva feature**: módulo `helpers/logger.ts` que envuelve `firebase-functions/logger` con `log.info`, `log.warn`, `log.error`
-- Serialización explícita de `error: unknown` → `error.message`, `error.stack`, `error.name` en Cloud Logging
-- 16 `console.error` reemplazados en 8 archivos de producción: `photo.ts` (7), `card.ts` (2), `tax.ts`, `invoice.ts`, `receipt-direct.ts`, `telegram.ts`, `index.ts`, `middleware/auth.ts`
-- `dev.ts` sin cambios (startup logs locales se mantienen como `console.log`)
-- **Tech debt corregido**: `attachInvoiceToInstallment` y `attachReceiptToInstallment` refactorizados de 5 parámetros posicionales a `AttachInvoiceParams` / `AttachReceiptParams` en `types/handlers.types.ts`
-- Build: ✅ 0 errores — Lint: ✅ 0 errores
-
-### Pendiente
-- Deploy a botitio_testitoBot: verificar que logs aparecen con `severity: ERROR` (no `DEFAULT`) en Cloud Logging
-- Confirmar que campos estructurados (`module`, `userId`, `error.message`, `error.stack`) son visibles en Log Explorer
-- Agregar `kakebot-firebase-loggers` al language map en `~/.claude/settings.json` para commits en español
-## 2026-04-18: Bug fix — Parsing de decimales con punto en ingreso de montos
-
-### Completado
-- **Bug fix**: `parseArgentineAmount()` trataba punto con 3+ dígitos como separador de miles (`157.324` → 157324); ahora siempre es decimal
-- `AMOUNT_PATTERN` regex reescrito con 3 alternativas ordenadas: formato AR completo (`238.130,00`), separador único (punto o coma), entero
-- Truncamiento a 2 dígitos: `157.324` → `157.32`, `9.9999` → `9.99` (sin redondear); casos con coma sin cambios
-- Documentada regla "Decimal Input Parsing" en `conventions.md` con tabla de ejemplos y excepción formato AR
-- Build + lint: ✅ 0 errores, 0 errores nuevos
-
-### Pendiente
-- Testing en emuladores: ingresar montos con decimales en flujos de servicios, impuestos y gastos
-## 2026-04-17: Reporte Métodos de Pago + reestructuración del menú Reportes
-
-### Completado
-- **Migración de tipos**: `Service`, `ServiceInstallment`, `ServicePaymentMethod` movidos de `types/index.ts` (congelado) a `types/service.types.ts`; todos los consumers actualizados (8 archivos)
-- **Nuevo servicio**: `services/payment-method-report.service.ts` — agrupa servicios por método de pago, muestra cuota del mes en curso con monto y fecha de vencimiento (`$ -` si no hay cuota)
-- **Nuevo handler**: `bot/handlers/payment-method-report.ts` — action `menu_payment_methods`, back a `rep_servicios`
-- **Menú Reportes reestructurado**: submenúes Balances / Pagos / Servicios con breadcrumbs actualizados; `handleRepHistory` redirige back a `rep_balances`
-- **Descripciones en menús**: cada pantalla de menú muestra bullets explicativos debajo de "¿Qué querés ver?"
-- **Nueva regla**: `.claude/rules/shared/reports-menu.md` — estructura del menú, breadcrumbs, back-navigation y guía paso a paso para agregar nuevos reportes
-- Build + lint: ✅ 0 errores
-
-### Pendiente
-- Testing en emuladores: navegar Menú → Reportes → verificar submenúes y reporte Métodos de Pago
-
----
-
-## 2026-04-16: Método de pago en impuestos — registro, edición y corrección de UX
-
-### Completado
-- **Feature**: al crear un impuesto, el flujo ahora solicita el método de pago (Tarjeta de Crédito, Débito Automático, Manual) después del día de vencimiento
-- El campo `paymentMethod` se guarda en el documento del impuesto en Firestore
-- La vista de detalle muestra el método registrado (o "No registrado" si no hay)
-- Nuevo botón "Modificar" en la vista de detalle → pantalla de edición → cambio de método de pago
-- El reporte mensual muestra el método entre paréntesis junto al monto en la sección IMPUESTOS
-- **Bug fix**: eliminado botón "Volver" del teclado de selección de método en el flujo de edición (loop cerrado)
-- **Bug fix**: agregado guard en `text.ts` para `tax_awaiting_payment_method` — evita caída al parser de gastos si el usuario escribe texto en ese estado
-- Build: ✅ 0 errores
-
-### Pendiente
-- Testing en emuladores: flujo crear impuesto con método de pago, editar método, reporte con método visible
-
----
-
-## 2026-04-16: Comandos de generación de tickets (feature, bug, mejora, automatización)
-
-### Completado
-- Creados 4 comandos en `.claude/commands/`: `/feature`, `/bug`, `/improvement`, `/automatizacion`
-- Cada comando detecta automáticamente el modo de operación:
-  - **RETROACTIVO**: hay cambios en git → genera el ticket como si no estuvieran implementados todavía
-  - **DESCRIPCIÓN**: sin cambios + texto en `$ARGUMENTS` o respuesta del usuario → genera desde descripción
-  - **PROMPT**: sin cambios y sin args → pregunta la descripción y espera
-- En modo DESCRIPCIÓN: ofrece invocar la secuencia de personas recomendada post-ticket
-- Cada ticket incluye un `**Nombre:**` sugerido antes del cuerpo
-- Agregado template "Automatización" en `user-preferences.md` (cuarto tipo de ticket)
-
-### Pendiente
-- Ninguno
-
----
-
-## 2026-04-15: Mejora — Listado de servicios agrupado en secciones por estado
-
-### Completado
-- **Feature**: "Listar servicios" deja de mostrar lista plana y muestra 5 secciones diferenciadas
-  - **Vencidos**: cuota registrada, impaga, `dueDate` anterior a hoy (más urgente, aparece primero)
-  - **Próximos a vencer**: cuota registrada, impaga, vence dentro de 7 días (mismo threshold que `handleShowUpcoming`)
-  - **Pagados**: cuota registrada y marcada como pagada
-  - **Pendientes**: cuota registrada, impaga, vence en más de 7 días
-  - **Sin cuota**: sin cuota registrada para el mes actual
-- Secciones vacías se omiten; dentro de cada sección orden ascendente por `dueDate`
-- Texto diferenciado: vencidos muestran `venció DD/MM`, futuros muestran `vence DD/MM`
-- **Optimización Firestore**: `handleListServices` reemplaza N llamadas a `getInstallment` por 1 sola query a `getInstallmentsForMonth`
-- **Archivos modificados**: `bot/handlers/service.ts`, `bot/keyboards/service.ts`
-- Build + lint: ✅ 0 errores, 0 warnings nuevos
-
-### Pendiente
-- Testing en emuladores con datos reales: verificar las 5 secciones
-
----
-
-## 2026-04-15: Bug fix — Telegraf callback handlers UX (stale keyboards) en tax.ts
-
-### Completado
-- **Bug identificado**: En el flujo de registro de cuota de impuesto, al presionar "No" en "¿Deseas marcar como pagada?", el bot enviaba `ctx.reply()` (nuevo mensaje) antes de editar el prompt original → mensajes desordenados + keyboard huérfano
-- **Patrón correcto establecido**: En `bot.action()` handlers, el mensaje con el botón presionado SIEMPRE debe editarse (`ctx.editMessageText`) como respuesta primaria; follow-up va como `ctx.reply()` separado
-- **5 funciones corregidas en `bot/handlers/tax.ts`**:
-  - `handlePaidNo` — reemplazó `ctx.reply()` + `showTaxActionView()` por `ctx.editMessageText(context+detail)` + `ctx.reply(submenu)`
-  - `handlePaidYes` — agregó `ctx.editMessageText("✅ Cuota marcada...")` antes de enviar prompt de comprobante
-  - `handleMarkAsPaid` — reemplazó `ctx.reply()` por `ctx.editMessageText("✅ Cuota marcada...")`
-  - `handleAttachReceipt` — reemplazó `ctx.reply()` por `ctx.editMessageText("*Enviá la foto...")`
-  - `handleSkipReceipt` — reemplazó `ctx.reply()` por `ctx.editMessageText("Listo...")`
-- Build + lint: ✅ 0 errores, 0 warnings nuevos
-
-### Pendiente (próxima sesión)
-- Implementar convención + hook:
-  - Crear `.claude/rules/shared/telegram-callback-ux.md`
-  - Crear `.claude/hooks/check-callback-pattern.js` (PostToolUse advisory, exit 0, stderr)
-  - Registrar en `.claude/settings.json` + `.claude/settings.example.json`
-  - Agregar fila en CLAUDE.md rules table
-  - Actualizar `shared/memory-decisions.md`
-
----
-
-## 2026-04-14: Hooks PostToolUse — Migración a stderr + investigación de visibilidad
-
-### Completado
-- **Investigación**: ¿Por qué los hooks PostToolUse se ejecutan silenciosamente?
-  - Root cause: PostToolUse hooks escriben a stdout (console.log), Claude Code solo captura stderr
-  - PreToolUse hooks escriben a stderr → visibles; PostToolUse escriben a stdout → invisibles
-- **Cambios en 3 hooks PostToolUse** (migrados a stderr):
-  - `env-change-guard.js`: `console.log()` → `process.stderr.write()`
-  - `typecheck-feedback.js`: `console.log()` → `process.stderr.write()`
-  - `lint-feedback.js`: `console.log()` → `process.stderr.write()`
-- **Verificación de funcionalidad**: ✅ Todos 3 hooks funcionan correctamente
-  - `env-change-guard.js`: Detecta variables en `.env.prod` (estructura validada)
-  - `typecheck-feedback.js`: `tsc --noEmit` detecta TS2322 type mismatch (verificado manualmente)
-  - `lint-feedback.js`: `eslint` detecta 4 violaciones: no-var, unused-vars (x2), semi (verificado manualmente)
-- Build + lint: ✅ 0 errores después de limpiar cambios de prueba
-
-### Estado actual de hooks
-| Hook | Tipo | Funciona | Visible |
-|------|------|----------|---------|
-| `protect-sensitive-files.js` | PreToolUse | ✅ | ✅ (stderr) |
-| `check-list-bullets.js` | PreToolUse | ✅ | ✅ (stderr) |
-| `check-param-patterns.js` | PreToolUse | ✅ | ✅ (stderr) |
-| `env-change-guard.js` | PostToolUse | ✅ | ⚠️ (stderr, no capturado) |
-| `typecheck-feedback.js` | PostToolUse | ✅ | ⚠️ (stderr, no capturado) |
-| `lint-feedback.js` | PostToolUse | ✅ | ⚠️ (stderr, no capturado) |
-| `track-modified-file.js` | PostToolUse | ✅ | N/A (silencioso) |
-| `commit-dream-check.js` | PostToolUse | ✅ | N/A (Bash matcher) |
-| `check-session-params.js` | Stop | ✅ | ✅ (stderr) |
-
-### Pendiente
-- Claude Code podría mejorar captura de stderr de PostToolUse hooks en futuras versiones
-- Cuando eso suceda, los 3 hooks serán visibles automáticamente
-
----
-
-## 2026-04-13: Tarjetas en Próximos Vencimientos
-
-### Completado
-- **Feature**: resúmenes de tarjeta (CardStatement) ahora aparecen en "Próximos Vencimientos"
-- **Archivos modificados**:
-  - `firestore.indexes.json`: nuevo índice `card_statements (telegramUserId, isPaid, dueDate)`
-  - `types/card.types.ts`: nueva interface `CardStatementForDue { cardLabel, amountARS, dueDate }`
-  - `services/card.service.ts`: nueva función `getUpcomingUnpaidCardStatements(userId, daysAhead)` — query compound + batch fetch de cards para resolver labels
-  - `types/upcoming-dues.types.ts`: `UpcomingDueEntityType` extendido con `"card"`
-  - `services/upcoming-dues.service.ts`: `getUpcomingDues` actualizado con tercer branch (cards) en Promise.all y mapping a UpcomingDueItem
-- **Sin cambios**: handler `upcoming-dues.ts` (ya era genérico), `report-history.ts`, `telegram.ts`
-- Build + lint: ✅ 0 errores, 0 warnings nuevos
-- **Nota**: `buildCardLabel` existe en `bot/keyboards/card.ts` — NO importar desde service layer; replicar la lógica inline
-
-### Pendiente
-- Deploy del nuevo índice: `firebase deploy --only firestore:indexes`
-- Esperar que index pase a "Enabled" (~5-10 min) antes de deploy a prod
-- Testing en emuladores con card_statement de isPaid=false y dueDate en próximos 7 días
-
-## 2026-04-09: Feature Próximos Vencimientos — implementación completa
-
-### Completado
-- **Feature**: reporte "Próximos Vencimientos" en menú Reportes (solo servicios e impuestos impagos)
-- **Archivos creados**:
-  - `types/upcoming-dues.types.ts`: `UpcomingDueEntityType`, `UpcomingDueItem`, `UpcomingDuesBucket`, `UpcomingDuesResult`
-  - `services/upcoming-dues.service.ts`: `getUpcomingDues(userId)` — fetch paralelo + agrupación en buckets no superpuestos (días 0-3, 4-5, 6-7)
-  - `bot/handlers/upcoming-dues.ts`: `registerUpcomingDuesHandler` + formateo con prefijos `[Svc]`/`[Imp]`
-- **Archivos modificados**:
-  - `services/tax.service.ts`: agregada `getUpcomingUnpaidTaxInstallments(userId, daysAhead)` — mirror de la función equivalente en service.service.ts
-  - `firestore.indexes.json`: nuevo índice `tax_installments (telegramUserId, isPaid, dueDate)` para query de próximos vencimientos
-  - `bot/handlers/report-history.ts`: botón "Próximos Vencimientos" → `menu_upcoming` en menú de Reportes
-  - `bot/telegram.ts`: registro de `registerUpcomingDuesHandler`
-- **Decisiones clave**:
-  - Tarjetas excluidas (CardStatement no tiene `isPaid`) → ticket de mejora generado
-  - Buckets no superpuestos: cada ítem aparece en una sola sección
-  - Action: `menu_upcoming`, back: `menu_reportes`
-- Build + lint: ✅ 0 errores, 0 warnings nuevos
-
-### Pendiente
-- Testing en emuladores: flujo completo Menú → Reportes → Próximos Vencimientos
-- Deploy a botitio_testitoBot
-- **Antes de prod**: verificar que el nuevo índice `tax_installments (telegramUserId, isPaid, dueDate)` esté "Enabled" en Firebase Console
-
-### Ticket de mejora generado: Estado de Pago en Tarjetas
-- Agregar `isPaid` + `paidAt` a `CardStatement`
-- Nueva función `markStatementAsPaid` en card.service.ts
-- Nuevo índice `card_statements (telegramUserId, isPaid, dueDate)`
-- Integrar tarjetas en upcoming-dues con prefijo `[TC]`
-
-## 2026-04-07: Feature Impuestos — implementación completa
-
-### Completado
-- **Feature completa**: sección Impuestos en KakeBot (réplica del dominio Servicios con prefijo `tax_`)
-- **Archivos creados**:
-  - `types/tax.types.ts`: interfaces `Tax` y `TaxInstallment`
-  - `services/tax.service.ts`: CRUD completo (`createTax`, `getTaxesByUser`, `getTaxById`, `saveTaxInstallment`, `getTaxInstallment`, `getTaxInstallmentById`, `markTaxInstallmentAsPaid`, `saveTaxReceiptUrl`, `getTaxInstallmentsForMonth`)
-  - `bot/keyboards/tax.ts`: 6 builders de keyboards
-  - `bot/handlers/tax.ts`: `registerTaxHandler` + 3 handlers exportados para text.ts
-- **Archivos modificados**:
-  - `types/index.ts`: `TaxSessionState` + fields `taxId?`, `taxName?`, `taxInstallmentId?` en Session
-  - `firestore.indexes.json`: índice compuesto `tax_installments (telegramUserId, dueMonth)`
-  - `services/storage.service.ts`: `uploadTaxReceipt`
-  - `bot/handlers/text.ts`: 3 bloques de estado tax
-  - `bot/handlers/photo.ts`: detección `tax_awaiting_receipt` + upload handlers
-  - `bot/telegram.ts`: registro de `registerTaxHandler`
-  - `bot/handlers/menu.ts`: botón "Impuestos" entre Servicios y Tarjetas
-  - `services/report.service.ts`: 5ª query, hasNoData, sección IMPUESTOS en detalle, egresosTotal + Impuestos en balance
-- **Decisiones clave**:
-  - `estimatedDueDay` en entidad `Tax` (no en installment); capado con `getDaysInMonth` al crear cuota
-  - `taxInstallmentId` en session (distinto de `installmentId` de servicios, sin colisión)
-  - Ordenamiento en código, no en Firestore (evita índices adicionales)
-- Build + lint: ✅ 0 errores
-
-### Pendiente
-- Testing en emuladores: flujos crear impuesto, registrar cuota, marcar pagado, adjuntar comprobante, reporte
-- Deploy a botitio_testitoBot para validación end-to-end
-
----
-
 ## Collapsed Sessions (older)
 
+## 2026-04-29: UX de pago multicurrency en resúmenes de tarjeta (Commit 2b) — Flujo completo con selección moneda ARS/USD, TCV, handlers de skip/upload y buildPaymentSummaryText
+## 2026-04-28: Comprobantes multicurrency en resúmenes de tarjeta (Commit 1) — Schema CardStatement migrado a receiptUrlARS/receiptUrlUSD/exchangeRate; nuevos keyboards y handlers
+## 2026-04-27: Ordenamiento cronológico en historial de cuotas — getInstallmentsByService corregido a sort ascendente; JSDoc corregido en tax.ts
+## 2026-04-19: Automatización de creación de worktrees (/worktree) — Script new-worktree.sh + skill /worktree; crea worktree con npm install, .env copiado y emulator-data
+## 2026-04-19: Logging estructurado con firebase-functions/logger — Módulo helpers/logger.ts; 16 console.error reemplazados en 8 archivos; AttachInvoiceParams/AttachReceiptParams en handlers.types.ts
+## 2026-04-18: Bug fix — Parsing de decimales con punto en ingreso de montos — parseArgentineAmount() corregido; AMOUNT_PATTERN reescrito con 3 alternativas; regla documentada en conventions.md
+## 2026-04-17: Reporte Métodos de Pago + reestructuración del menú Reportes — Nuevo payment-method-report.ts; menú con submenúes Balances/Pagos/Servicios; reports-menu.md creado
+## 2026-04-16: Método de pago en impuestos — Campo paymentMethod en Tax; flujo de registro y edición; método visible en reporte mensual
+## 2026-04-16: Comandos de generación de tickets — 4 comandos /feature, /bug, /improvement, /automatizacion con detección retroactivo/descripción/prompt
+## 2026-04-15: Mejora — Listado de servicios agrupado en secciones por estado — 5 secciones (Vencidos/Próximos/Pagados/Pendientes/Sin cuota); optimizado con getInstallmentsForMonth
+## 2026-04-15: Bug fix — Telegraf callback handlers UX en tax.ts — 5 handlers corregidos al patrón editMessageText-first; patrón edit-before-reply establecido en decisions.md
+## 2026-04-14: Hooks PostToolUse — Migración a stderr — 3 hooks migrados de console.log a process.stderr.write; stderr no capturado aún por Claude Code
+## 2026-04-13: Tarjetas en Próximos Vencimientos — CardStatement integrado en getUpcomingDues; nuevo índice card_statements; getUpcomingUnpaidCardStatements implementado
+## 2026-04-09: Feature Próximos Vencimientos — implementación completa — Tipos, servicio y handler; buckets 0-3/4-5/6-7 días con prefijos [Svc]/[Imp]/[TC]
+## 2026-04-07: Feature Impuestos — implementación completa — Dominio completo: tipos, servicio, keyboards, handlers; sección IMPUESTOS en reporte mensual
 ## 2026-04-03: File upload bug fix + Automated secrets sync — Fixed GCS_BUCKET value, implemented .pending-secrets registry + go.sh sync integration
 ## 2026-03-06: Fase 3b — Recepción de comprobante como mensaje directo — Direct photo/PDF receipt flow with service selection, payment marking, and attachment
 ## 2026-03-06: Testing Fase 2 (Storage + Comprobantes) — Validated receipt upload end-to-end; fixed emulator startup (use only `npm run dev`)
