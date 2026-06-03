@@ -1,5 +1,13 @@
 # Session Log
 
+## 2026-06-03: GitHub Actions updated to Node.js 24 compatible versions
+
+### Completed
+- actions/checkout and actions/setup-node bumped to v6 in all three workflows (CI, deploy-functions, deploy-indexes)
+
+### Pending
+- Push branch and confirm CI runs without Node.js 20 deprecation warnings
+
 ## 2026-06-02: Consolidación de memoria (/mem-consolidate)
 
 ### Completado
