@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-06-04: WizardScene §10.3 — escena no debe hacer leave() con teclado activo
+
+- **Regla**: si el último output de un step o action handler es un teclado inline (o prompt de archivo que espera foto), el scene debe permanecer activo (`selectStep(GUARD_STEP)` o entrando al scene desde afuera). Llamar `scene.leave()` antes de recibir la respuesta del usuario hace que el próximo input caiga al handler global.
+- **Aplicado en**: `service.scene.ts` — `handleMarkAsPaid`/`handleMarkAsPaidFromService` entran al scene directamente en lugar de mostrar el prompt de comprobante suelto y salir.
+- **Documentado en**: `shared/wizard-scenes.md §10.3` (commit 4a)
+
 ## 2026-05-29: Oleada B (factura + comprobante + categorización) — diagnóstico y decisiones de diseño
 
 Investigación previa a la migración de la oleada más grande. Hallazgos y decisiones:

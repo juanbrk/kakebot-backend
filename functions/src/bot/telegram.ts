@@ -10,6 +10,7 @@ import { docRouterScene } from "./scenes/doc-router.scene";
 import { invoiceScene } from "./scenes/invoice.scene";
 import { categorizeScene } from "./scenes/categorize.scene";
 import { serviceScene } from "./scenes/service.scene";
+import { cardCreateScene } from "./scenes/card-create.scene";
 import { authMiddleware } from "./middleware/auth";
 import { registerStartHandler } from "./handlers/start";
 import { registerMenuHandler } from "./handlers/menu";
@@ -36,7 +37,9 @@ telegramBot.use(session({
 }));
 
 const stage = new Scenes.Stage<KakebotContext>([
-  incomeScene, taxScene, bulkScene, expenseScene, docRouterScene, invoiceScene, categorizeScene, serviceScene,
+  incomeScene, taxScene, bulkScene, expenseScene,
+  docRouterScene, invoiceScene, categorizeScene, serviceScene,
+  cardCreateScene,
 ]);
 telegramBot.use(stage.middleware());
 

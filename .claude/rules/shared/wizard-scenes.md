@@ -429,6 +429,44 @@ if (!hasRequiredData) {
 
 Ambos órdenes son aceptables acá (no hay UX downstream). El patrón debe ser consistente dentro de un mismo scene.
 
+### 10.3 Nunca llamar `scene.leave()` si el usuario todavía tiene que responder a un teclado
+
+Si la última acción de un step o action handler es mostrar un teclado (inline keyboard con callbacks, o un prompt de archivo), el scene debe permanecer activo para capturar la respuesta. **Llamar `scene.leave()` antes de recibir la respuesta hace que el próximo input del usuario caiga al handler global**, con resultados impredecibles (expense parser, doc-router, card handler, etc.).
+
+**Opción A — step dentro del scene que muestra teclado de archivo:** usar `selectStep(GUARD_STEP)` en lugar de `scene.leave()`.
+
+```typescript
+// ❌ INCORRECTO — scene deja activo antes de recibir la foto
+await ctx.reply("*Enviá la foto del comprobante.*", { parse_mode: "Markdown", reply_markup: ... });
+await ctx.scene.leave();   // El próximo mensaje del usuario ya no está en el scene.
+
+// ✅ CORRECTO — cursor queda en el guard de comprobante
+await ctx.reply("*Enviá la foto del comprobante.*", { parse_mode: "Markdown", reply_markup: ... });
+ctx.wizard.selectStep(RECEIPT_STEP);
+```
+
+**Opción B — action handler global que muestra teclado de archivo:** entrar al scene en lugar de mostrar el prompt suelto.
+
+```typescript
+// ❌ INCORRECTO — muestra teclado fuera del scene; la foto no la captura nadie
+async function handleMarkAsPaid(ctx: Context): Promise<void> {
+  await markInstallmentAsPaid(installmentId);
+  await ctx.editMessageText("✅ Cuota marcada como pagada.");
+  await ctx.reply("*Enviá la foto del comprobante.*", { reply_markup: ... });
+  // La foto siguiente va a photo.ts → doc-router.
+}
+
+// ✅ CORRECTO — scene entra y captura el archivo
+async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
+  await markInstallmentAsPaid(installmentId);
+  await ctx.editMessageText("✅ Cuota marcada como pagada.");
+  await ctx.scene.enter(SERVICE_SCENE_ID, { flow: "receipt", installmentId } as ServiceWizardState);
+  // stepInit muestra el prompt; scene.on("photo"/"document") lo captura.
+}
+```
+
+**Señal de alarma**: si un step o handler muestra un teclado o prompt de archivo y en la misma función llama `scene.leave()` (o no mueve el cursor con `selectStep`), es casi seguro que el siguiente input queda sin capturar.
+
 ---
 
 ## 11. Logging y error handling
@@ -564,6 +602,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] Cada step que muestra teclado tiene un `stepGuardX` inmediato a continuación (no inline).
 - [ ] Validación de input inválido: `ctx.reply` + `return` (sin `next()`).
 - [ ] Constantes `_STEP` declaradas cuando se usa `selectStep(N)`.
+- [ ] Ningún step ni action handler muestra un teclado o prompt de archivo y llama `scene.leave()` en la misma ejecución — si el teclado espera respuesta, usar `selectStep(GUARD_STEP)` o entrar al scene desde afuera (§10.3).
 
 ### Eventos
 - [ ] `scene.hears(CANCEL_REGEX, handleCancelWord)` registrado.
@@ -599,6 +638,10 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 ### Helpers
 - [ ] `getMessageText` importado de `helpers/wizard.ts` (no redefinido).
 - [ ] Otros helpers (`formatARS`, `parseArgentineAmount`, etc.) desde sus módulos canónicos.
+
+### Documentación
+- [ ] Toda función (steps, action handlers, helpers locales) tiene al menos una línea de JSDoc summary.
+- [ ] Funciones con parámetros incluyen `@param {KakebotContext} ctx` (y otros params si aplica) — requerido por la regla `valid-jsdoc` de ESLint.
 
 ### Seguridad de tipos
 - [ ] `ctx.from?.id.toString() ?? ""` (nunca `ctx.from!.id`).

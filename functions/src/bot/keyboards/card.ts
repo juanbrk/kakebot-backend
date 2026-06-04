@@ -105,7 +105,6 @@ export function buildCardProcessorKeyboard() {
       Markup.button.callback("VISA", "card_proc:VISA"),
       Markup.button.callback("MASTERCARD", "card_proc:MASTERCARD"),
     ],
-    [Markup.button.callback("Cancelar", "card_cancel")],
   ]);
 }
 

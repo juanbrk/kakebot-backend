@@ -1,6 +1,7 @@
 import { Telegraf, Context, Markup } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
-import { CreditCardProcessor, StatementCurrency } from "../../types/index";
+import { StatementCurrency } from "../../types/index";
+import { CARD_CREATE_SCENE_ID } from "../scenes/card-create.scene";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -18,7 +19,6 @@ import {
   getStatementsByUserAndMonth,
   getStatementById,
   getStatementsByCard,
-  createCard,
   createStatement,
   updateStatementAmountARS,
   updateStatementDueDay,
@@ -33,7 +33,6 @@ import {
   buildCardStmtMonthKeyboard,
   buildCardStmtReceiptKeyboard,
   buildCardCurrencyKeyboard,
-  buildCardStmtAfterCreateKeyboard,
   buildCardLabel,
   buildCardsHubKeyboard,
   buildCardListViewKeyboard,
@@ -126,100 +125,14 @@ async function handlePickCard(ctx: Context): Promise<void> {
   });
 }
 
-async function handleAddCard(ctx: Context): Promise<void> {
+async function handleAddCard(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_awaiting_bank",
-  });
-
   await ctx.editMessageText(
     "*Vas a registrar una nueva tarjeta de crédito*\n" +
       "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply(
-    "*¿A qué banco pertenece la tarjeta?*\n_Ejemplo: Galicia, BBVA, etc._",
-    { parse_mode: "Markdown" },
-  );
-}
-
-async function handleProcessorSelected(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const processor = ((ctx as any).match as string[])[1] as CreditCardProcessor;
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  if (!session) return;
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "card_awaiting_digits",
-    cardProcessor: processor,
-  });
-
-  await replyOrEdit(ctx, "*Ingresá los últimos 4 dígitos de la tarjeta*", {
-    parse_mode: "Markdown",
-  });
-}
-
-async function handleCardConfirm(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  const hasCardCreationData =
-    session &&
-    session.partialDescription &&
-    session.serviceName &&
-    session.cardProcessor &&
-    session.selectedMonth;
-
-  if (!hasCardCreationData) {
-    await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
-    return;
-  }
-
-  const digits = session!.partialDescription!;
-  const bank = session!.serviceName!;
-  const processor = session!.cardProcessor!;
-  const [mmStr, yyStr] = session!.selectedMonth!.split("/");
-  const expiryMonth = parseInt(mmStr, 10);
-  const expiryYear = 2000 + parseInt(yyStr, 10);
-
-  const cardId = await createCard({
-    telegramUserId,
-    lastFourDigits: digits,
-    bank,
-    processor,
-    expiryMonth,
-    expiryYear,
-  });
-
-  await clearSession(telegramUserId);
-
-  const processorLabel = processor === "VISA" ? "Visa" : "Master";
-  const cardLabel = `${processorLabel} ${digits} - ${bank}`;
-
-  await ctx.reply(`✅ Tarjeta *${cardLabel}* registrada.`, {
-    parse_mode: "Markdown",
-  });
-
-  await ctx.reply(
-    "¿Deseas añadir un resumen mensual?",
-    buildCardStmtAfterCreateKeyboard(cardId),
-  );
-}
-
-async function handleCardCancel(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-  await clearSession(telegramUserId);
-  await handleOpenCards(ctx);
+  await ctx.scene.enter(CARD_CREATE_SCENE_ID);
 }
 
 async function handleStartStatement(ctx: Context): Promise<void> {
@@ -1528,10 +1441,6 @@ export function registerCardHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("card_add", handleAddCard);
   bot.action(/^card_pick:(.+)$/, handlePickCard);
   bot.action(/^card_pg:(\d+)$/, handleCardPagination);
-  bot.action(/^card_proc:(VISA|MASTERCARD)$/, handleProcessorSelected);
-  bot.action("card_confirm", handleCardConfirm);
-  bot.action("card_cancel", handleCardCancel);
-
   bot.action(/^card_stmt_reg:(.+)$/, handleStartStatement);
   bot.action(/^card_stmt_add:(.+)$/, handleAddStatementFromList);
   bot.action("card_stmt_no", handleSkipStatement);

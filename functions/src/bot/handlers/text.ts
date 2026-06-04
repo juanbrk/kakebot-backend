@@ -1,6 +1,5 @@
 import { Telegraf } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
-import { CreditCardProcessor } from "../../types/index";
 import { TextHandlerParams } from "../../types/handlers.types";
 import {
   getSession, setSession, clearSession,
@@ -12,9 +11,6 @@ import { BULK_SCENE_ID } from "../scenes/bulk.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
 import {
-  buildCardProcessorKeyboard,
-  buildCardConfirmText,
-  buildCardConfirmKeyboard,
   buildCardCurrencyKeyboard,
   buildStmtConfirmText,
   buildCardStmtConfirmKeyboard,
@@ -46,21 +42,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
 
     if (session?.state === "card_stmt_awaiting_month") {
       await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para anular.");
-      return;
-    }
-
-    if (session?.state === "card_awaiting_digits") {
-      await handleCardDigits({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "card_awaiting_bank") {
-      await handleCardBank({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "card_awaiting_expiry") {
-      await handleCardExpiry({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -175,96 +156,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       "Ej: Panaderia 5000"
     );
   });
-}
-
-async function handleCardDigits({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const digits = messageText.trim();
-  const isValidDigits = /^\d{4}$/.test(digits);
-
-  if (!isValidDigits) {
-    await ctx.reply(
-      "Los dígitos deben ser exactamente 4 números (Ej: 5477)."
-    );
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "card_awaiting_expiry",
-    partialDescription: digits,
-  });
-
-  await ctx.reply(
-    "*Ingresá la fecha de vencimiento de la tarjeta*\n_Formato MM/AA (Ej: 03/28)_",
-    { parse_mode: "Markdown" }
-  );
-}
-
-async function handleCardBank({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const bank = messageText.trim();
-
-  if (bank.length === 0) {
-    await ctx.reply("El nombre del banco no puede estar vacío.");
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "card_awaiting_digits",
-    serviceName: bank,
-  });
-
-  await ctx.reply(
-    "*Seleccioná el procesador:*",
-    {
-      parse_mode: "Markdown",
-      ...buildCardProcessorKeyboard(),
-    }
-  );
-}
-
-async function handleCardExpiry({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const expiry = messageText.trim();
-  const isValidExpiry = /^(0[1-9]|1[0-2])\/(\d{2})$/.test(expiry);
-
-  if (!isValidExpiry) {
-    await ctx.reply(
-      "Formato inválido. Ingresá el vencimiento como MM/AA (Ej: 03/28)"
-    );
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    selectedMonth: expiry,
-  });
-
-  const digits = session.partialDescription || "";
-  const bank = session.serviceName || "";
-  const processor = (session.cardProcessor || "VISA") as CreditCardProcessor;
-
-  await ctx.reply(
-    buildCardConfirmText({ digits, bank, processor, expiry }),
-    {
-      parse_mode: "Markdown",
-      ...buildCardConfirmKeyboard(),
-    }
-  );
 }
 
 async function handleCardStmtArs({

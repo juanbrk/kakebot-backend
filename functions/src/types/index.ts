@@ -68,9 +68,6 @@ export interface CardStatement {
 }
 
 export type CardSessionState =
-  | "card_awaiting_digits"
-  | "card_awaiting_bank"
-  | "card_awaiting_expiry"
   | "card_stmt_awaiting_month"
   | "card_stmt_awaiting_ars"
   | "card_stmt_awaiting_usd"

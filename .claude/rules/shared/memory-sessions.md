@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-06-04: Retrospectiva + Commit 4a: card-create.scene.ts
+
+### Completado
+- §10.3 en wizard-scenes.md: regla "no llamar scene.leave() si el teclado todavía espera respuesta"
+- Flujo de creación de tarjeta migrado a `card-create.scene.ts`; 3 handlers eliminados de `card.ts`
+
+### Pendiente
+- Commit 4b: `card-stmt.scene.ts`
+- Commit 5: cleanup final (session.service, TaxSessionState, CardSessionState)
+
 ## 2026-06-03: Oleada C — Commit 3: service.scene.ts completo y testeado
 
 ### Completado

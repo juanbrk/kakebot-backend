@@ -1,7 +1,7 @@
 import { Scenes } from "telegraf";
 import { ServicePaymentMethod } from "./service.types";
 import { BulkExpenseEntry } from "./expense.types";
-import { PendingFileType } from "./index";
+import { PendingFileType, CreditCardProcessor } from "./index";
 
 /**
  * Persistent state for the income wizard, held in `ctx.wizard.state`.
@@ -104,6 +104,23 @@ export interface ServiceWizardState {
   dueDay?: number;
   /** Temporary amount stored while awaiting duplicate resolution. */
   partialAmount?: number;
+}
+
+/**
+ * Persistent state for the card creation wizard, held in `ctx.wizard.state`.
+ * Covers the full card creation flow: bank → processor → digits → expiry → confirm.
+ */
+export interface CardCreateWizardState {
+  /** Bank name (user-entered text), e.g. "Galicia", "BBVA". */
+  bank?: string;
+  /** Last four digits of the card. */
+  lastFourDigits?: string;
+  /** Card network processor (VISA or MASTERCARD). */
+  processor?: CreditCardProcessor;
+  /** Card expiry month (1-12). */
+  expiryMonth?: number;
+  /** Card expiry year (4-digit, e.g. 2028). */
+  expiryYear?: number;
 }
 
 /**
