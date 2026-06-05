@@ -1,7 +1,7 @@
 import { Telegraf, Context, Markup } from "telegraf";
-import { KakebotContext } from "../../types/telegraf-context.types";
-import { StatementCurrency } from "../../types/index";
+import { KakebotContext, CardStmtWizardState } from "../../types/telegraf-context.types";
 import { CARD_CREATE_SCENE_ID } from "../scenes/card-create.scene";
+import { CARD_STMT_SCENE_ID } from "../scenes/card-stmt.scene";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -19,7 +19,6 @@ import {
   getStatementsByUserAndMonth,
   getStatementById,
   getStatementsByCard,
-  createStatement,
   updateStatementAmountARS,
   updateStatementDueDay,
   markStatementAsPaid,
@@ -30,9 +29,6 @@ import {
   buildCardListKeyboard,
   buildCardDetailText,
   buildCardDetailKeyboard,
-  buildCardStmtMonthKeyboard,
-  buildCardStmtReceiptKeyboard,
-  buildCardCurrencyKeyboard,
   buildCardLabel,
   buildCardsHubKeyboard,
   buildCardListViewKeyboard,
@@ -135,11 +131,10 @@ async function handleAddCard(ctx: KakebotContext): Promise<void> {
   await ctx.scene.enter(CARD_CREATE_SCENE_ID);
 }
 
-async function handleStartStatement(ctx: Context): Promise<void> {
+async function handleStartStatement(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const card = await getCardById(cardId);
   if (!card) {
@@ -149,23 +144,13 @@ async function handleStartStatement(ctx: Context): Promise<void> {
 
   const cardLabel = buildCardLabel(card);
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_stmt_awaiting_ars",
-    cardId,
-    cardLabel,
-  });
-
   await ctx.editMessageText(
     `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
       "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 
-  await ctx.reply("*Seleccioná el mes del resumen*", {
-    parse_mode: "Markdown",
-    ...buildCardStmtMonthKeyboard(cardId),
-  });
+  await ctx.scene.enter(CARD_STMT_SCENE_ID, { flow: "create", cardId, cardLabel } as CardStmtWizardState);
 }
 
 async function handleSkipStatement(ctx: Context): Promise<void> {
@@ -174,200 +159,6 @@ async function handleSkipStatement(ctx: Context): Promise<void> {
   await clearSession(telegramUserId);
 
   await ctx.reply("Podés agregar un resumen desde el detalle de la tarjeta.");
-}
-
-async function handleStatementMonthSelected(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cardId = ((ctx as any).match as string[])[1];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stmtMonth = ((ctx as any).match as string[])[2];
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  if (!session) return;
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "card_stmt_awaiting_ars",
-    cardId,
-    statementMonth: stmtMonth,
-  });
-
-  const [year, month] = stmtMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-
-  await ctx.editMessageText(`*Seleccionaste ${monthLabel}*\n`, {
-    parse_mode: "Markdown",
-  });
-
-  await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
-    parse_mode: "Markdown",
-    ...buildCardCurrencyKeyboard(),
-  });
-}
-
-async function handleCurrencySelected(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const currency = ((ctx as any).match as string[])[1] as StatementCurrency;
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  if (!session) return;
-
-  if (currency === "ars") {
-    await setSession(telegramUserId, {
-      ...session,
-      statementCurrency: "ars",
-      state: "card_stmt_awaiting_ars",
-    });
-    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en pesos*", {
-      parse_mode: "Markdown",
-    });
-  } else if (currency === "usd") {
-    await setSession(telegramUserId, {
-      ...session,
-      statementCurrency: "usd",
-      partialAmount: 0,
-      state: "card_stmt_awaiting_usd",
-    });
-    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en dólares*", {
-      parse_mode: "Markdown",
-    });
-  } else {
-    await setSession(telegramUserId, {
-      ...session,
-      statementCurrency: "both",
-      state: "card_stmt_awaiting_ars",
-    });
-    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en pesos*", {
-      parse_mode: "Markdown",
-    });
-  }
-}
-
-async function handleStatementCancel(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-  const cardId = session?.cardId || "";
-  await clearSession(telegramUserId);
-
-  await ctx.editMessageText("*Cancelaste la subida del resumen.*", { parse_mode: "Markdown" });
-
-  if (cardId) {
-    await ctx.reply("*¿Qué querés hacer?*", {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([[
-        Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`),
-      ]]),
-    });
-  }
-}
-
-async function handleStatementConfirm(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  const hasStatementData =
-    session &&
-    session.cardId &&
-    session.statementMonth &&
-    session.partialAmount !== undefined &&
-    session.partialDescription;
-
-  if (!hasStatementData) {
-    await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
-    return;
-  }
-
-  const cardId = session!.cardId!;
-  const stmtMonth = session!.statementMonth!;
-  const amountARS = session!.partialAmount!;
-  const amountUSD = session!.partialAmountUSD || 0;
-  const dayStr = session!.partialDescription!;
-  const day = parseInt(dayStr, 10);
-  const cardLabel = session!.cardLabel || "";
-
-  const [year, month] = stmtMonth.split("-");
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
-
-  const statementId = await createStatement({
-    cardId,
-    telegramUserId,
-    month: stmtMonth,
-    amountARS,
-    amountUSD,
-    dueDate,
-  });
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_awaiting_receipt",
-    statementId,
-    cardLabel,
-    statementMonth: stmtMonth,
-    cardId,
-  });
-
-  await ctx.reply("✅ Resumen cargado correctamente.");
-
-  await ctx.reply(
-    "¿Deseas adjuntar el PDF del resumen?",
-    buildCardStmtReceiptKeyboard(statementId),
-  );
-}
-
-async function handleAttachStatementReceipt(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  const cardLabel = session?.cardLabel || "";
-  const stmtMonth = session?.statementMonth || "";
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_awaiting_receipt",
-    statementId,
-    cardLabel,
-    statementMonth: stmtMonth,
-  });
-
-  const [year, month] = stmtMonth.split("-");
-  const monthLabel = stmtMonth
-    ? `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`
-    : "";
-
-  await ctx.reply(
-    `*Vas a adjuntar el PDF del resumen del mes ${monthLabel} de la tarjeta ${cardLabel}*\n` +
-      "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
-  );
-
-  await ctx.reply("Enviá la foto o PDF del resumen.");
-}
-
-async function handleSkipStatementReceipt(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-  const cardId = session?.cardId || "";
-  await clearSession(telegramUserId);
-
-  if (cardId) {
-    await ctx.reply("Podés adjuntar el resumen luego desde el detalle del resumen.", {
-      ...Markup.inlineKeyboard([[
-        Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`),
-      ]]),
-    });
-  } else {
-    await ctx.reply("Podés adjuntar el resumen luego desde /tarjetas.");
-  }
 }
 
 /**
@@ -547,12 +338,11 @@ async function handleStatementDetail(ctx: Context): Promise<void> {
 }
 
 async function handleAttachStatementPdfFromHistory(
-  ctx: Context,
+  ctx: KakebotContext,
 ): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -560,34 +350,24 @@ async function handleAttachStatementPdfFromHistory(
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   const [year, month] = statement.month.split("-");
-  const stmtMonth = statement.month;
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_awaiting_receipt",
-    statementId,
-    cardLabel,
-    statementMonth: stmtMonth,
-    cardId: statement.cardId,
-  });
-
-  await ctx.reply(
+  await ctx.editMessageText(
     `*Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${cardLabel}*\n` +
       "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
-  await ctx.reply("Enviá la foto o PDF del resumen.");
+  await ctx.scene.enter(CARD_STMT_SCENE_ID, {
+    flow: "receipt_pdf",
+    statementId,
+    cardId: statement.cardId,
+    cardLabel,
+    statementMonth: statement.month,
+  } as CardStmtWizardState);
 }
 
 async function handleStatementEditMenu(ctx: Context): Promise<void> {
@@ -1367,11 +1147,11 @@ async function handleDownloadPaymentReceiptUSD(ctx: Context): Promise<void> {
  *
  * @param {Context} ctx
  */
-async function handleAddStatementFromList(ctx: Context): Promise<void> {
+async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
+  const telegramUserId = ctx.from?.id.toString() ?? "";
 
   const [card, statements] = await Promise.all([
     getCardById(cardId),
@@ -1407,23 +1187,18 @@ async function handleAddStatementFromList(ctx: Context): Promise<void> {
     return;
   }
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_stmt_awaiting_month",
-    cardId,
-    cardLabel,
-  });
-
   await ctx.editMessageText(
     `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
     "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
   );
 
-  await ctx.reply("*Seleccioná el mes del resumen*", {
-    parse_mode: "Markdown",
-    ...buildCardStmtMonthKeyboard(cardId, existingMonths),
-  });
+  await ctx.scene.enter(CARD_STMT_SCENE_ID, {
+    flow: "create",
+    cardId,
+    cardLabel,
+    existingMonths,
+  } as CardStmtWizardState);
 }
 
 /**
@@ -1444,15 +1219,6 @@ export function registerCardHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^card_stmt_reg:(.+)$/, handleStartStatement);
   bot.action(/^card_stmt_add:(.+)$/, handleAddStatementFromList);
   bot.action("card_stmt_no", handleSkipStatement);
-  bot.action(
-    /^card_stmt_month:(.+):(\d{4}-\d{2})$/,
-    handleStatementMonthSelected,
-  );
-  bot.action(/^card_stmt_currency:(ars|usd|both)$/, handleCurrencySelected);
-  bot.action("card_stmt_confirm", handleStatementConfirm);
-  bot.action("card_stmt_cancel", handleStatementCancel);
-  bot.action(/^card_stmt_attach:(.+)$/, handleAttachStatementReceipt);
-  bot.action("card_stmt_skip", handleSkipStatementReceipt);
   bot.action(/^card_stmt_download:(.+)$/, handleDownloadStatementPdf);
 
   // Statement history

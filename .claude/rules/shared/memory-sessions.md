@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-06-05: Commit 4b-1 — card-stmt.scene.ts (flujo create + receipt_pdf)
+
+### Completado
+- `card-stmt.scene.ts` creado con `CardStmtWizardState` (8 flujos previstos; 4b-1 cubre `create` y `receipt_pdf`)
+- `card.ts`, `text.ts`, `photo.ts`: handlers legacy de creación eliminados; entry points → `scene.enter`
+- Validado en botitio_testitoBot: crear pesos/dólares/ambos + PDF + historial + robustez ✅
+
+### Pendiente
+- 4b-2 (pago), 4b-3 (ediciones), 4b-4 (comprobantes standalone + cleanup tipos)
+- `handleStatementsList` aún setea `card_awaiting_receipt` (dead state) → limpiar en 4b-4
+
 ## 2026-06-04: Retrospectiva + Commit 4a: card-create.scene.ts
 
 ### Completado

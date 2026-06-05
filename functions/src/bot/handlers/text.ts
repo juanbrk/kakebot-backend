@@ -5,15 +5,12 @@ import {
   getSession, setSession, clearSession,
 } from "../../services/session.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
-import { formatARS, formatUSD, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatUSD, getDaysInMonth } from "../../helpers/format";
 import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bulk-parse";
 import { BULK_SCENE_ID } from "../scenes/bulk.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
 import {
-  buildCardCurrencyKeyboard,
-  buildStmtConfirmText,
-  buildCardStmtConfirmKeyboard,
   buildStmtEditConfirmKeyboard,
   buildStmtPayARSKeyboard,
   buildStmtUsdCurrencyKeyboard,
@@ -42,28 +39,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
 
     if (session?.state === "card_stmt_awaiting_month") {
       await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para anular.");
-      return;
-    }
-
-    if (session?.state === "card_stmt_awaiting_ars") {
-      if (!session.statementCurrency) {
-        await ctx.reply(
-          "Elegí una opción del teclado, o escribí \"cancelar\" para anular.",
-          { ...buildCardCurrencyKeyboard() },
-        );
-        return;
-      }
-      await handleCardStmtArs({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "card_stmt_awaiting_usd") {
-      await handleCardStmtUsd({ ctx, session, telegramUserId, messageText });
-      return;
-    }
-
-    if (session?.state === "card_stmt_awaiting_day") {
-      await handleCardStmtDay({ ctx, session, telegramUserId, messageText });
       return;
     }
 
@@ -156,128 +131,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       "Ej: Panaderia 5000"
     );
   });
-}
-
-async function handleCardStmtArs({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-
-  const isValidAmount = amount !== null && amount > 0;
-  if (!isValidAmount) {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 14.819,50"
-    );
-    return;
-  }
-
-  const stmtMonth = session.statementMonth || "";
-  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
-
-  if (session.statementCurrency === "both") {
-    await setSession(telegramUserId, {
-      ...session,
-      partialAmount: amount,
-      state: "card_stmt_awaiting_usd",
-    });
-    await ctx.reply(
-      "*Ingresá el monto de los consumos en dólares*",
-      { parse_mode: "Markdown" }
-    );
-  } else {
-    await setSession(telegramUserId, {
-      ...session,
-      partialAmount: amount,
-      partialAmountUSD: 0,
-      state: "card_stmt_awaiting_day",
-    });
-    await ctx.reply(
-      `*¿Qué día vence el resumen?* (1-${maxDay})`,
-      { parse_mode: "Markdown" }
-    );
-  }
-}
-
-async function handleCardStmtUsd({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-
-  const isValidAmount = amount !== null && amount > 0;
-  if (!isValidAmount) {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\nEj: 49,47"
-    );
-    return;
-  }
-
-  const stmtMonth = session.statementMonth || "";
-  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "card_stmt_awaiting_day",
-    partialAmountUSD: amount,
-  });
-
-  await ctx.reply(
-    `*¿Qué día vence el resumen?* (1-${maxDay})`,
-    { parse_mode: "Markdown" }
-  );
-}
-
-async function handleCardStmtDay({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TextHandlerParams): Promise<void> {
-  const dayStr = messageText.trim();
-  const day = parseInt(dayStr, 10);
-
-  const stmtMonth = session.statementMonth || "";
-  const maxDay = stmtMonth ? getDaysInMonth(stmtMonth) : 31;
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
-
-  if (!isValidDay) {
-    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...session,
-    state: "card_stmt_awaiting_day",
-    partialDescription: dayStr,
-  });
-
-  const cardLabel = session.cardLabel || "";
-  const amountARS = session.partialAmount || 0;
-  const amountUSD = session.partialAmountUSD || 0;
-
-  const [year, month] = stmtMonth.split("-");
-  const monthLabel =
-    `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-
-  await ctx.reply(
-    buildStmtConfirmText({
-      cardLabel,
-      monthLabel,
-      amountARS,
-      amountUSD,
-      dueDay: day,
-      stmtMonth,
-    }),
-    {
-      parse_mode: "Markdown",
-      ...buildCardStmtConfirmKeyboard(),
-    }
-  );
 }
 
 async function handleCardStmtEditArs({

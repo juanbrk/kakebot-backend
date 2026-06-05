@@ -124,6 +124,43 @@ export interface CardCreateWizardState {
 }
 
 /**
+ * Persistent state for the card statement wizard, held in `ctx.wizard.state`.
+ * Covers eight entry flows via the `flow` discriminator: create, pay,
+ * edit_ars, edit_usd, edit_day, receipt_ars, receipt_usd, receipt_pdf.
+ */
+export interface CardStmtWizardState {
+  flow: "create" | "pay" | "edit_ars" | "edit_usd" | "edit_day"
+      | "receipt_ars" | "receipt_usd" | "receipt_pdf";
+  cardId?: string;
+  cardLabel?: string;
+  statementId?: string;
+  /** Statement month in YYYY-MM format. */
+  statementMonth?: string;
+  /** Currency mix selected during creation. */
+  statementCurrency?: "ars" | "usd" | "both";
+  /** Peso consumos amount, set during creation. */
+  amountARS?: number;
+  /** Dollar consumos amount, set during creation. */
+  amountUSD?: number;
+  /** Statement due day (1-31), set during creation. */
+  dueDay?: number;
+  /** YYYY-MM months already registered, used to filter the create month picker. */
+  existingMonths?: string[];
+  /** USD amount of the statement being paid; drives the ARS→USD receipt follow-up. */
+  statementAmountUSD?: number;
+  /** Currency used to settle the USD portion (payment and edit-USD flows). */
+  usdPaymentCurrency?: "usd" | "ars";
+  /** Exchange rate (TCV) entered when paying the USD portion in pesos. */
+  exchangeRate?: number;
+  /** New USD amount pending confirmation in the edit-USD flow. */
+  pendingEditUSD?: number;
+  /** Whether the statement is already paid (gates the edit-USD currency/TCV sub-flow). */
+  isPaid?: boolean;
+  /** Generic pending edit value (ARS amount or due day) awaiting confirmation. */
+  pendingEditValue?: number;
+}
+
+/**
  * Session object persisted per user by the Telegraf `session()` middleware.
  * Carries the active scene and step cursor under `__scenes`.
  */
