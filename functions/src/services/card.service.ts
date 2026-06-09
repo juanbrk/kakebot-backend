@@ -241,7 +241,7 @@ export async function updateStatementDueDay({
 
   if (newDay < 1 || newDay > maxDay) return false;
 
-  const newDueDate = new Date(Date.UTC(year, month - 1, newDay));
+  const newDueDate = new Date(Date.UTC(year, month - 1, newDay, 12, 0, 0));
   await getDb()
     .collection("card_statements")
     .doc(statementId)

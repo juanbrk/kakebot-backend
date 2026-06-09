@@ -1,5 +1,29 @@
 # Session Log
 
+## 2026-06-09: Commit 4b-3 — flujos de edición de resumen migrados a card-stmt.scene
+
+### Completado
+- Flujos `edit_ars`, `edit_usd`, `edit_day` migrados a `card-stmt.scene.ts` (steps 15–22): guards, confirm keyboards, action handlers, reprompt
+- Handlers legacy de edición eliminados de `card.ts`, `text.ts`; dispatch de comprobantes de pago eliminado de `photo.ts`
+- Bug fix: dueDate guardado a noon UTC para evitar edge case de timezone en `updateStatementDueDay`
+- Validado en botitio_testitoBot: 13 escenarios ✅
+
+### Pendiente
+- 4b-4: comprobantes standalone (`receipt_ars`, `receipt_usd`) + cleanup tipos legacy (CardSessionState, `handleStatementsList` dead state)
+- Commit 5: session.service cleanup, TaxSessionState y CardSessionState removidos de SessionState union
+
+## 2026-06-06: Commit 4b-2 — card-stmt.scene.ts flujo de pago
+
+### Completado
+- Flujo de pago migrado a `card-stmt.scene.ts` (steps 9–14): ARS-only, USD en pesos/dólares, TCV, comprobantes ARS/USD, resumen de pago
+- Handlers legacy de pago eliminados de `card.ts`, `text.ts` y `photo.ts`
+- Bug fix: botones "Adjuntar" no tenían feedback visual; foto enviada desde el teclado mostraba error
+- Validado en botitio_testitoBot: 10 escenarios ✅
+
+### Pendiente
+- 4b-3: edición de resúmenes pagados (`card_stmt_edit_awaiting_*` en `text.ts`)
+- 4b-4: comprobantes standalone + cleanup de tipos legacy
+
 ## 2026-06-05: Commit 4b-1 — card-stmt.scene.ts (flujo create + receipt_pdf)
 
 ### Completado
