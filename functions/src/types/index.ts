@@ -67,22 +67,6 @@ export interface CardStatement {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
-export type CardSessionState =
-  | "card_stmt_awaiting_month"
-  | "card_stmt_awaiting_ars"
-  | "card_stmt_awaiting_usd"
-  | "card_stmt_awaiting_day"
-  | "card_awaiting_receipt"
-  | "card_stmt_awaiting_exchange_rate"
-  | "card_stmt_awaiting_receipt_ars"
-  | "card_stmt_awaiting_receipt_usd"
-  | "card_stmt_awaiting_usd_payment_currency"
-  | "card_stmt_edit_awaiting_ars"
-  | "card_stmt_edit_awaiting_usd"
-  | "card_stmt_edit_awaiting_usd_payment_currency"
-  | "card_stmt_edit_awaiting_day"
-  | "card_stmt_edit_awaiting_exchange_rate";
-
 export type TaxSessionState =
   | "tax_awaiting_name"
   | "tax_awaiting_day"
@@ -92,7 +76,6 @@ export type TaxSessionState =
 
 export type SessionState =
   | "categorizing"
-  | CardSessionState
   | TaxSessionState;
 
 export interface Session {
@@ -112,19 +95,8 @@ export interface Session {
   serviceName?: string;
   installmentId?: string;
   selectedMonth?: string;
-  cardId?: string;
-  cardLabel?: string;
-  cardProcessor?: CreditCardProcessor;
-  statementId?: string;
-  statementMonth?: string;
-  partialAmountUSD?: number;
-  statementCurrency?: StatementCurrency;
-  statementAmountUSD?: number;
   taxId?: string;
   taxName?: string;
   taxInstallmentId?: string;
   taxPaymentMethod?: ServicePaymentMethod;
-  pendingEditValue?: string;
-  pendingExchangeRate?: number;
-  usdPaymentCurrency?: "usd" | "ars";
 }

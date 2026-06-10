@@ -5,7 +5,6 @@ import {
   getSession,
   setSession,
   clearSession,
-  emptySessionForPartial,
 } from "../../services/session.service";
 import { formatARS, MONTH_NAMES } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
@@ -214,7 +213,16 @@ async function handlePaidNo(ctx: Context): Promise<void> {
   );
 
   await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
+    telegramUserId,
+    state: "categorizing",
+    pendingDescs: [],
+    currentDesc: "",
+    currentDisplayName: "",
+    currentTotalAmount: 0,
+    currentPage: 0,
+    messageId: 0,
+    chatId: 0,
+    sessionExpenses: [],
     taxId: installment.taxId,
     taxName: installment.taxName,
   });
@@ -514,7 +522,16 @@ async function showTaxActionView(
   }
 
   await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
+    telegramUserId,
+    state: "categorizing",
+    pendingDescs: [],
+    currentDesc: "",
+    currentDisplayName: "",
+    currentTotalAmount: 0,
+    currentPage: 0,
+    messageId: 0,
+    chatId: 0,
+    sessionExpenses: [],
     taxId,
     taxName: tax.name,
   });

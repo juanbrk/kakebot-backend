@@ -26,11 +26,6 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
       return;
     }
 
-    if (session?.state === "card_stmt_awaiting_month") {
-      await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para anular.");
-      return;
-    }
-
     if (isBulkMessage(messageText)) {
       const nonEmptyLines = messageText.split("\n").filter((l) => l.trim().length > 0);
       if (nonEmptyLines.length > MAX_BULK_LINES) {

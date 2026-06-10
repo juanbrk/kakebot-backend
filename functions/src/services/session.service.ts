@@ -18,18 +18,3 @@ export async function setSession(
 export async function clearSession(telegramUserId: string): Promise<void> {
   await getDb().collection("sessions").doc(telegramUserId).delete();
 }
-
-export function emptySessionForPartial(telegramUserId: string): Session {
-  return {
-    telegramUserId,
-    state: "card_stmt_awaiting_month",
-    pendingDescs: [],
-    currentDesc: "",
-    currentDisplayName: "",
-    currentTotalAmount: 0,
-    currentPage: 0,
-    messageId: 0,
-    chatId: 0,
-    sessionExpenses: [],
-  };
-}

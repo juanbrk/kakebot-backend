@@ -58,6 +58,8 @@ const EDIT_USD_TCV_STEP = 19;
 const EDIT_USD_CONFIRM_STEP = 20;
 const EDIT_DAY_INPUT_STEP = 21;
 const EDIT_DAY_CONFIRM_STEP = 22;
+const RECEIPT_ARS_STEP = 23;
+const RECEIPT_USD_STEP = 24;
 
 // --- Helpers ---
 
@@ -162,6 +164,26 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       { parse_mode: "Markdown" },
     );
     ctx.wizard.selectStep(EDIT_DAY_INPUT_STEP);
+    break;
+  }
+
+  case "receipt_ars": {
+    const arsLabel = monthLabelOf(state.statementMonth || "");
+    await ctx.reply(
+      `*Enviá el comprobante de pago en ARS del resumen ${arsLabel} · ${state.cardLabel || ""}*`,
+      { parse_mode: "Markdown" },
+    );
+    ctx.wizard.selectStep(RECEIPT_ARS_STEP);
+    break;
+  }
+
+  case "receipt_usd": {
+    const usdLabel = monthLabelOf(state.statementMonth || "");
+    await ctx.reply(
+      `*Enviá el comprobante de pago en USD del resumen ${usdLabel} · ${state.cardLabel || ""}*`,
+      { parse_mode: "Markdown" },
+    );
+    ctx.wizard.selectStep(RECEIPT_USD_STEP);
     break;
   }
 
@@ -669,6 +691,124 @@ async function stepGuardEditDayConfirm(ctx: KakebotContext): Promise<void> {
       ]]).reply_markup as any,
     },
   );
+}
+
+// -- Standalone receipt steps --
+
+/**
+ * ARS receipt guard: re-prompts when text arrives while waiting for a file.
+ *
+ * @param {KakebotContext} ctx - Wizard context
+ */
+async function stepGuardReceiptARS(ctx: KakebotContext): Promise<void> {
+  await ctx.reply(
+    "No esperaba texto. Enviá la foto o PDF del comprobante en ARS, o escribí \"cancelar\" para anular.",
+  );
+}
+
+/**
+ * USD receipt guard: re-prompts when text arrives while waiting for a file.
+ *
+ * @param {KakebotContext} ctx - Wizard context
+ */
+async function stepGuardReceiptUSD(ctx: KakebotContext): Promise<void> {
+  await ctx.reply(
+    "No esperaba texto. Enviá la foto o PDF del comprobante en USD, o escribí \"cancelar\" para anular.",
+  );
+}
+
+/**
+ * Standalone ARS receipt upload: saves the file and confirms without continuing to USD.
+ *
+ * @param {KakebotContext} ctx - Wizard context
+ * @param {string | null} documentFileId - PDF file_id when handling a document; null for photos
+ */
+async function handleStandaloneARSReceiptUpload(ctx: KakebotContext, documentFileId: string | null): Promise<void> {
+  const state = ctx.wizard.state as CardStmtWizardState;
+  const telegramUserId = ctx.from?.id.toString() ?? "";
+  const statementId = state.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  let fileId: string;
+  let mimeType: string;
+  if (documentFileId) {
+    fileId = documentFileId;
+    mimeType = "application/pdf";
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const photos = ((ctx.message as any).photo as Array<{ file_id: string }>) || [];
+    if (photos.length === 0) {
+      await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
+      return;
+    }
+    fileId = photos[photos.length - 1].file_id;
+    mimeType = "";
+  }
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const fileBuffer = await downloadFile(fileLink.href);
+    const resolvedMimeType = mimeType || (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
+    const receiptUrl = await uploadStatementPaymentReceipt({
+      telegramUserId, installmentId: statementId, fileBuffer, mimeType: resolvedMimeType,
+    });
+    await saveStatementReceiptUrlARS(statementId, receiptUrl);
+    await ctx.reply("✅ Comprobante de pago en ARS guardado.");
+    await ctx.scene.leave();
+  } catch (error) {
+    log.error("Error uploading standalone ARS receipt", error, { module: "card-stmt.scene", userId: telegramUserId });
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+  }
+}
+
+/**
+ * Standalone USD receipt upload: saves the file and confirms.
+ *
+ * @param {KakebotContext} ctx - Wizard context
+ * @param {string | null} documentFileId - PDF file_id when handling a document; null for photos
+ */
+async function handleStandaloneUSDReceiptUpload(ctx: KakebotContext, documentFileId: string | null): Promise<void> {
+  const state = ctx.wizard.state as CardStmtWizardState;
+  const telegramUserId = ctx.from?.id.toString() ?? "";
+  const statementId = state.statementId || "";
+  if (!statementId) {
+    await ctx.reply("Error: datos de sesión incompletos.");
+    return;
+  }
+
+  let fileId: string;
+  let mimeType: string;
+  if (documentFileId) {
+    fileId = documentFileId;
+    mimeType = "application/pdf";
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const photos = ((ctx.message as any).photo as Array<{ file_id: string }>) || [];
+    if (photos.length === 0) {
+      await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
+      return;
+    }
+    fileId = photos[photos.length - 1].file_id;
+    mimeType = "";
+  }
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const fileBuffer = await downloadFile(fileLink.href);
+    const resolvedMimeType = mimeType || (fileLink.href.includes(".png") ? "image/png" : "image/jpeg");
+    const receiptUrl = await uploadStatementPaymentReceiptUSD({
+      telegramUserId, installmentId: statementId, fileBuffer, mimeType: resolvedMimeType,
+    });
+    await saveStatementReceiptUrlUSD(statementId, receiptUrl);
+    await ctx.reply("✅ Comprobante de pago en USD guardado.");
+    await ctx.scene.leave();
+  } catch (error) {
+    log.error("Error uploading standalone USD receipt", error, { module: "card-stmt.scene", userId: telegramUserId });
+    await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
+  }
 }
 
 // --- Action handlers ---
@@ -1467,6 +1607,18 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     );
     break;
   }
+  case RECEIPT_ARS_STEP:
+    await ctx.reply(
+      `*Enviá el comprobante de pago en ARS del resumen ${monthLabelOf(state.statementMonth || "")} · ${state.cardLabel || ""}*`,
+      { parse_mode: "Markdown" },
+    );
+    break;
+  case RECEIPT_USD_STEP:
+    await ctx.reply(
+      `*Enviá el comprobante de pago en USD del resumen ${monthLabelOf(state.statementMonth || "")} · ${state.cardLabel || ""}*`,
+      { parse_mode: "Markdown" },
+    );
+    break;
   default:
     break;
   }
@@ -1509,6 +1661,8 @@ export const cardStmtScene = new Scenes.WizardScene<KakebotContext>(
   stepGuardEditUsdConfirm, // 20 = EDIT_USD_CONFIRM_STEP
   stepHandleEditDayInput, // 21 = EDIT_DAY_INPUT_STEP
   stepGuardEditDayConfirm, // 22 = EDIT_DAY_CONFIRM_STEP
+  stepGuardReceiptARS, // 23 = RECEIPT_ARS_STEP
+  stepGuardReceiptUSD, // 24 = RECEIPT_USD_STEP
 );
 
 cardStmtScene.hears(CANCEL_REGEX, handleCancelWord);
@@ -1546,6 +1700,14 @@ cardStmtScene.on("photo", async (ctx) => {
     await handlePayUSDReceiptUpload(ctx, null);
     return;
   }
+  if (cursor === RECEIPT_ARS_STEP) {
+    await handleStandaloneARSReceiptUpload(ctx, null);
+    return;
+  }
+  if (cursor === RECEIPT_USD_STEP) {
+    await handleStandaloneUSDReceiptUpload(ctx, null);
+    return;
+  }
   await repromptCurrentStep(ctx);
 });
 
@@ -1568,6 +1730,14 @@ cardStmtScene.on("document", async (ctx) => {
   }
   if (cursor === PAY_USD_UPLOAD_STEP || cursor === PAY_USD_STEP) {
     await handlePayUSDReceiptUpload(ctx, document.file_id);
+    return;
+  }
+  if (cursor === RECEIPT_ARS_STEP) {
+    await handleStandaloneARSReceiptUpload(ctx, document.file_id);
+    return;
+  }
+  if (cursor === RECEIPT_USD_STEP) {
+    await handleStandaloneUSDReceiptUpload(ctx, document.file_id);
     return;
   }
   await repromptCurrentStep(ctx);

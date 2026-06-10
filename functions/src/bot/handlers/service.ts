@@ -6,7 +6,6 @@ import {
   getSession,
   setSession,
   clearSession,
-  emptySessionForPartial,
 } from "../../services/session.service";
 import {
   getServicesByUser,
@@ -87,7 +86,16 @@ async function showServiceActionView(
   }
 
   await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
+    telegramUserId,
+    state: "categorizing",
+    pendingDescs: [],
+    currentDesc: "",
+    currentDisplayName: "",
+    currentTotalAmount: 0,
+    currentPage: 0,
+    messageId: 0,
+    chatId: 0,
+    sessionExpenses: [],
     serviceId,
     serviceName: service.name,
   });

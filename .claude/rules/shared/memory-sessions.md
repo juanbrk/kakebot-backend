@@ -1,5 +1,31 @@
 # Session Log
 
+## 2026-06-10: Commit 4b-4 — validado en botitio_testitoBot, Oleada C cerrada
+
+### Completado
+- Testing OK: adjuntar ARS/USD standalone, guard de texto, flujo de pago sin regresión, lista de resúmenes
+- TICKET.md: items 5b y 4b-4 marcados ✅
+
+### Pendiente
+- Commit 5: cleanup final (`session.service.ts`, `TaxSessionState` de `SessionState`)
+
+---
+
+## 2026-06-09: Commit 4b-4 — flujos receipt_ars/receipt_usd + cleanup tipos legacy tarjeta
+
+### Completado
+- `receipt_ars` y `receipt_usd` migrados a `card-stmt.scene.ts` (steps 23–24): `stepGuardReceiptARS/USD`, `handleStandaloneARSReceiptUpload/USD`, dispatch en photo/document handlers, cases en `repromptCurrentStep`
+- `handleStmtReceiptsAttachARS` y `handleAttachReceiptUSD` en `card.ts`: eliminado `setSession`; ahora entran al scene con `flow: "receipt_ars/usd"`
+- Limpieza en 9 handlers de `card.ts`: eliminado read de session para `cardLabel`; siempre `getCardById`
+- `CardSessionState` eliminado de `types/index.ts`; 10 campos de sesión de tarjetas removidos de `Session`
+- `emptySessionForPartial` eliminado de `session.service.ts` (0 callers)
+- Guard muerto `card_stmt_awaiting_month` eliminado de `text.ts`
+- Build ✅ lint ✅ (0 errores)
+
+### Pendiente
+- Validar en botitio_testitoBot: Adjuntar ARS/USD desde submenú Comprobantes, flujo de pago sin regresión
+- Commit 5: cleanup final (eliminar `session.service.ts`, `TaxSessionState` de `SessionState`)
+
 ## 2026-06-09: Commit 4b-3 — flujos de edición de resumen migrados a card-stmt.scene
 
 ### Completado

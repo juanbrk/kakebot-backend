@@ -6,12 +6,7 @@ import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
-import {
-  getSession,
-  setSession,
-  clearSession,
-  emptySessionForPartial,
-} from "../../services/session.service";
+import { clearSession } from "../../services/session.service";
 import {
   getCardsByUser,
   getCardById,
@@ -211,16 +206,8 @@ async function showStatementDetail(
     return;
   }
 
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
@@ -263,13 +250,6 @@ async function handleStatementsList(ctx: Context): Promise<void> {
 
   const cardLabel = buildCardLabel(card);
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_awaiting_receipt",
-    cardId,
-    cardLabel,
-  });
-
   const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
 
   if (statements.length === 0) {
@@ -303,16 +283,10 @@ async function handleStatementsListPagination(ctx: Context): Promise<void> {
   const page = parseInt(((ctx as any).match as string[])[2], 10);
   const telegramUserId = String(ctx.from!.id);
 
-  const session = await getSession(telegramUserId);
   const statements = await getStatementsByCard(cardId, telegramUserId);
 
-  let cardLabel = "";
-  if (session?.cardId === cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
 
@@ -366,7 +340,6 @@ async function handleStatementEditMenu(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -374,14 +347,8 @@ async function handleStatementEditMenu(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
@@ -403,7 +370,6 @@ async function handleEditArs(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -411,14 +377,8 @@ async function handleEditArs(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   await ctx.editMessageText(
     `*Vas a modificar el monto en pesos para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
@@ -437,7 +397,6 @@ async function handleEditUsd(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -445,14 +404,8 @@ async function handleEditUsd(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   await ctx.editMessageText(
     `*Vas a modificar el monto en dólares para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
@@ -472,7 +425,6 @@ async function handleEditDay(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -480,14 +432,8 @@ async function handleEditDay(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   await ctx.editMessageText(
     `*Vas a modificar el vencimiento para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
@@ -589,7 +535,6 @@ async function handleMarkStatementAsPaid(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() ?? "";
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -597,14 +542,8 @@ async function handleMarkStatementAsPaid(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
@@ -638,15 +577,8 @@ async function handleStmtReceiptsMenu(ctx: Context): Promise<void> {
     return;
   }
 
-  const telegramUserId = String(ctx.from!.id);
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
@@ -669,17 +601,15 @@ async function handleStmtReceiptsMenu(ctx: Context): Promise<void> {
 }
 
 /**
- * Sets session to card_stmt_awaiting_receipt_ars from the Comprobantes submenu.
- * Uses statementAmountUSD: 0 to suppress the USD follow-up prompt since this is
- * a standalone attachment, not part of the payment flow.
+ * Enters the card-stmt scene with flow "receipt_ars" to attach an ARS payment receipt
+ * from the Comprobantes submenu (standalone, not part of the payment flow).
  *
- * @param {Context} ctx
+ * @param {KakebotContext} ctx
  */
-async function handleStmtReceiptsAttachARS(ctx: Context): Promise<void> {
+async function handleStmtReceiptsAttachARS(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -687,42 +617,35 @@ async function handleStmtReceiptsAttachARS(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_stmt_awaiting_receipt_ars",
-    statementId,
-    cardLabel,
-    statementMonth: statement.month,
-    cardId: statement.cardId,
-    statementAmountUSD: 0,
-  });
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
   await ctx.editMessageText(
-    "*Enviá la foto o PDF del comprobante de pago en ARS.*",
+    `_${monthLabel} · ${cardLabel} — adjuntando comprobante ARS_`,
     { parse_mode: "Markdown" },
   );
+  await ctx.scene.enter(CARD_STMT_SCENE_ID, {
+    flow: "receipt_ars",
+    statementId,
+    cardId: statement.cardId,
+    cardLabel,
+    statementMonth: statement.month,
+  } as CardStmtWizardState);
 }
 
 /**
- * Sets session to card_stmt_awaiting_receipt_usd and prompts the user to send the USD
- * payment receipt. Used by both the post-payment flow and the Comprobantes submenu.
+ * Enters the card-stmt scene with flow "receipt_usd" to attach a USD payment receipt
+ * from the Comprobantes submenu (standalone, not part of the payment flow).
  *
- * @param {Context} ctx
+ * @param {KakebotContext} ctx
  */
-async function handleAttachReceiptUSD(ctx: Context): Promise<void> {
+async function handleAttachReceiptUSD(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
-  const telegramUserId = String(ctx.from!.id);
 
   const statement = await getStatementById(statementId);
   if (!statement) {
@@ -730,28 +653,23 @@ async function handleAttachReceiptUSD(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  let cardLabel = "";
-  if (session?.cardId === statement.cardId && session?.cardLabel) {
-    cardLabel = session.cardLabel;
-  } else {
-    const card = await getCardById(statement.cardId);
-    cardLabel = card ? buildCardLabel(card) : "";
-  }
+  const card = await getCardById(statement.cardId);
+  const cardLabel = card ? buildCardLabel(card) : "";
 
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "card_stmt_awaiting_receipt_usd",
-    statementId,
-    cardLabel,
-    statementMonth: statement.month,
-    cardId: statement.cardId,
-  });
+  const [year, month] = statement.month.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
   await ctx.editMessageText(
-    "*Enviá la foto o PDF del comprobante de pago en USD.*",
+    `_${monthLabel} · ${cardLabel} — adjuntando comprobante USD_`,
     { parse_mode: "Markdown" },
   );
+  await ctx.scene.enter(CARD_STMT_SCENE_ID, {
+    flow: "receipt_usd",
+    statementId,
+    cardId: statement.cardId,
+    cardLabel,
+    statementMonth: statement.month,
+  } as CardStmtWizardState);
 }
 
 /**
@@ -822,8 +740,7 @@ async function handleDownloadPaymentReceiptUSD(ctx: Context): Promise<void> {
 
 /**
  * Initiates statement creation from the statement list view.
- * Filters out months that already have a statement. Sets state to card_stmt_awaiting_month
- * so text.ts won't misroute free text input to the expense parser.
+ * Filters out months that already have a statement.
  *
  * @param {Context} ctx
  */
