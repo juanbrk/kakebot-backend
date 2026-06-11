@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-06-10: Commit 5 — cleanup de tipos y sesión legacy
+
+### Completado
+- TaxSessionState eliminado; SessionState simplificado a `"categorizing"`; 10 campos de sesión muertos removidos de Session
+- Lecturas de nombre en tax.ts y service.ts migradas a fetch directo; setSession eliminado de showTaxActionView, showServiceActionView y handlePaidNo
+- Validado en botitio_testitoBot: todos los flujos OK
+
+### Pendiente
+- Commit 6: migrar categorize.scene.ts a WizardState (permite eliminar session.service.ts)
+
+---
+
 ## 2026-06-10: Commit 4b-4 — validado en botitio_testitoBot, Oleada C cerrada
 
 ### Completado

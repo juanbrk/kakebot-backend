@@ -1,4 +1,3 @@
-import { ServicePaymentMethod } from "./service.types";
 
 export interface SubcategoryMapping {
   id?: string;
@@ -67,16 +66,7 @@ export interface CardStatement {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
-export type TaxSessionState =
-  | "tax_awaiting_name"
-  | "tax_awaiting_day"
-  | "tax_awaiting_payment_method"
-  | "tax_awaiting_amount"
-  | "tax_awaiting_receipt";
-
-export type SessionState =
-  | "categorizing"
-  | TaxSessionState;
+export type SessionState = "categorizing";
 
 export interface Session {
   telegramUserId: string;
@@ -89,14 +79,4 @@ export interface Session {
   messageId: number;
   chatId: number;
   sessionExpenses: SessionExpenseEntry[];
-  partialDescription?: string;
-  partialAmount?: number;
-  serviceId?: string;
-  serviceName?: string;
-  installmentId?: string;
-  selectedMonth?: string;
-  taxId?: string;
-  taxName?: string;
-  taxInstallmentId?: string;
-  taxPaymentMethod?: ServicePaymentMethod;
 }

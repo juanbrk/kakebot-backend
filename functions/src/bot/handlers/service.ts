@@ -2,11 +2,7 @@ import { Telegraf, Context, Markup } from "telegraf";
 import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context.types";
 import { ServiceInstallment, ServicePaymentMethod } from "../../types/service.types";
 import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
-import {
-  getSession,
-  setSession,
-  clearSession,
-} from "../../services/session.service";
+import { clearSession } from "../../services/session.service";
 import {
   getServicesByUser,
   getServiceById,
@@ -41,25 +37,6 @@ import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 /**
- * Gets the service name from session cache, falling back to Firestore.
- *
- * @param {string} telegramUserId - User's Telegram ID
- * @param {string} serviceId - Service document ID
- * @return {string | null} Service name, or null if not found
- */
-async function getServiceNameCached(
-  telegramUserId: string,
-  serviceId: string,
-): Promise<string | null> {
-  const session = await getSession(telegramUserId);
-  if (session?.serviceId === serviceId && session?.serviceName) {
-    return session.serviceName;
-  }
-  const service = await getServiceById(serviceId);
-  return service?.name || null;
-}
-
-/**
  * Renders the service action view (detail + action keyboard) for a given service.
  * Fetches service and current-month installment, then edits/replies with the result.
  *
@@ -70,7 +47,6 @@ async function showServiceActionView(
   ctx: Context,
   serviceId: string,
 ): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
   const now = new Date();
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
   const dueMonth = `${now.getFullYear()}-${monthStr}`;
@@ -84,21 +60,6 @@ async function showServiceActionView(
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
-
-  await setSession(telegramUserId, {
-    telegramUserId,
-    state: "categorizing",
-    pendingDescs: [],
-    currentDesc: "",
-    currentDisplayName: "",
-    currentTotalAmount: 0,
-    currentPage: 0,
-    messageId: 0,
-    chatId: 0,
-    sessionExpenses: [],
-    serviceId,
-    serviceName: service.name,
-  });
 
   let title = `*${service.name}*`;
   if (installment) {
@@ -427,11 +388,11 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
 async function handleEditService(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  const service = await getServiceById(serviceId);
+  const serviceName = service?.name || null;
   if (!serviceName) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
@@ -457,7 +418,8 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 
   await ctx.answerCbQuery();
 
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  const service = await getServiceById(serviceId);
+  const serviceName = service?.name || null;
   if (!serviceName) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
@@ -499,11 +461,11 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 async function handleEditInstallment(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  const service = await getServiceById(serviceId);
+  const serviceName = service?.name || null;
   if (!serviceName) {
     await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
@@ -632,8 +594,8 @@ async function handleSkipInvoice(ctx: Context): Promise<void> {
 async function handleEditServiceName(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  const service = await getServiceById(serviceId);
+  const serviceName = service?.name || null;
   await ctx.answerCbQuery();
   await ctx.editMessageText(
     `*Vas a cambiar el nombre de ${serviceName || "el servicio"}*\n` +
@@ -650,11 +612,11 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
 async function handleDeleteService(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  const service = await getServiceById(serviceId);
+  const serviceName = service?.name || null;
   if (!serviceName) {
     await ctx.editMessageText("Servicio no encontrado.");
     return;
@@ -675,7 +637,8 @@ async function handleConfirmDelete(ctx: Context): Promise<void> {
 
   await ctx.answerCbQuery();
 
-  const serviceName = await getServiceNameCached(telegramUserId, serviceId);
+  const service = await getServiceById(serviceId);
+  const serviceName = service?.name || null;
   if (serviceName) {
     await deleteService(serviceId);
     await clearSession(telegramUserId);
@@ -771,10 +734,11 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
-  const [serviceName, installments] = await Promise.all([
-    getServiceNameCached(telegramUserId, serviceId),
+  const [service, installments] = await Promise.all([
+    getServiceById(serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
+  const serviceName = service?.name || null;
 
   if (installments.length === 0) {
     await ctx.editMessageText("No hay cuotas registradas para este servicio.");
@@ -805,10 +769,11 @@ async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
 
-  const [serviceName, installments] = await Promise.all([
-    getServiceNameCached(telegramUserId, serviceId),
+  const [service, installments] = await Promise.all([
+    getServiceById(serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
+  const serviceName = service?.name || null;
   await renderInstallmentsList({
     ctx,
     installments,
