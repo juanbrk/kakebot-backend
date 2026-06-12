@@ -95,9 +95,6 @@ Reglamento dedicado en `shared/wizard-scenes.md` + hook estructural `check-wizar
 3. **Guard clause**: `ctx.reply()` + `return` inmediato — siempre válido para errores/early exit
 4. **Alternativa**: `replyOrEdit()` de `helpers/telegram.ts` — cumple el patrón
 
-### Aplicado en
-`bot/handlers/tax.ts` — 5 funciones: `handlePaidNo`, `handlePaidYes`, `handleMarkAsPaid`, `handleAttachReceipt`, `handleSkipReceipt`
-
 ### Pendiente
 - Convención documentada en `.claude/rules/shared/telegram-callback-ux.md`
 - Hook PostToolUse advisory `check-callback-pattern.js` — detecta violaciones sin bloquear

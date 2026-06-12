@@ -1,8 +1,8 @@
 {
   "commit_count": 0,
   "last_consolidation_commit": 0,
-  "last_consolidation_timestamp": "2026-04-15T12:00:00Z",
-  "total_consolidations": 1,
+  "last_consolidation_timestamp": "2026-06-02T00:00:00Z",
+  "total_consolidations": 2,
   "thresholds": {
     "commits": 10,
     "memory_lines": 300,
