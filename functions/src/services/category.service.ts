@@ -1,12 +1,10 @@
 import * as admin from "firebase-admin";
 import { Context } from "telegraf";
-import {
-  Category, Session, PendingDescEntry, SessionExpenseEntry,
-} from "../types/index";
+import { Category, PendingDescEntry, SessionExpenseEntry } from "../types/index";
+import { CategorizeWizardState } from "../types/telegraf-context.types";
 import { Expense } from "../types/expense.types";
 import { AssignCategoryParams } from "../types/category.types";
 import { getDb } from "./db";
-import { setSession, clearSession } from "./session.service";
 import { formatARS } from "../helpers/format";
 import {
   buildCategoryKeyboard, buildExpensePromptText,
@@ -27,6 +25,7 @@ export async function fetchExpenseCategories(): Promise<Category[]> {
 
 /**
  * Assigns a category to all expenses with a normalized description.
+ * Mutates wizardState in-place to advance to the next pending description.
  */
 export async function assignCategoryToDesc({
   telegramUserId,
@@ -34,8 +33,8 @@ export async function assignCategoryToDesc({
   displayName,
   categoryId,
   categoryName,
-  session,
-}: AssignCategoryParams): Promise<Session> {
+  wizardState,
+}: AssignCategoryParams): Promise<void> {
   const db = getDb();
 
   const expensesSnapshot = await db
@@ -75,66 +74,67 @@ export async function assignCategoryToDesc({
     categoryName,
   };
 
-  const nextPendingDescs = session.pendingDescs.slice(1);
-  const nextDesc = nextPendingDescs.length > 0 ?
-    nextPendingDescs[0].normalizedDesc :
-    "";
-  const nextDisplayName = nextPendingDescs.length > 0 ?
-    nextPendingDescs[0].displayName :
-    "";
-  const nextTotalAmount = nextPendingDescs.length > 0 ?
-    nextPendingDescs[0].totalAmount :
-    0;
-
-  const updatedSession: Session = {
-    ...session,
-    pendingDescs: nextPendingDescs,
-    currentDesc: nextDesc,
-    currentDisplayName: nextDisplayName,
-    currentTotalAmount: nextTotalAmount,
-    currentPage: 0,
-    sessionExpenses: [...session.sessionExpenses, newEntry],
-  };
-
-  await setSession(telegramUserId, updatedSession);
-  return updatedSession;
+  const nextPendingDescs = wizardState.pendingDescs.slice(1);
+  wizardState.pendingDescs = nextPendingDescs;
+  wizardState.currentDesc = nextPendingDescs.length > 0 ? nextPendingDescs[0].normalizedDesc : "";
+  wizardState.currentDisplayName = nextPendingDescs.length > 0 ? nextPendingDescs[0].displayName : "";
+  wizardState.currentTotalAmount = nextPendingDescs.length > 0 ? nextPendingDescs[0].totalAmount : 0;
+  wizardState.currentPage = 0;
+  wizardState.sessionExpenses = [...wizardState.sessionExpenses, newEntry];
 }
 
+/**
+ * Advances to the next expense or finishes if none remain.
+ * Returns "continue" if the flow continues, "done" if finished.
+ *
+ * @param {Context} ctx - Telegraf context.
+ * @param {CategorizeWizardState} wizardState - Current wizard state (mutated in-place on continue).
+ * @return {Promise<"continue" | "done">} Flow status.
+ */
 export async function advanceOrFinish(
   ctx: Context,
-  session: Session
-): Promise<void> {
-  if (session.pendingDescs.length === 0) {
-    await finishCategorizingFlow(ctx, session);
-    return;
+  wizardState: CategorizeWizardState
+): Promise<"continue" | "done"> {
+  if (wizardState.pendingDescs.length === 0) {
+    return finishCategorizingFlow(ctx, wizardState);
   }
 
   const categories = await fetchExpenseCategories();
   const keyboard = buildCategoryKeyboard(categories, 0);
-  const total = session.sessionExpenses.length + session.pendingDescs.length + 1;
-  const current = session.sessionExpenses.length + 1;
+  const total = wizardState.sessionExpenses.length + wizardState.pendingDescs.length + 1;
+  const current = wizardState.sessionExpenses.length + 1;
 
   const messageText = buildExpensePromptText({
-    displayName: session.currentDisplayName,
-    totalAmount: session.currentTotalAmount,
+    displayName: wizardState.currentDisplayName,
+    totalAmount: wizardState.currentTotalAmount,
     current,
     total,
   });
 
   await ctx.telegram.editMessageText(
-    session.chatId,
-    session.messageId,
+    wizardState.chatId,
+    wizardState.messageId,
     undefined,
     messageText,
     { ...keyboard, parse_mode: "Markdown" }
   );
+
+  return "continue";
 }
 
+/**
+ * Checks for a new batch of uncategorized expenses; shows the summary if done.
+ * Mutates wizardState with the new batch when continuing.
+ *
+ * @param {Context} ctx - Telegraf context.
+ * @param {CategorizeWizardState} wizardState - Current wizard state.
+ * @return {Promise<"continue" | "done">} Flow status.
+ */
 async function finishCategorizingFlow(
   ctx: Context,
-  session: Session
-): Promise<void> {
-  const telegramUserId = session.telegramUserId;
+  wizardState: CategorizeWizardState
+): Promise<"continue" | "done"> {
+  const telegramUserId = ctx.from?.id.toString() ?? "";
 
   const uncategorizedSnapshot = await getDb()
     .collection("expenses")
@@ -160,7 +160,8 @@ async function finishCategorizingFlow(
       groupedDescs[key].totalAmount += expenseData.amount;
     });
 
-    const pendingDescsKeys = Object.keys(groupedDescs);
+    const alreadyProcessed = new Set(wizardState.sessionExpenses.map((e) => e.desc));
+    const pendingDescsKeys = Object.keys(groupedDescs).filter((key) => !alreadyProcessed.has(key));
     if (pendingDescsKeys.length > 0) {
       const firstDescKey = pendingDescsKeys[0];
       const firstDescData = groupedDescs[firstDescKey];
@@ -172,6 +173,12 @@ async function finishCategorizingFlow(
           totalAmount: groupedDescs[key].totalAmount,
         }));
 
+      wizardState.pendingDescs = pendingDescsData;
+      wizardState.currentDesc = firstDescKey;
+      wizardState.currentDisplayName = firstDescData.displayName;
+      wizardState.currentTotalAmount = firstDescData.totalAmount;
+      wizardState.currentPage = 0;
+
       const categories = await fetchExpenseCategories();
       const keyboard = buildCategoryKeyboard(categories, 0);
       const total = pendingDescsKeys.length;
@@ -182,32 +189,17 @@ async function finishCategorizingFlow(
         total,
       });
 
-      const newSession: Session = {
-        telegramUserId,
-        state: "categorizing",
-        pendingDescs: pendingDescsData,
-        currentDesc: firstDescKey,
-        currentDisplayName: firstDescData.displayName,
-        currentTotalAmount: firstDescData.totalAmount,
-        currentPage: 0,
-        messageId: session.messageId,
-        chatId: session.chatId,
-        sessionExpenses: session.sessionExpenses,
-      };
-
-      await setSession(telegramUserId, newSession);
       await ctx.telegram.editMessageText(
-        session.chatId,
-        session.messageId,
+        wizardState.chatId,
+        wizardState.messageId,
         undefined,
         messageText,
         { ...keyboard, parse_mode: "Markdown" }
       );
-      return;
+
+      return "continue";
     }
   }
-
-  await clearSession(telegramUserId);
 
   const summaryLines = ["✅ ¡Listo! Categorización completada\n"];
 
@@ -216,7 +208,7 @@ async function finishCategorizingFlow(
     { displayName: string; amount: number }[]
   > = {};
 
-  for (const entry of session.sessionExpenses) {
+  for (const entry of wizardState.sessionExpenses.filter((e) => e.categoryName !== "")) {
     if (!grouped[entry.categoryName]) {
       grouped[entry.categoryName] = [];
     }
@@ -245,18 +237,30 @@ async function finishCategorizingFlow(
   summaryLines.push(`\nTotal: ${formatARS(grandTotal)}`);
 
   await ctx.telegram.editMessageText(
-    session.chatId,
-    session.messageId,
+    wizardState.chatId,
+    wizardState.messageId,
     undefined,
     summaryLines.join("\n")
   );
+
+  return "done";
 }
 
+/**
+ * Creates a new category, assigns it to the current expense description, and advances.
+ * Returns "continue" if more items remain, "done" if categorization is complete.
+ *
+ * @param {Context} ctx - Telegraf context.
+ * @param {CategorizeWizardState} wizardState - Current wizard state (mutated in-place).
+ * @param {string} categoryName - Name for the new category.
+ * @return {Promise<"continue" | "done">} Flow status.
+ */
 export async function handleNewCategoryInput(
   ctx: Context,
-  session: Session,
+  wizardState: CategorizeWizardState,
   categoryName: string
-): Promise<void> {
+): Promise<"continue" | "done"> {
+  const telegramUserId = ctx.from?.id.toString() ?? "";
   const newCategoryId = categoryName.toLowerCase().replace(/\s+/g, "_");
 
   const newCategory: Category = {
@@ -273,14 +277,14 @@ export async function handleNewCategoryInput(
     // ignore if can't delete
   }
 
-  const updatedSession = await assignCategoryToDesc({
-    telegramUserId: session.telegramUserId,
-    normalizedDesc: session.currentDesc,
-    displayName: session.currentDisplayName,
+  await assignCategoryToDesc({
+    telegramUserId,
+    normalizedDesc: wizardState.currentDesc,
+    displayName: wizardState.currentDisplayName,
     categoryId: newCategoryId,
     categoryName,
-    session,
+    wizardState,
   });
 
-  await advanceOrFinish(ctx, updatedSession);
+  return advanceOrFinish(ctx, wizardState);
 }

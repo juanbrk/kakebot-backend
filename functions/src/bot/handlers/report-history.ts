@@ -1,16 +1,10 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { KakebotContext } from "../../types/telegraf-context.types";
+import { KakebotContext, ExpenseWizardState } from "../../types/telegraf-context.types";
 import { INCOME_SCENE_ID } from "../scenes/income.scene";
-import {
-  getSession,
-  clearSession,
-  setSession,
-  emptySessionForPartial,
-} from "../../services/session.service";
+import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { generateMonthlyReport, getPastMonthsWithData } from "../../services/report.service";
-import { saveExpense } from "../../services/expense.service";
 import { ShowMonthSelectorParams } from "../../types/report.types";
-import { MONTH_NAMES, formatARS, buildBackdatedTimestamp } from "../../helpers/format";
+import { MONTH_NAMES } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
 
@@ -31,8 +25,6 @@ export function registerReportHistoryHandler(bot: Telegraf<KakebotContext>): voi
   bot.action(/^rep_view:(.+)$/, handleRepView);
   bot.action(/^rep_exp:(.+)$/, handleRepExp);
   bot.action(/^rep_inc:(.+)$/, handleRepInc);
-  bot.action("rep_exp_confirm", handleRepExpConfirm);
-  bot.action("rep_exp_cancel", handleRepExpCancel);
 }
 
 /**
@@ -293,29 +285,18 @@ async function handleRepView(ctx: Context): Promise<void> {
  *
  * @param {Context} ctx - Telegraf context
  */
-async function handleRepExp(ctx: Context): Promise<void> {
+async function handleRepExp(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const yearMonth = ((ctx as any).match as string[])[1];
   const [year, month] = yearMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-  const telegramUserId = ctx.from?.id.toString() || "";
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "rep_awaiting_expense",
-    reportMonth: yearMonth,
-  });
 
   await ctx.editMessageText(
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando gasto",
     { parse_mode: "Markdown" },
   );
-  await ctx.reply(
-    "Ingresá descripción y monto en un solo mensaje.\nEj: Panaderia 5000\n" +
-    "_Escribí cancelar para salir._",
-    { parse_mode: "Markdown" },
-  );
+  await ctx.scene.enter(EXPENSE_SCENE_ID, { reportMonth: yearMonth } as ExpenseWizardState);
 }
 
 /**
@@ -338,45 +319,3 @@ async function handleRepInc(ctx: KakebotContext): Promise<void> {
   await ctx.scene.enter(INCOME_SCENE_ID, { reportMonth: yearMonth });
 }
 
-/**
- * Confirms and saves the retroactive expense using the backdated timestamp from session.
- *
- * @param {Context} ctx - Telegraf context
- */
-async function handleRepExpConfirm(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  const session = await getSession(telegramUserId);
-
-  const hasRequiredData =
-    session &&
-    session.partialAmount &&
-    session.partialDescription &&
-    session.reportMonth;
-
-  if (!hasRequiredData) {
-    await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
-    return;
-  }
-
-  const amount = session.partialAmount as number;
-  const description = session.partialDescription as string;
-  const reportMonth = session.reportMonth as string;
-  const backdatedTimestamp = buildBackdatedTimestamp(reportMonth);
-
-  await clearSession(telegramUserId);
-  await saveExpense({ telegramUserId, description, amount, date: backdatedTimestamp });
-
-  await replyOrEdit(ctx, `✅ Gasto registrado: ${description}  ${formatARS(amount)}`);
-}
-
-/**
- * Cancels the retroactive expense registration.
- *
- * @param {Context} ctx - Telegraf context
- */
-async function handleRepExpCancel(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  await clearSession(ctx.from?.id.toString() || "");
-  await replyOrEdit(ctx, "Gasto anulado.");
-}

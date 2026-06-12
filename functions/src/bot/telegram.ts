@@ -3,6 +3,15 @@ import { log } from "../helpers/logger";
 import { KakebotContext } from "../types/telegraf-context.types";
 import { buildTelegrafSessionStore } from "../services/telegraf-session.store";
 import { incomeScene } from "./scenes/income.scene";
+import { taxScene } from "./scenes/tax.scene";
+import { bulkScene } from "./scenes/bulk.scene";
+import { expenseScene } from "./scenes/expense.scene";
+import { docRouterScene } from "./scenes/doc-router.scene";
+import { invoiceScene } from "./scenes/invoice.scene";
+import { categorizeScene } from "./scenes/categorize.scene";
+import { serviceScene } from "./scenes/service.scene";
+import { cardCreateScene } from "./scenes/card-create.scene";
+import { cardStmtScene } from "./scenes/card-stmt.scene";
 import { authMiddleware } from "./middleware/auth";
 import { registerStartHandler } from "./handlers/start";
 import { registerMenuHandler } from "./handlers/menu";
@@ -10,11 +19,7 @@ import { registerReportHandler } from "./handlers/report";
 import { registerReportHistoryHandler } from "./handlers/report-history";
 import { registerCategorizeHandler } from "./handlers/categorize";
 import { registerServiceHandler } from "./handlers/service";
-import { registerExpenseHandler } from "./handlers/expense";
-import { registerBulkHandler } from "./handlers/bulk";
 import { registerIncomeHandler } from "./handlers/income";
-import { registerInvoiceHandler } from "./handlers/invoice";
-import { registerReceiptDirectHandler } from "./handlers/receipt-direct";
 import { registerCardHandler } from "./handlers/card";
 import { registerTaxHandler } from "./handlers/tax";
 import { registerUpcomingDuesHandler } from "./handlers/upcoming-dues";
@@ -32,7 +37,11 @@ telegramBot.use(session({
   getSessionKey: (ctx) => ctx.from?.id.toString(),
 }));
 
-const stage = new Scenes.Stage<KakebotContext>([incomeScene]);
+const stage = new Scenes.Stage<KakebotContext>([
+  incomeScene, taxScene, bulkScene, expenseScene,
+  docRouterScene, invoiceScene, categorizeScene, serviceScene,
+  cardCreateScene, cardStmtScene,
+]);
 telegramBot.use(stage.middleware());
 
 registerStartHandler(telegramBot);
@@ -41,11 +50,7 @@ registerReportHandler(telegramBot);
 registerReportHistoryHandler(telegramBot);
 registerCategorizeHandler(telegramBot);
 registerServiceHandler(telegramBot);
-registerExpenseHandler(telegramBot);
-registerBulkHandler(telegramBot);
 registerIncomeHandler(telegramBot);
-registerInvoiceHandler(telegramBot);
-registerReceiptDirectHandler(telegramBot);
 registerCardHandler(telegramBot);
 registerTaxHandler(telegramBot);
 registerUpcomingDuesHandler(telegramBot);

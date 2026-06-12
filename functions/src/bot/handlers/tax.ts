@@ -1,16 +1,8 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { KakebotContext } from "../../types/telegraf-context.types";
-import { Session } from "../../types/index";
+import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
-import { TaxTextHandlerParams } from "../../types/tax.types";
-import {
-  getSession,
-  setSession,
-  clearSession,
-  emptySessionForPartial,
-} from "../../services/session.service";
-import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { formatARS, MONTH_NAMES, getDaysInMonth } from "../../helpers/format";
+import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
@@ -19,13 +11,11 @@ import {
   formatServicePaymentMethod,
 } from "../../helpers/payment-method";
 import {
-  createTax,
   getTaxesByUser,
   getTaxById,
   getTaxInstallment,
   getTaxInstallmentById,
   getTaxInstallmentsByTaxId,
-  saveTaxInstallment,
   markTaxInstallmentAsPaid,
   updateTaxPaymentMethod,
 } from "../../services/tax.service";
@@ -36,9 +26,6 @@ import {
   buildTaxListKeyboard,
   buildTaxActionKeyboard,
   buildTaxEditOptionsKeyboard,
-  buildTaxMonthKeyboard,
-  buildFilteredTaxMonthKeyboard,
-  buildTaxPaidPromptKeyboard,
   buildTaxReceiptPromptKeyboard,
   buildTaxInstallmentHistoryKeyboard,
   buildTaxInstallmentDetailKeyboard,
@@ -60,7 +47,6 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("tax_list", handleListTaxes);
   bot.action(/^tax_pick:(.+)$/, handlePickTaxForAction);
   bot.action(/^tax_reg:(.+)$/, handleRegisterInstallment);
-  bot.action(/^tax_month:(.+):(\d{4}-\d{2})$/, handleTaxMonthSelected);
   bot.action(/^tax_pay:(.+)$/, handleMarkAsPaid);
   bot.action(/^tax_paid_no:(.+)$/, handlePaidNo);
   bot.action(/^tax_paid_yes:(.+)$/, handlePaidYes);
@@ -73,21 +59,17 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^tax_dl_rec:(.+)$/, handleDownloadTaxReceipt);
   bot.action(/^tax_back_tax:(.+)$/, handleBackToTaxAction);
   bot.action(/^tax_back_hist:(.+)$/, handleBackToTaxHistory);
-  bot.action(/^tax_pm:(credit_card|auto_debit|manual)$/, async (ctx) => {
-    const telegramUserId = ctx.from?.id.toString() || "";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const method = ((ctx as any).match as string[])[1] as ServicePaymentMethod;
-    await handleCreateWithPaymentMethod(ctx, telegramUserId, method);
-  });
   bot.action(/^tax_edit_pm:(.+)$/, handleEditPaymentMethod);
   bot.action(/^tax_chg_pm:(.+)$/, handleChangePaymentMethod);
-  bot.action(/^tax_update_pm:(credit_card|auto_debit|manual)$/, async (ctx) => {
-    const telegramUserId = ctx.from?.id.toString() || "";
+  bot.action(/^tax_update_pm:(.+):(credit_card|auto_debit|manual)$/, async (ctx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const method = ((ctx as any).match as string[])[1] as ServicePaymentMethod;
-    await handleUpdatePaymentMethod(ctx, telegramUserId, method);
+    const match = (ctx as any).match as string[];
+    const taxId = match[1];
+    const method = match[2] as ServicePaymentMethod;
+    await handleUpdatePaymentMethod(ctx, taxId, method);
   });
 }
+
 
 async function openTaxesMenu(ctx: Context): Promise<void> {
   await ctx.answerCbQuery?.();
@@ -110,23 +92,14 @@ async function handleMisImpuestos(ctx: Context): Promise<void> {
   });
 }
 
-async function handleAddTax(ctx: Context): Promise<void> {
+async function handleAddTax(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "tax_awaiting_name",
-  });
-  await ctx.reply(
-    buildBreadcrumb(["Impuestos", "Registrar impuesto"]) +
-      "*Vas a Registrar un nuevo impuesto*\n\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
+  await ctx.editMessageText(
+    buildBreadcrumb(["Impuestos", "Registrar impuesto"])
+      + "*Vas a registrar un nuevo impuesto.*\n_Escribí cancelar para salir._",
     { parse_mode: "Markdown" },
   );
-  await ctx.reply(
-    "¿*Cómo se llama el impuesto*?\n_Ej: Monotributo, AFIP, Rentas Automotor_",
-    { parse_mode: "Markdown" },
-  );
+  await ctx.scene.enter(TAX_SCENE_ID);
 }
 
 async function handleListTaxes(ctx: Context): Promise<void> {
@@ -192,95 +165,28 @@ async function handleViewTaxes(ctx: Context): Promise<void> {
 
 async function handlePickTaxForAction(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
-  await showTaxActionView(ctx, telegramUserId, taxId);
+  await showTaxActionView(ctx, taxId);
 }
 
-async function handleRegisterInstallment(ctx: Context): Promise<void> {
+async function handleRegisterInstallment(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
 
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || "";
-
-  const existingInstallments = await getTaxInstallmentsByTaxId(taxId);
-  const existingMonths = new Set(
-    existingInstallments.map((inst) => inst.dueMonth),
-  );
-
-  const now = new Date();
-  const availableMonths: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const dueMonth = `${date.getFullYear()}-${month}`;
-    if (!existingMonths.has(dueMonth)) {
-      availableMonths.push(dueMonth);
-    }
-  }
-
-  if (availableMonths.length === 0) {
-    await replyOrEdit(
-      ctx,
-      "No hay meses disponibles para crear cuotas.\n" +
-        "Ya tenés cuotas registradas para los próximos 3 meses.",
-    );
-    return;
-  }
-
-  const text =
-    buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"]) +
-    "*¿A qué mes corresponde la cuota?*";
-  const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, taxId);
-  await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}
-
-async function handleTaxMonthSelected(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match = (ctx as any).match as string[];
-  const taxId = match[1];
-  const dueMonth = match[2];
-
-  const currentSession = await getSession(telegramUserId);
-  const taxName = currentSession?.taxName || "";
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "tax_awaiting_amount",
-    taxId,
-    taxName,
-    selectedMonth: dueMonth,
-  });
-
-  const [year, month] = dueMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-
-  await replyOrEdit(
-    ctx,
-    buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"]) +
-      `Vas a registrar una nueva cuota para *${taxName}*\nMes: *${monthLabel}*`,
+  await ctx.editMessageText(
+    buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"])
+      + `*Vas a registrar una nueva cuota para ${taxName}.*\n_Escribí cancelar para salir._`,
     { parse_mode: "Markdown" },
   );
-
-  await ctx.reply(
-    `*¿Cuál es el monto de la cuota para ${monthLabel}?*\n` +
-      "_Ej: 53136 o 53.136,74_",
-    { parse_mode: "Markdown" },
-  );
+  await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName } as TaxWizardState);
 }
 
 async function handlePaidNo(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
@@ -298,12 +204,6 @@ async function handlePaidNo(ctx: Context): Promise<void> {
     contextText + "\n\n" + buildTaxInstallmentDetailText(installment),
     { parse_mode: "Markdown" },
   );
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    taxId: installment.taxId,
-    taxName: installment.taxName,
-  });
 
   const keyboard = buildTaxActionKeyboard({ taxId: installment.taxId });
   await ctx.reply(
@@ -354,27 +254,19 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
   });
 }
 
-async function handleAttachReceipt(ctx: Context): Promise<void> {
+async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "tax_awaiting_receipt",
-    taxInstallmentId: installmentId,
-  });
 
   await ctx.editMessageText("*Enviá la foto o PDF del comprobante de pago.*", {
     parse_mode: "Markdown",
   });
+  await ctx.scene.enter(TAX_SCENE_ID, { installmentId } as TaxWizardState);
 }
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await clearSession(telegramUserId);
   await ctx.editMessageText(
     "Listo. Podés adjuntar el comprobante luego desde el menú Impuestos.",
   );
@@ -405,12 +297,11 @@ async function handlePagination(ctx: Context): Promise<void> {
  */
 async function handleTaxHistory(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
 
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || "";
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
 
   const installments = await getTaxInstallmentsByTaxId(taxId);
   if (installments.length === 0) {
@@ -446,14 +337,13 @@ async function handleTaxHistory(ctx: Context): Promise<void> {
  */
 async function handleTaxHistoryPagination(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const match = (ctx as any).match as string[];
   const taxId = match[1];
   const page = parseInt(match[2], 10);
 
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || "";
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
 
   const installments = await getTaxInstallmentsByTaxId(taxId);
   const text =
@@ -474,7 +364,6 @@ async function handleTaxHistoryPagination(ctx: Context): Promise<void> {
  */
 async function handleTaxInstallmentDetail(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
@@ -484,8 +373,7 @@ async function handleTaxInstallmentDetail(ctx: Context): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || installment.taxName;
+  const taxName = installment.taxName;
   const [year, month] = installment.dueMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
@@ -545,10 +433,9 @@ async function handleDownloadTaxReceipt(ctx: Context): Promise<void> {
  */
 async function handleBackToTaxAction(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
-  await showTaxActionView(ctx, telegramUserId, taxId);
+  await showTaxActionView(ctx, taxId);
 }
 
 /**
@@ -558,12 +445,11 @@ async function handleBackToTaxAction(ctx: Context): Promise<void> {
  */
 async function handleBackToTaxHistory(ctx: Context): Promise<void> {
   await ctx.answerCbQuery?.();
-  const telegramUserId = ctx.from?.id.toString() || "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
 
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || "";
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
 
   const installments = await getTaxInstallmentsByTaxId(taxId);
   const text =
@@ -581,17 +467,11 @@ async function handleBackToTaxHistory(ctx: Context): Promise<void> {
 
 /**
  * Renders the action view for a given tax, showing the current month's installment status.
- * Stores taxId and taxName in session for downstream handlers.
  *
  * @param {Context} ctx - Telegraf context
- * @param {string} telegramUserId - User's Telegram ID
  * @param {string} taxId - Tax document ID
  */
-async function showTaxActionView(
-  ctx: Context,
-  telegramUserId: string,
-  taxId: string,
-): Promise<void> {
+async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -604,12 +484,6 @@ async function showTaxActionView(
     await ctx.reply("Impuesto no encontrado.");
     return;
   }
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    taxId,
-    taxName: tax.name,
-  });
 
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
@@ -653,122 +527,6 @@ async function showTaxActionView(
   });
 }
 
-// ---------------------------------------------------------------------------
-// Text handlers — exported for use in bot/handlers/text.ts dispatcher
-// ---------------------------------------------------------------------------
-
-/**
- * Handles tax name input during tax creation flow (state: tax_awaiting_name).
- *
- * @param {Context} ctx - Telegraf context
- * @param {string} telegramUserId - User's Telegram ID
- * @param {string} messageText - Raw message text from the user
- */
-export async function handleTaxName(
-  ctx: Context,
-  telegramUserId: string,
-  messageText: string,
-): Promise<void> {
-  const name = messageText.trim();
-  const hasValidName = name.length > 0;
-  if (!hasValidName) {
-    await ctx.reply("El nombre no puede estar vacío.");
-    return;
-  }
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "tax_awaiting_day",
-    partialDescription: name,
-  });
-
-  await ctx.reply(
-    "*¿Qué día del mes vence aproximadamente?*\n" +
-      "_Ingresá un número del 1 al 31. Ej: 20_",
-    { parse_mode: "Markdown" },
-  );
-}
-
-/**
- * Handles estimated due day input during tax creation flow (state: tax_awaiting_day).
- * Stores the day in session and prompts for payment method selection.
- */
-export async function handleTaxDay({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: TaxTextHandlerParams): Promise<void> {
-  const dayStr = messageText.trim();
-  const day = parseInt(dayStr, 10);
-
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
-  if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
-    return;
-  }
-
-  const name = session.partialDescription || "";
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    state: "tax_awaiting_payment_method",
-    taxName: name,
-    partialAmount: day,
-  });
-
-  const keyboard = buildPaymentMethodKeyboard({ callbackPrefix: "tax_pm" });
-  await ctx.reply("*Seleccioná el metodo de pago*", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}
-
-/**
- * Creates the Tax document and transitions to the month selector.
- * Called from both the payment method selection and skip actions during tax creation.
- *
- * @param {Context} ctx - Telegraf context
- * @param {string} telegramUserId - User's Telegram ID
- * @param {ServicePaymentMethod | undefined} paymentMethod - Selected payment method, or undefined to omit
- */
-async function handleCreateWithPaymentMethod(
-  ctx: Context,
-  telegramUserId: string,
-  paymentMethod: ServicePaymentMethod | undefined,
-): Promise<void> {
-  await ctx.answerCbQuery();
-  const session = await getSession(telegramUserId);
-  const name = session?.taxName || "";
-  const day = session?.partialAmount;
-
-  const hasRequiredData = name && typeof day === "number" && day >= 1;
-  if (!hasRequiredData) {
-    await ctx.reply("Error: datos de sesión incompletos.");
-    return;
-  }
-
-  const taxId = await createTax({
-    telegramUserId,
-    name,
-    estimatedDueDay: day as number,
-    paymentMethod,
-  });
-
-  await setSession(telegramUserId, {
-    ...emptySessionForPartial(telegramUserId),
-    taxId,
-    taxName: name,
-  });
-
-  await ctx.editMessageText(`✅ Impuesto '${name}' creado.`);
-  const keyboard = buildTaxMonthKeyboard(taxId);
-  await ctx.reply("*¿Para qué mes querés registrar la primera cuota?*", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}
 
 /**
  * Shows the edit options screen for a selected tax (intermediate step before editing specific fields).
@@ -779,9 +537,8 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || "";
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
 
   const keyboard = buildTaxEditOptionsKeyboard(taxId);
   await ctx.editMessageText(
@@ -803,9 +560,10 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
  */
 async function handleChangePaymentMethod(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  const session = await getSession(telegramUserId);
-  const taxName = session?.taxName || "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const taxId = ((ctx as any).match as string[])[1];
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
 
   const breadcrumb = buildBreadcrumb([
     "Impuestos",
@@ -821,7 +579,7 @@ async function handleChangePaymentMethod(ctx: Context): Promise<void> {
   );
 
   const keyboard = buildPaymentMethodKeyboard({
-    callbackPrefix: "tax_update_pm",
+    callbackPrefix: `tax_update_pm:${taxId}`,
   });
 
   await ctx.reply("*¿Con qué medio de pago abonás este impuesto?*", {
@@ -832,97 +590,19 @@ async function handleChangePaymentMethod(ctx: Context): Promise<void> {
 }
 
 /**
- * Updates (or removes) the payment method of the current tax and refreshes the action view.
+ * Updates the payment method of a tax and refreshes the action view.
  *
  * @param {Context} ctx - Telegraf context
- * @param {string} telegramUserId - User's Telegram ID
+ * @param {string} taxId - Tax document ID
  * @param {ServicePaymentMethod | undefined} paymentMethod - New value, or undefined to remove
  */
 async function handleUpdatePaymentMethod(
   ctx: Context,
-  telegramUserId: string,
+  taxId: string,
   paymentMethod: ServicePaymentMethod | undefined,
 ): Promise<void> {
   await ctx.answerCbQuery();
-  const session = await getSession(telegramUserId);
-  const taxId = session?.taxId || "";
-
-  if (!taxId) {
-    await ctx.reply("Error: impuesto no encontrado en sesión.");
-    return;
-  }
-
   await updateTaxPaymentMethod({ taxId, paymentMethod });
-  await showTaxActionView(ctx, telegramUserId, taxId);
+  await showTaxActionView(ctx, taxId);
 }
 
-/**
- * Handles installment amount input during registration flow (state: tax_awaiting_amount).
- * Fetches the tax to get estimatedDueDay, saves the installment, and prompts whether to mark as paid.
- */
-export async function handleTaxAmount({
-  ctx,
-  session,
-  telegramUserId,
-  messageText,
-}: {
-  ctx: Context;
-  session: Session;
-  telegramUserId: string;
-  messageText: string;
-}): Promise<void> {
-  const amount = parseArgentineAmount(messageText.trim());
-
-  const isValidAmount = amount !== null && amount > 0;
-  if (!isValidAmount) {
-    await ctx.reply(
-      "No entendí el monto. Ingresá solo el número:\nEj: 5000 o 53.136,74",
-    );
-    return;
-  }
-
-  const taxId = session.taxId || "";
-  const taxName = session.taxName || "";
-  const selectedMonth = session.selectedMonth || "";
-
-  const hasRequiredSessionData = taxId && taxName && selectedMonth;
-  if (!hasRequiredSessionData) {
-    await ctx.reply("Error: datos de sesión incompletos.");
-    return;
-  }
-
-  const tax = await getTaxById(taxId);
-  if (!tax) {
-    await ctx.reply("Error: impuesto no encontrado.");
-    return;
-  }
-
-  const [year, month] = selectedMonth.split("-");
-  const maxDay = getDaysInMonth(selectedMonth);
-  const dueDay = Math.min(tax.estimatedDueDay, maxDay);
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, dueDay);
-
-  const installmentId = await saveTaxInstallment({
-    telegramUserId,
-    taxId,
-    taxName,
-    amount,
-    dueDate,
-    dueMonth: selectedMonth,
-  });
-  await clearSession(telegramUserId);
-
-  const day = String(dueDate.getDate()).padStart(2, "0");
-  const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
-  await ctx.reply(
-    `✅ *Cuota registrada*: ${taxName} ${formatARS(amount)} (vence ${day}/${mo})`,
-    { parse_mode: "Markdown" },
-  );
-
-  const keyboard = buildTaxPaidPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás marcar la cuota como pagada?*", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}

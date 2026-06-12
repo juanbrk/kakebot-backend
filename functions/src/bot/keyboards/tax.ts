@@ -153,6 +153,7 @@ export function buildTaxMonthKeyboard(taxId: string) {
  *
  * @param {string[]} availableMonths - Months in "YYYY-MM" format with no existing installment
  * @param {string} taxId - Tax document ID used in callback data
+ * @param {boolean} showBackButton - Whether to include a "Volver a impuestos" back button
  * @return {Markup.Markup} Inline keyboard markup
  */
 export function buildFilteredTaxMonthKeyboard(
@@ -164,10 +165,6 @@ export function buildFilteredTaxMonthKeyboard(
     const label = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
     return [Markup.button.callback(label, `tax_month:${taxId}:${dueMonth}`)];
   });
-
-  rows.push([
-    Markup.button.callback("← Volver a impuestos", "tax_view"),
-  ]);
 
   return Markup.inlineKeyboard(rows);
 }

@@ -1,4 +1,4 @@
-import { Session } from "./index";
+import { CategorizeWizardState } from "./telegraf-context.types";
 
 /**
  * Parameters for assigning a category to a normalized description.
@@ -9,7 +9,7 @@ export interface AssignCategoryParams {
   displayName: string;
   categoryId: string;
   categoryName: string;
-  session: Session;
+  wizardState: CategorizeWizardState;
 }
 
 /**

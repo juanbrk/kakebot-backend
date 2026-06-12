@@ -1,6 +1,4 @@
 import * as admin from "firebase-admin";
-import { Context } from "telegraf";
-import { Session } from "./index";
 import { ServicePaymentMethod } from "./service.types";
 
 export interface Tax {
@@ -68,16 +66,6 @@ export interface BuildTaxInstallmentDetailKeyboardParams {
   isPaid: boolean;
   hasReceipt: boolean;
   taxId: string;
-}
-
-/**
- * Parameters for tax text handler functions (handleTaxDay, handleTaxAmount).
- */
-export interface TaxTextHandlerParams {
-  ctx: Context;
-  session: Session;
-  telegramUserId: string;
-  messageText: string;
 }
 
 /**

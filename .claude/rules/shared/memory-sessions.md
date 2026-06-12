@@ -1,5 +1,6 @@
 # Session Log
 
+## 2026-06-12: techDebt/wizard-layer-all-flows — Migración completa a WizardScene
 ## 2026-06-03: GitHub Actions updated to Node.js 24 compatible versions
 
 ### Completed
@@ -22,10 +23,29 @@
 ## 2026-05-25: POC — Flujo de ingresos migrado a WizardScene de Telegraf
 
 ### Completado
-- Income flow migrado a `Scenes.WizardScene` nativo; store Firestore (`telegraf_sessions`) para persistencia en Cloud Functions stateless
-- Bug fix: texto en paso de confirmación sobreescribía `state.reason`; guard `if (state.reason)` previene la sobreescritura
-- Normativa de wizards documentada en `conventions.md`: input inválido → mensaje de contexto + repetición completa del paso actual
+Migración de todos los flujos conversacionales del bot (9 dominios) del sistema legacy de sesión Firestore a `Scenes.WizardScene` nativo de Telegraf. Trabajo previo al branch incluye: impuestos (feature completa + comprobantes multicurrency en tarjetas + próximos vencimientos + logging estructurado + /worktree automation).
 
+**Reglamento y tooling:**
+- `wizard-scenes.md` (17 secciones + checklist pre-PR) — estándar único para toda escena nueva o migrada
+- Hook `check-wizard-scene.js` — 8 chequeos estructurales sobre `*.scene.ts`
+- `helpers/wizard.ts` — `getMessageText` compartido entre scenes
+
+**Oleadas de migración:**
+- POC: `income.scene.ts` — validó el patrón con store Firestore (`telegraf_sessions`)
+- Oleada A: `expense.scene.ts`, `bulk.scene.ts`, `doc-router.scene.ts`
+- Oleada B: `invoice.scene.ts` (flujos factura + comprobante vía `entryArgs`), `categorize.scene.ts`, `doc-router.scene.ts` reconectado directo a invoice (abandon bridge)
+- Oleada C: `service.scene.ts` (12 steps, 7 entry routes), `card-create.scene.ts`, `card-stmt.scene.ts` (create, receipt_pdf, pago ARS/USD, edición, comprobantes standalone)
+
+**Cleanup final:**
+- `session.service.ts` eliminado; `Session`/`SessionState` removidos de `types/index.ts`
+- Sub-types eliminados: `ExpenseSessionState`, `DocSessionState`, `InvoiceSessionState`, `ReceiptSessionState`, `CategorySessionState`, `ServiceSessionState`, `CardSessionState`, `TaxSessionState`
+- `pendingFileId`, `pendingFileType` y ~30 campos de sesión legacy removidos
+- Bug fix en `finishCategorizingFlow`: gastos omitidos filtraban via `alreadyProcessed` Set para evitar error 400
+
+**Audit pre-merge:** `/audit-pr` — 3 MAJOR + 5 MINOR corregidos, build ✅ lint ✅ botitio_testitoBot ✅
+
+### Pendiente
+- Merge a main
 ### Pendiente
 - Deploy a botitio_testitoBot en modo webhook para validación final
 - Camino C: migrar flujos restantes (servicio, impuesto, tarjeta, gasto, etc.)

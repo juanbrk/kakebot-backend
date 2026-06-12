@@ -22,6 +22,10 @@
           {
             "type": "command",
             "command": "node $PWD/.claude/hooks/check-param-patterns.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/check-wizard-scene.js"
           }
         ]
       }
