@@ -2,7 +2,6 @@ import { Telegraf, Context, Markup } from "telegraf";
 import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context.types";
 import { ServiceInstallment, ServicePaymentMethod } from "../../types/service.types";
 import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
-import { clearSession } from "../../services/session.service";
 import {
   getServicesByUser,
   getServiceById,
@@ -559,9 +558,7 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
 }
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
-  await clearSession(telegramUserId);
   await ctx.editMessageText(
     "Podes adjuntar el comprobante luego desde /servicios.",
   );
@@ -582,9 +579,7 @@ async function handleAttachInvoice(ctx: Context): Promise<void> {
 }
 
 async function handleSkipInvoice(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
   await ctx.answerCbQuery();
-  await clearSession(telegramUserId);
   await ctx.editMessageText(
     "Podes adjuntar la factura luego desde /servicios.",
   );
@@ -633,7 +628,6 @@ async function handleDeleteService(ctx: Context): Promise<void> {
 async function handleConfirmDelete(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
-  const telegramUserId = ctx.from?.id.toString() || "";
 
   await ctx.answerCbQuery();
 
@@ -641,7 +635,6 @@ async function handleConfirmDelete(ctx: Context): Promise<void> {
   const serviceName = service?.name || null;
   if (serviceName) {
     await deleteService(serviceId);
-    await clearSession(telegramUserId);
     await ctx.editMessageText(`✅ Servicio '${serviceName}' eliminado.`);
   }
 }

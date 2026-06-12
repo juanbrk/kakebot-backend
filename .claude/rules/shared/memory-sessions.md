@@ -1,5 +1,29 @@
 # Session Log
 
+## 2026-06-12: Bug fix — gastos omitidos reaparecían en /categorizar + rewrite de session-data-reuse
+
+### Completado
+- Bug fix en `finishCategorizingFlow`: gastos omitidos (skip) tenían `categoryId: null` en Firestore → re-query los recolectaba de nuevo → error 400 "message is not modified". Fix: filtrar via `alreadyProcessed` Set construido de `wizardState.sessionExpenses`
+- `session-data-reuse.md` reescrito en español con los 3 patrones post-migración (callback, WizardState, fetch directo)
+
+### Pendiente
+- Validar fix: deploy a botitio_testitoBot → `/categorizar` → omitir único gasto → sin error 400
+
+---
+
+## 2026-06-11: Commit 6 — categorize.scene.ts migrado a WizardState + session.service.ts eliminado
+
+### Completado
+- `CategorizeWizardState` expandida con 8 campos; `AssignCategoryParams` cambia `session: Session` → `wizardState: CategorizeWizardState`
+- `category.service.ts`: `assignCategoryToDesc` muta wizardState in-place (void); `advanceOrFinish`/`finishCategorizingFlow` retornan `"continue" | "done"` sin tocar el cursor del wizard
+- `categorize.scene.ts`: getSession/setSession/clearSession reemplazados por `ctx.wizard.state`; handlers leen result y llaman `selectStep(GUARD_STEP)` o `scene.leave()`
+- `text.ts`, `card.ts`, `tax.ts`, `service.ts`: clearSession muertos removidos
+- `session.service.ts` eliminado; `Session`/`SessionState` removidos de `types/index.ts`
+- Build ✅ lint ✅ (0 errors)
+
+### Pendiente
+- Validar en botitio_testitoBot: /categorizar flujo completo, skip, nueva categoría, cancelar
+
 ## 2026-06-10: Commit 5 — cleanup de tipos y sesión legacy
 
 ### Completado

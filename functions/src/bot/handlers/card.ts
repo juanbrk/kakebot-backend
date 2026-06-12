@@ -6,7 +6,6 @@ import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
-import { clearSession } from "../../services/session.service";
 import {
   getCardsByUser,
   getCardById,
@@ -142,9 +141,6 @@ async function handleStartStatement(ctx: KakebotContext): Promise<void> {
 
 async function handleSkipStatement(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = String(ctx.from!.id);
-  await clearSession(telegramUserId);
-
   await ctx.reply("Podés agregar un resumen desde el detalle de la tarjeta.");
 }
 

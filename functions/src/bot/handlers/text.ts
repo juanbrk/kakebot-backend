@@ -1,30 +1,15 @@
 import { Telegraf } from "telegraf";
 import { KakebotContext, BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
-import {
-  getSession, clearSession,
-} from "../../services/session.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
 import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bulk-parse";
 import { BULK_SCENE_ID } from "../scenes/bulk.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 
-const CANCEL_WORDS = new Set(["salir", "cancelar", "terminar", "stop"]);
-
 export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
   bot.on("text", async (ctx) => {
     const messageText = ctx.message.text;
-    const telegramUserId = ctx.from?.id.toString() || "";
 
     if (messageText.startsWith("/")) return;
-
-    const session = await getSession(telegramUserId);
-
-    const isCancelWord = CANCEL_WORDS.has(messageText.trim().toLowerCase());
-    if (isCancelWord && session) {
-      await clearSession(telegramUserId);
-      await ctx.reply("Operación cancelada.");
-      return;
-    }
 
     if (isBulkMessage(messageText)) {
       const nonEmptyLines = messageText.split("\n").filter((l) => l.trim().length > 0);

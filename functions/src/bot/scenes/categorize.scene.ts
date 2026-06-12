@@ -1,13 +1,8 @@
 import { Scenes, Markup } from "telegraf";
-import { KakebotContext } from "../../types/telegraf-context.types";
-import { Session, PendingDescEntry } from "../../types/index";
+import { KakebotContext, CategorizeWizardState } from "../../types/telegraf-context.types";
+import { PendingDescEntry } from "../../types/index";
 import { Expense } from "../../types/expense.types";
 import { getDb } from "../../services/db";
-import {
-  getSession,
-  setSession,
-  clearSession,
-} from "../../services/session.service";
 import {
   fetchExpenseCategories,
   assignCategoryToDesc,
@@ -25,6 +20,7 @@ import { log } from "../../helpers/logger";
 export const CATEGORIZE_SCENE_ID = "categorize-wizard";
 
 const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
+const GUARD_STEP = 1;
 const NEW_CATEGORY_STEP = 2;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -116,30 +112,15 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     parse_mode: "Markdown",
   });
 
-  const newSession: Session = {
-    telegramUserId,
-    state: "categorizing",
-    pendingDescs: pendingDescsData,
-    currentDesc: firstDescKey,
-    currentDisplayName: firstDescData.displayName,
-    currentTotalAmount: firstDescData.totalAmount,
-    currentPage: 0,
-    messageId: sentMessage.message_id,
-    chatId: ctx.chat?.id || 0,
-    sessionExpenses: [],
-  };
-
-  try {
-    await setSession(telegramUserId, newSession);
-  } catch (error) {
-    log.error("Error setting categorize session", error, {
-      module: "categorize.scene",
-      userId: telegramUserId,
-    });
-    await ctx.reply("Error al iniciar la categorización. Intentá de nuevo.");
-    await ctx.scene.leave();
-    return;
-  }
+  const state = ctx.wizard.state as CategorizeWizardState;
+  state.pendingDescs = pendingDescsData;
+  state.currentDesc = firstDescKey;
+  state.currentDisplayName = firstDescData.displayName;
+  state.currentTotalAmount = firstDescData.totalAmount;
+  state.currentPage = 0;
+  state.messageId = sentMessage.message_id;
+  state.chatId = ctx.chat?.id || 0;
+  state.sessionExpenses = [];
 
   ctx.wizard.next();
 }
@@ -151,20 +132,12 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Telegraf context.
  */
 async function stepGuardCategorizing(ctx: KakebotContext): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() ?? "";
   const messageText = getMessageText(ctx);
 
   if (!messageText) return;
 
   if (messageText.toLowerCase() === "omitir") {
-    const session = await getSession(telegramUserId);
-    if (!session) {
-      await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-      await ctx.scene.leave();
-      return;
-    }
-
-    await skipCurrentItem(ctx, telegramUserId, session);
+    await skipCurrentItem(ctx);
     return;
   }
 
@@ -187,18 +160,13 @@ async function stepHandleNewCategoryName(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  const session = await getSession(telegramUserId);
-  if (!session) {
-    await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-    await ctx.scene.leave();
-    return;
-  }
+  const state = ctx.wizard.state as CategorizeWizardState;
+  const categorizedDisplayName = state.currentDisplayName;
+  const categorizedAmount = state.currentTotalAmount;
 
-  const categorizedDisplayName = session.currentDisplayName;
-  const categorizedAmount = session.currentTotalAmount;
-
+  let result: "continue" | "done";
   try {
-    await handleNewCategoryInput(ctx, session, categoryName);
+    result = await handleNewCategoryInput(ctx, state, categoryName);
   } catch (error) {
     log.error("Error creating new category", error, {
       module: "categorize.scene",
@@ -213,13 +181,11 @@ async function stepHandleNewCategoryName(ctx: KakebotContext): Promise<void> {
     { parse_mode: "Markdown" },
   );
 
-  const sessionAfter = await getSession(telegramUserId);
-  if (!sessionAfter) {
+  if (result === "done") {
     await ctx.scene.leave();
-    return;
+  } else {
+    ctx.wizard.selectStep(GUARD_STEP);
   }
-
-  ctx.wizard.selectStep(1);
 }
 
 // ─── Action handlers ─────────────────────────────────────────────────────────
@@ -236,27 +202,21 @@ async function handleCatSel(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const categoryId = ((ctx as any).match as string[])[1];
 
-  const session = await getSession(telegramUserId);
-  if (!session) {
-    await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-    await ctx.scene.leave();
-    return;
-  }
+  const state = ctx.wizard.state as CategorizeWizardState;
 
   const categoryDoc = await getDb().collection("categories").doc(categoryId).get();
   const categoryName = categoryDoc.exists
     ? (categoryDoc.data()?.name as string)
     : categoryId;
 
-  let updatedSession: Session;
   try {
-    updatedSession = await assignCategoryToDesc({
+    await assignCategoryToDesc({
       telegramUserId,
-      normalizedDesc: session.currentDesc,
-      displayName: session.currentDisplayName,
+      normalizedDesc: state.currentDesc,
+      displayName: state.currentDisplayName,
       categoryId,
       categoryName,
-      session,
+      wizardState: state,
     });
   } catch (error) {
     log.error("Error assigning category", error, {
@@ -267,11 +227,11 @@ async function handleCatSel(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await advanceOrFinish(ctx, updatedSession);
-
-  const sessionAfter = await getSession(telegramUserId);
-  if (!sessionAfter) {
+  const result = await advanceOrFinish(ctx, state);
+  if (result === "done") {
     await ctx.scene.leave();
+  } else {
+    ctx.wizard.selectStep(GUARD_STEP);
   }
 }
 
@@ -283,21 +243,15 @@ async function handleCatSel(ctx: KakebotContext): Promise<void> {
 async function handleCatPg(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
 
-  const telegramUserId = ctx.from?.id.toString() ?? "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const page = parseInt(((ctx as any).match as string[])[1], 10);
 
-  const session = await getSession(telegramUserId);
-  if (!session) {
-    await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-    await ctx.scene.leave();
-    return;
-  }
+  const state = ctx.wizard.state as CategorizeWizardState;
+  state.currentPage = page;
 
   const categories = await fetchExpenseCategories();
   const keyboard = buildCategoryKeyboard(categories, page);
 
-  await setSession(telegramUserId, { ...session, currentPage: page });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await ctx.editMessageReplyMarkup(keyboard.reply_markup as any);
 }
@@ -310,20 +264,13 @@ async function handleCatPg(ctx: KakebotContext): Promise<void> {
 async function handleCatNew(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
 
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-  const session = await getSession(telegramUserId);
-
-  if (!session) {
-    await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-    await ctx.scene.leave();
-    return;
-  }
+  const state = ctx.wizard.state as CategorizeWizardState;
 
   const promptKeyboard = Markup.inlineKeyboard([
     [Markup.button.callback("← Volver al listado", "cat_back_to_list")],
   ]);
   await ctx.editMessageText(
-    `*Nueva categoría para "${session.currentDisplayName}"*:\n\n` +
+    `*Nueva categoría para "${state.currentDisplayName}"*:\n\n` +
     "Escribí el nombre de la nueva categoría.\n" +
     "_Escribí \"cancelar\" para salir._",
     {
@@ -343,12 +290,8 @@ async function handleCatNew(ctx: KakebotContext): Promise<void> {
  */
 async function handleCatCancel(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-  await clearSession(telegramUserId);
-
-  await ctx.reply("Categorización cancelada. Los gastos sin categorizar quedan para después.");
   await ctx.scene.leave();
+  await ctx.reply("Categorización cancelada. Los gastos sin categorizar quedan para después.");
 }
 
 /**
@@ -356,34 +299,31 @@ async function handleCatCancel(ctx: KakebotContext): Promise<void> {
  * Adds a blank-category entry to sessionExpenses so the counter stays consistent.
  *
  * @param {KakebotContext} ctx - Telegraf context.
- * @param {string} telegramUserId - Telegram user ID.
- * @param {Session} session - Current Firestore session.
  */
-async function skipCurrentItem(
-  ctx: KakebotContext,
-  telegramUserId: string,
-  session: Session,
-): Promise<void> {
-  const nextPendingDescs = session.pendingDescs.slice(1);
-  const updatedSession: Session = {
-    ...session,
-    pendingDescs: nextPendingDescs,
-    currentDesc: nextPendingDescs.length > 0 ? nextPendingDescs[0].normalizedDesc : "",
-    currentDisplayName: nextPendingDescs.length > 0 ? nextPendingDescs[0].displayName : "",
-    currentTotalAmount: nextPendingDescs.length > 0 ? nextPendingDescs[0].totalAmount : 0,
-    currentPage: 0,
-    sessionExpenses: [
-      ...session.sessionExpenses,
-      { desc: session.currentDesc, displayName: session.currentDisplayName, amount: session.currentTotalAmount, categoryName: "" },
-    ],
-  };
+async function skipCurrentItem(ctx: KakebotContext): Promise<void> {
+  const state = ctx.wizard.state as CategorizeWizardState;
 
-  await setSession(telegramUserId, updatedSession);
-  await advanceOrFinish(ctx, updatedSession);
+  const nextPendingDescs = state.pendingDescs.slice(1);
+  state.sessionExpenses = [
+    ...state.sessionExpenses,
+    {
+      desc: state.currentDesc,
+      displayName: state.currentDisplayName,
+      amount: state.currentTotalAmount,
+      categoryName: "",
+    },
+  ];
+  state.pendingDescs = nextPendingDescs;
+  state.currentDesc = nextPendingDescs.length > 0 ? nextPendingDescs[0].normalizedDesc : "";
+  state.currentDisplayName = nextPendingDescs.length > 0 ? nextPendingDescs[0].displayName : "";
+  state.currentTotalAmount = nextPendingDescs.length > 0 ? nextPendingDescs[0].totalAmount : 0;
+  state.currentPage = 0;
 
-  const sessionAfter = await getSession(telegramUserId);
-  if (!sessionAfter) {
+  const result = await advanceOrFinish(ctx, state);
+  if (result === "done") {
     await ctx.scene.leave();
+  } else {
+    ctx.wizard.selectStep(GUARD_STEP);
   }
 }
 
@@ -394,16 +334,7 @@ async function skipCurrentItem(
  */
 async function handleCatSkip(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-  const session = await getSession(telegramUserId);
-  if (!session) {
-    await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-    await ctx.scene.leave();
-    return;
-  }
-
-  await skipCurrentItem(ctx, telegramUserId, session);
+  await skipCurrentItem(ctx);
 }
 
 /**
@@ -414,21 +345,15 @@ async function handleCatSkip(ctx: KakebotContext): Promise<void> {
 async function handleCatBackToList(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
 
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-  const session = await getSession(telegramUserId);
-  if (!session) {
-    await ctx.reply("Esta sesión ya no está activa. Usá /categorizar para empezar.");
-    await ctx.scene.leave();
-    return;
-  }
+  const state = ctx.wizard.state as CategorizeWizardState;
 
   const categories = await fetchExpenseCategories();
-  const keyboard = buildCategoryKeyboard(categories, session.currentPage ?? 0);
-  const total = session.pendingDescs.length + session.sessionExpenses.length + 1;
-  const current = session.sessionExpenses.length + 1;
+  const keyboard = buildCategoryKeyboard(categories, state.currentPage ?? 0);
+  const total = state.pendingDescs.length + state.sessionExpenses.length + 1;
+  const current = state.sessionExpenses.length + 1;
   const messageText = buildExpensePromptText({
-    displayName: session.currentDisplayName,
-    totalAmount: session.currentTotalAmount,
+    displayName: state.currentDisplayName,
+    totalAmount: state.currentTotalAmount,
     current,
     total,
   });
@@ -439,7 +364,7 @@ async function handleCatBackToList(ctx: KakebotContext): Promise<void> {
     reply_markup: keyboard.reply_markup as any,
   });
 
-  ctx.wizard.selectStep(1);
+  ctx.wizard.selectStep(GUARD_STEP);
 }
 
 // ─── repromptCurrentStep ─────────────────────────────────────────────────────
@@ -452,8 +377,6 @@ async function handleCatBackToList(ctx: KakebotContext): Promise<void> {
 async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   await ctx.reply("No esperaba un archivo aquí.");
 
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-
   switch (ctx.wizard.cursor) {
   case 1:
     await ctx.reply(
@@ -461,14 +384,12 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     );
     break;
   case 2: {
-    const session = await getSession(telegramUserId);
-    if (session) {
-      await ctx.reply(
-        `*Nueva categoría para "${session.currentDisplayName}"*:\n\n` +
-        "Escribí el nombre de la nueva categoría.",
-        { parse_mode: "Markdown" },
-      );
-    }
+    const state = ctx.wizard.state as CategorizeWizardState;
+    await ctx.reply(
+      `*Nueva categoría para "${state.currentDisplayName}"*:\n\n` +
+      "Escribí el nombre de la nueva categoría.",
+      { parse_mode: "Markdown" },
+    );
     break;
   }
   default:
@@ -484,8 +405,6 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Telegraf context.
  */
 async function handleCancelWord(ctx: KakebotContext): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-  await clearSession(telegramUserId);
   await ctx.reply("Categorización cancelada. Los gastos sin categorizar quedan para después.");
   await ctx.scene.leave();
 }

@@ -66,17 +66,3 @@ export interface CardStatement {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
-export type SessionState = "categorizing";
-
-export interface Session {
-  telegramUserId: string;
-  state: SessionState;
-  pendingDescs: PendingDescEntry[];
-  currentDesc: string;
-  currentDisplayName: string;
-  currentTotalAmount: number;
-  currentPage: number;
-  messageId: number;
-  chatId: number;
-  sessionExpenses: SessionExpenseEntry[];
-}

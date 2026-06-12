@@ -1,7 +1,6 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
-import { clearSession } from "../../services/session.service";
 import { formatARS, MONTH_NAMES } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -268,8 +267,6 @@ async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await clearSession(telegramUserId);
   await ctx.editMessageText(
     "Listo. Podés adjuntar el comprobante luego desde el menú Impuestos.",
   );

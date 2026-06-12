@@ -1,7 +1,7 @@
 import { Scenes } from "telegraf";
 import { ServicePaymentMethod } from "./service.types";
 import { BulkExpenseEntry } from "./expense.types";
-import { PendingFileType, CreditCardProcessor } from "./index";
+import { PendingFileType, CreditCardProcessor, PendingDescEntry, SessionExpenseEntry } from "./index";
 
 /**
  * Persistent state for the income wizard, held in `ctx.wizard.state`.
@@ -70,12 +70,26 @@ export interface InvoiceWizardState {
 
 /**
  * Persistent state for the categorize wizard, held in `ctx.wizard.state`.
- * Note: categorization loop state (pendingDescs, currentDesc, etc.) is managed
- * in the Firestore session via getSession/setSession to leverage existing helpers
- * in category.service.ts without changes to their signatures.
+ * All loop state (pending descriptions, session expenses, message context)
+ * is stored here and persisted via the Telegraf session middleware.
  */
 export interface CategorizeWizardState {
-  // No wizard-level state — all loop state lives in the Firestore session.
+  /** Remaining expense descriptions to categorize, after the current one. */
+  pendingDescs: PendingDescEntry[];
+  /** Normalized description key of the expense currently being categorized. */
+  currentDesc: string;
+  /** Human-readable display name for the current expense description. */
+  currentDisplayName: string;
+  /** Summed amount of all uncategorized expenses with currentDesc. */
+  currentTotalAmount: number;
+  /** Current page index of the category keyboard. */
+  currentPage: number;
+  /** Telegram message ID of the category picker message (for editMessageText). */
+  messageId: number;
+  /** Telegram chat ID (for editMessageText). */
+  chatId: number;
+  /** Accumulated results of this categorization session (including skipped items). */
+  sessionExpenses: SessionExpenseEntry[];
 }
 
 /**
