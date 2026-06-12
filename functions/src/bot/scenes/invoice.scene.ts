@@ -563,8 +563,8 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
  */
 async function handleCancelWord(ctx: KakebotContext): Promise<void> {
   const flow = (ctx.wizard.state as InvoiceWizardState).flow;
-  await ctx.scene.leave();
   await ctx.reply(flow === "receipt" ? "Carga de comprobante cancelada." : "Carga de factura cancelada.");
+  await ctx.scene.leave();
 }
 
 // ─── scene export ─────────────────────────────────────────────────────────────

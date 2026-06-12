@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-06-12: /audit-pr sobre techDebt/wizard-layer-all-flows — 3 MAJORs + 5 MINORs corregidos
+
+### Completado
+- `/audit-pr` sobre el branch final de la migración WizardScene (45 archivos, 20 commits)
+- Veredicto inicial: REQUEST CHANGES — 3 MAJOR / 5 MINOR / 0 BLOCKER
+- M1: `invoice.scene.ts:handleCancelWord` — `reply` antes de `scene.leave()` (orden invertido)
+- M2: `categorize.scene.ts:handleCatCancel` — `reply` antes de `scene.leave()` (orden invertido)
+- M3: `doc-router.scene.ts` — agregada `repromptCurrentStep` + cursor guards en handlers de foto/doc
+- m1-m3: `card-stmt.scene.ts` — `ARS_INPUT_STEP=1` y `USD_INPUT_STEP=2`; 3 `selectStep` hardcodeados → constantes
+- m4-m5: `card-stmt.scene.ts` — comentarios inline para patrón post-leave reply
+- Build ✅ Lint ✅ — Todos los tests en botitio_testitoBot ✅ — Branch merge-ready
+
+### Pendiente
+- Merge a main
+
+---
+
 ## 2026-06-12: Bug fix — gastos omitidos reaparecían en /categorizar + rewrite de session-data-reuse
 
 ### Completado

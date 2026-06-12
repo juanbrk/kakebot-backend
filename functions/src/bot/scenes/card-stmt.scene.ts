@@ -39,6 +39,8 @@ import { downloadFile } from "../handlers/photo";
 export const CARD_STMT_SCENE_ID = "card-stmt-wizard";
 const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
 
+const ARS_INPUT_STEP = 1;
+const USD_INPUT_STEP = 2;
 const DAY_STEP = 3;
 const CREATE_PDF_STEP = 5;
 const CURRENCY_STEP = 6;
@@ -210,7 +212,7 @@ async function stepHandleArs(ctx: KakebotContext): Promise<void> {
 
   if (state.statementCurrency === "both") {
     await ctx.reply("*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
-    ctx.wizard.selectStep(2);
+    ctx.wizard.selectStep(USD_INPUT_STEP);
     return;
   }
 
@@ -850,12 +852,12 @@ async function handleCurrencySelected(ctx: KakebotContext): Promise<void> {
   if (currency === "usd") {
     state.amountARS = 0;
     await ctx.editMessageText("*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
-    ctx.wizard.selectStep(2);
+    ctx.wizard.selectStep(USD_INPUT_STEP);
     return;
   }
 
   await ctx.editMessageText("*Ingresá el monto de los consumos en pesos*", { parse_mode: "Markdown" });
-  ctx.wizard.selectStep(1);
+  ctx.wizard.selectStep(ARS_INPUT_STEP);
 }
 
 /**
@@ -917,6 +919,7 @@ async function handleCancel(ctx: KakebotContext): Promise<void> {
   const cardId = state.cardId || "";
   await ctx.editMessageText("*Cancelaste la subida del resumen.*", { parse_mode: "Markdown" });
   await ctx.scene.leave();
+  // Post-leave re-engagement: show the card's statement list as next navigation point.
   if (cardId) {
     await ctx.reply("*¿Qué querés hacer?*", {
       parse_mode: "Markdown",
@@ -949,6 +952,7 @@ async function handleSkipPdf(ctx: KakebotContext): Promise<void> {
   const cardId = state.cardId || "";
   await ctx.editMessageText("Podés adjuntar el resumen luego desde el detalle del resumen.");
   await ctx.scene.leave();
+  // Post-leave re-engagement: show the card's statement list as next navigation point.
   if (cardId) {
     await ctx.reply("*¿Qué querés hacer?*", {
       parse_mode: "Markdown",

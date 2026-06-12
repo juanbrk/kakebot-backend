@@ -290,8 +290,8 @@ async function handleCatNew(ctx: KakebotContext): Promise<void> {
  */
 async function handleCatCancel(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.scene.leave();
   await ctx.reply("Categorización cancelada. Los gastos sin categorizar quedan para después.");
+  await ctx.scene.leave();
 }
 
 /**

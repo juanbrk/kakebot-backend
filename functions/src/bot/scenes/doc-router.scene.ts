@@ -67,6 +67,10 @@ async function handleDocTypeReceipt(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function handlePhotoWhileWaiting(ctx: KakebotContext): Promise<void> {
+  if (ctx.wizard.cursor !== 0 && ctx.wizard.cursor !== TYPE_GUARD_STEP) {
+    await repromptCurrentStep(ctx);
+    return;
+  }
   const state = ctx.wizard.state as DocRouterWizardState;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const photos = (ctx.message as any)?.photo as Array<{ file_id: string }> | undefined;
@@ -87,6 +91,10 @@ async function handlePhotoWhileWaiting(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function handleDocumentWhileWaiting(ctx: KakebotContext): Promise<void> {
+  if (ctx.wizard.cursor !== 0 && ctx.wizard.cursor !== TYPE_GUARD_STEP) {
+    await repromptCurrentStep(ctx);
+    return;
+  }
   const state = ctx.wizard.state as DocRouterWizardState;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const document = (ctx.message as any)?.document as { file_id: string; mime_type?: string } | undefined;
@@ -98,6 +106,28 @@ async function handleDocumentWhileWaiting(ctx: KakebotContext): Promise<void> {
     "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.",
     buildDocTypeKeyboard(),
   );
+}
+
+/**
+ * Fallback for unexpected input types while waiting for doc-type selection.
+ * In practice unreachable — photos and documents are always expected here —
+ * but required by the WizardScene structural contract.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
+  await ctx.reply("No esperaba un archivo aquí.");
+  switch (ctx.wizard.cursor) {
+  case 0:
+  case 1:
+    await ctx.reply(
+      "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.",
+      buildDocTypeKeyboard(),
+    );
+    break;
+  default:
+    break;
+  }
 }
 
 /**
