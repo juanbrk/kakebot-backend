@@ -29,7 +29,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: "projects/603370624252/locations/global/workloadIdentityPools/github-actions/providers/github"
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: "firebase-adminsdk-fbsvc@kakebot-972c2.iam.gserviceaccount.com"
 
       - name: Deploy Indexes
