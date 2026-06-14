@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-06-14: Firebase CI/CD auth — WIF keyless en lugar de JSON key
+
+- **Decisión**: Usar Workload Identity Federation (WIF) con `google-github-actions/auth@v2` en lugar de JSON service account key almacenado en GitHub Secrets.
+- **Motivo**: WIF emite credenciales efímeras por job (minutos de vida); el JSON key es permanente hasta rotarlo manualmente, con mayor riesgo de exfiltración. Google lo recomienda explícitamente como alternativa a `FIREBASE_TOKEN` y al JSON key approach.
+- **Aplicado en**: `deploy-functions.yml` y `deploy-indexes.yml` — parámetro `workload_identity_provider` + `service_account`, sin secrets en GitHub. Pool ID `github-actions`, provider ID `github`, SA `firebase-adminsdk-fbsvc@kakebot-972c2.iam.gserviceaccount.com`.
+
 ## 2026-06-04: WizardScene §10.3 — escena no debe hacer leave() con teclado activo
 
 - **Regla**: si el último output de un step o action handler es un teclado inline (o prompt de archivo que espera foto), el scene debe permanecer activo (`selectStep(GUARD_STEP)` o entrando al scene desde afuera). Llamar `scene.leave()` antes de recibir la respuesta del usuario hace que el próximo input caiga al handler global.

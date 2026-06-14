@@ -1,13 +1,17 @@
 # Session Log
 
+## 2026-06-14: Fix pipeline de deploy — warnings de deprecación eliminados
+
+### Completado
+- Node.js 20 → 22 en los tres workflows y en `engines.node` de functions
+- firebase-functions v5.1.1 → v7.2.5 (API compatible, sin cambios en source)
+- FIREBASE_TOKEN reemplazado por Workload Identity Federation keyless (sin secrets permanentes en GitHub)
+
+### Pendiente
+- Merge a main y confirmar deploy sin warnings
+- Borrar secret `FIREBASE_TOKEN` de GitHub post-confirmación
+
 ## 2026-06-12: techDebt/wizard-layer-all-flows — Migración completa a WizardScene
-## 2026-06-03: GitHub Actions updated to Node.js 24 compatible versions
-
-### Completed
-- actions/checkout and actions/setup-node bumped to v6 in all three workflows (CI, deploy-functions, deploy-indexes)
-
-### Pending
-- Push branch and confirm CI runs without Node.js 20 deprecation warnings
 
 ## 2026-06-02: Consolidación de memoria (/mem-consolidate)
 
