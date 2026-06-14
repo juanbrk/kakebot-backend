@@ -5,7 +5,9 @@
 ### Completado
 - Node.js 20 → 22 en los tres workflows y en `engines.node` de functions
 - firebase-functions v5.1.1 → v7.2.5 (API compatible, sin cambios en source)
-- FIREBASE_TOKEN reemplazado por Workload Identity Federation keyless (sin secrets permanentes en GitHub)
+- WIF keyless reemplaza FIREBASE_TOKEN; provider path y IAM binding del SA corregidos vía GCP CLI
+- 4 GCP APIs habilitadas manualmente: eventarc, run, cloudbuild, cloudbilling
+- Cloud Functions fijada a Gen 1 — imports `firebase-functions/v1` y `firebase-functions/logger` previenen upgrade forzado a Gen 2
 
 ### Pendiente
 - Merge a main y confirmar deploy sin warnings
