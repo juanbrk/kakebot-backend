@@ -5,6 +5,7 @@ export type UpcomingDueEntityType = "service" | "tax" | "card";
 export interface UpcomingDueItem {
   entityName: string;
   amount: number;
+  amountUSD?: number;
   dueDate: Date;
   entityType: UpcomingDueEntityType;
 }

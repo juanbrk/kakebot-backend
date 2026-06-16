@@ -104,5 +104,6 @@ export interface UpdateStatementDueDayParams {
 export interface CardStatementForDue {
   cardLabel: string;
   amountARS: number;
+  amountUSD: number;
   dueDate: FirebaseFirestore.Timestamp;
 }

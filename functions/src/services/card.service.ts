@@ -338,6 +338,7 @@ export async function getUpcomingUnpaidCardStatements(
     .map((s) => ({
       cardLabel: cardLabelMap.get(s.cardId) as string,
       amountARS: s.amountARS,
+      amountUSD: s.amountUSD,
       dueDate: s.dueDate,
     }));
 }

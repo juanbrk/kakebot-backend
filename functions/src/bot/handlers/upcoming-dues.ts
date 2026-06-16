@@ -1,7 +1,7 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { getUpcomingDues } from "../../services/upcoming-dues.service";
-import { formatARS } from "../../helpers/format";
+import { formatARS, formatUSD } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { UpcomingDueItem, UpcomingDuesBucket } from "../../types/upcoming-dues.types";
 
@@ -23,7 +23,8 @@ export function registerUpcomingDuesHandler(bot: Telegraf<KakebotContext>): void
 function formatDueItemLine(item: UpcomingDueItem): string {
   const day = item.dueDate.getDate().toString().padStart(2, "0");
   const month = (item.dueDate.getMonth() + 1).toString().padStart(2, "0");
-  return `• ${item.entityName}  ${formatARS(item.amount)} (${day}/${month})`;
+  const usdPart = item.amountUSD && item.amountUSD > 0 ? ` y ${formatUSD(item.amountUSD)}` : "";
+  return `• ${item.entityName}  ${formatARS(item.amount)}${usdPart} (${day}/${month})`;
 }
 
 /**
@@ -33,7 +34,9 @@ function formatDueItemLine(item: UpcomingDueItem): string {
  * @return {string} Multi-line formatted section
  */
 function formatBucket(bucket: UpcomingDuesBucket): string {
-  const header = `*${bucket.label}: ${formatARS(bucket.subtotal)}*`;
+  const totalUSD = bucket.items.reduce((sum, item) => sum + (item.amountUSD ?? 0), 0);
+  const usdPart = totalUSD > 0 ? ` y ${formatUSD(totalUSD)}` : "";
+  const header = `*${bucket.label}: ${formatARS(bucket.subtotal)}${usdPart}*`;
   const lines = bucket.items.map(formatDueItemLine);
   return [header, ...lines].join("\n");
 }

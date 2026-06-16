@@ -102,6 +102,7 @@ export async function getUpcomingDues(
   const cardItems: UpcomingDueItem[] = cardStatements.map((stmt) => ({
     entityName: stmt.cardLabel,
     amount: stmt.amountARS,
+    amountUSD: stmt.amountUSD,
     dueDate: stmt.dueDate.toDate(),
     entityType: "card",
   }));
