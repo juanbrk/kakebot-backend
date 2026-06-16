@@ -276,7 +276,8 @@ export async function generateMonthlyReport(
   );
   balanceLines.push(`*INGRESOS* ${formatARS(incomesTotal)}`);
   balanceLines.push("");
-  balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}`);
+  const egresosUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
+  balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
 
   if (servicesTotal > 0) {
     balanceLines.push(` • Servicios  ${formatARS(servicesTotal)}`);

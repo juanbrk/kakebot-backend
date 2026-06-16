@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-06-16: Mostrar USD en Próximos Vencimientos y balance de Egresos
+
+### Completado
+- Resúmenes de tarjeta con `amountUSD > 0` muestran el monto USD en Próximos Vencimientos (ítem y header de bucket)
+- Header `*EGRESOS*` del balance mensual muestra el pendiente USD cuando aplica
+- TICKET.md actualizado para reflejar la implementación real (formato `U$S`, headers, fix EGRESOS)
+
+### Pendiente
+- Ninguno
+
+## 2026-06-12: techDebt/wizard-layer-all-flows — Migración completa a WizardScene
+## 2026-06-03: GitHub Actions updated to Node.js 24 compatible versions
 ## 2026-06-14: Fix pipeline de deploy — warnings de deprecación eliminados
 
 ### Completado
