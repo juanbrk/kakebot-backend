@@ -1,4 +1,4 @@
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { LogContext } from "../types/logger.types";
 
 /**

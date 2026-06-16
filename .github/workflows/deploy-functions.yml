@@ -9,13 +9,16 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: functions/package-lock.json
 
@@ -38,9 +41,13 @@ jobs:
           echo "AUTHORIZED_USER_ID=${AUTHORIZED_USER_ID}" >> functions/.env
           echo "NODE_ENV=production" >> functions/.env
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: "firebase-adminsdk-fbsvc@kakebot-972c2.iam.gserviceaccount.com"
+
       - name: Deploy Functions
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: npx firebase deploy --only functions --project kakebot-972c2
 
       - name: Set Telegram Webhook
