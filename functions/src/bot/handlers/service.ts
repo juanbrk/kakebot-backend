@@ -506,12 +506,40 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
   });
 }
 
+/**
+ * Marks an installment as paid from the installment detail view.
+ * If the installment already has a stored receipt, skips the receipt-upload
+ * scene and re-renders the installment detail. Otherwise enters the receipt scene.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
 async function handleMarkAsPaid(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
   await ctx.answerCbQuery();
+
+  const installment = await getInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.editMessageText("Cuota no encontrada.");
+    return;
+  }
+
   await markInstallmentAsPaid(installmentId);
+
+  const hasStoredReceipt = !!installment.receiptUrl;
+  if (hasStoredReceipt) {
+    const [year, month] = installment.dueMonth.split("-");
+    const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+    await showInstallmentDetail({
+      ctx,
+      installmentId,
+      backLabel: "← Volver al historial",
+      breadcrumbSegments: ["Servicios", installment.serviceName, "Cuotas", monthLabel],
+    });
+    return;
+  }
+
   await ctx.editMessageText("✅ Cuota marcada como pagada.");
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "receipt",
@@ -519,6 +547,13 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
   } as ServiceWizardState);
 }
 
+/**
+ * Marks the current-month installment as paid from the service action menu.
+ * If the installment already has a stored receipt, skips the receipt-upload
+ * scene and re-renders the service menu. Otherwise enters the receipt scene.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
 async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
@@ -536,6 +571,13 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
   }
 
   await markInstallmentAsPaid(installment.id || "");
+
+  const hasStoredReceipt = !!installment.receiptUrl;
+  if (hasStoredReceipt) {
+    await showServiceActionView(ctx, serviceId);
+    return;
+  }
+
   await ctx.editMessageText("✅ Cuota marcada como pagada.");
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "receipt",

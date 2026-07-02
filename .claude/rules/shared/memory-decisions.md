@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-07-02: Omitir comprobante ya adjunto al marcar cuota como pagada — retorno al origen, no a un destino único
+
+- **Decisión**: si la cuota ya tiene `receiptUrl`, se omite la escena de comprobante y cada entry point vuelve a su propia pantalla de origen (`svc_pay` → detalle de la cuota vía `showInstallmentDetail`; `svc_pay_from` → menú de acciones del servicio vía `showServiceActionView`), en vez de forzar ambos a un único "menú de servicio" genérico como sugería el ticket original.
+- **Motivo**: cada botón vive en una vista distinta; devolver al usuario a su origen es más consistente con la UX existente (patrón ya usado en `handleBackToServiceAction`) y evita perder contexto de navegación.
+- **Aplicado en**: `handleMarkAsPaid` y `handleMarkAsPaidFromService` (`bot/handlers/service.ts`). TICKET.md actualizado para reflejar esta implementación real.
+
 ## 2026-06-14: Firebase CI/CD auth — WIF keyless en lugar de JSON key
 
 - **Decisión**: Usar Workload Identity Federation (WIF) con `google-github-actions/auth@v2` en lugar de JSON service account key almacenado en GitHub Secrets.

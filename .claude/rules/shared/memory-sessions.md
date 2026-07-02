@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-07-02: Omitir prompt de comprobante al marcar cuota pagada si ya tiene comprobante
+
+### Completado
+- `handleMarkAsPaid` y `handleMarkAsPaidFromService` (bot/handlers/service.ts): si la cuota ya tiene `receiptUrl`, se omite la escena de comprobante y se vuelve al origen (detalle de cuota / menú de servicio)
+- Build + lint OK, validado end-to-end en botitio_testitoBot (ambos entry points, con y sin comprobante previo)
+
+### Pendiente
+- Commit (a cargo del usuario)
+
 ## 2026-06-16: Mostrar USD en Próximos Vencimientos y balance de Egresos
 
 ### Completado
