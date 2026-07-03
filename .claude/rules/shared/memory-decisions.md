@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-07-03: Marcar resumen de tarjeta como pagado edita mensajes en lugar de crear nuevos
+
+- **Decisión**: en el flujo de pago de resumen (`card-stmt.scene.ts` `stepInit` case `pay`), la confirmación y la pregunta de moneda editan el mensaje de opciones original (`ctx.editMessageText`, no reply nuevo). En la rama USD se edita primero a un contexto sin botones ("Estás por marcar como pagado el resumen · _mes · tarjeta_") y luego un `ctx.reply` nuevo lleva la pregunta de moneda + teclado; "Adjuntar" separa contexto (edita) e instrucciones (reply).
+- **Motivo**: cumplir "nunca dos mensajes con botones activos"; espeja `service.ts` `handleMarkAsPaid`. Caso 1 (solo ARS) sin cambios.
+- **Aplicado en**: `card.ts` (`handleMarkStatementAsPaid`: eliminado pre-edit) + `card-stmt.scene.ts` (`stepInit` case `pay` ARS/USD, `handlePayAttachARS`/`handlePayAttachUSD`).
+
 ## 2026-07-02: Omitir comprobante ya adjunto al marcar cuota como pagada — retorno al origen, no a un destino único
 
 - **Decisión**: si la cuota ya tiene `receiptUrl`, se omite la escena de comprobante y cada entry point vuelve a su propia pantalla de origen (`svc_pay` → detalle de la cuota vía `showInstallmentDetail`; `svc_pay_from` → menú de acciones del servicio vía `showServiceActionView`), en vez de forzar ambos a un único "menú de servicio" genérico como sugería el ticket original.

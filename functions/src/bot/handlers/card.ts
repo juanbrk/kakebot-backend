@@ -541,10 +541,6 @@ async function handleMarkStatementAsPaid(ctx: KakebotContext): Promise<void> {
   const card = await getCardById(statement.cardId);
   const cardLabel = card ? buildCardLabel(card) : "";
 
-  const [year, month] = statement.month.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-
-  await ctx.editMessageText(`_${monthLabel} · ${cardLabel}_`, { parse_mode: "Markdown" });
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
     flow: "pay",
     statementId,

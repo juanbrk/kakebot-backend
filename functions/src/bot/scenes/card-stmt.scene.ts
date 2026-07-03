@@ -114,7 +114,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
         await ctx.scene.leave();
         return;
       }
-      await ctx.reply(
+      await ctx.editMessageText(
         `✅ Resumen marcado como pagado.\n_${monthLabel} · ${cardLabel}_`,
         { parse_mode: "Markdown" },
       );
@@ -124,9 +124,12 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       );
       ctx.wizard.selectStep(PAY_ARS_STEP);
     } else {
+      await ctx.editMessageText(
+        `Estás por marcar como pagado el resumen\n_${monthLabel} · ${cardLabel}_`,
+        { parse_mode: "Markdown" },
+      );
       await ctx.reply(
-        `_${monthLabel} · ${cardLabel}_\n\n*El resumen incluye ${formatUSD(amountUSD)} USD.*\n`
-        + "*¿Con qué moneda pagaste los dólares?*",
+        `*El resumen incluye ${formatUSD(amountUSD)} USD.*\n*¿Con qué moneda pagaste los dólares?*`,
         { parse_mode: "Markdown", ...buildStmtUsdCurrencyKeyboard({ statementId, flow: "pay" }) },
       );
       ctx.wizard.selectStep(PAY_CURRENCY_STEP);
@@ -1016,7 +1019,8 @@ async function handlePayCurrencyARS(ctx: KakebotContext): Promise<void> {
  */
 async function handlePayAttachARS(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Enviá la foto o PDF del comprobante de pago en ARS.");
+  await ctx.editMessageText("Vas a adjuntar el comprobante de pago en ARS.");
+  await ctx.reply("Enviá la foto o PDF del comprobante de pago en ARS.");
   ctx.wizard.selectStep(PAY_ARS_UPLOAD_STEP);
 }
 
@@ -1062,7 +1066,8 @@ async function handlePaySkipARS(ctx: KakebotContext): Promise<void> {
  */
 async function handlePayAttachUSD(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Enviá la foto o PDF del comprobante de pago en USD.");
+  await ctx.editMessageText("Vas a adjuntar el comprobante de pago en USD.");
+  await ctx.reply("Enviá la foto o PDF del comprobante de pago en USD.");
   ctx.wizard.selectStep(PAY_USD_UPLOAD_STEP);
 }
 
