@@ -62,7 +62,7 @@ async function handleUpcomingDues(ctx: Context): Promise<void> {
 
   let text: string;
   if (!result.hasAny) {
-    text = breadcrumb + "No hay vencimientos en los próximos 7 días.";
+    text = breadcrumb + "No hay vencimientos hoy ni en los próximos 7 días.";
   } else {
     const sections = result.buckets.map(formatBucket).join("\n\n");
     text = breadcrumb + "*PRÓXIMOS VENCIMIENTOS*\n\n" + sections;

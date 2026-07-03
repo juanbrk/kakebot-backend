@@ -6,7 +6,7 @@ import {
   ServicePaymentMethod,
   SaveInstallmentParams,
 } from "../types/service.types";
-import { getDaysInMonth } from "../helpers/format";
+import { buildDueDate, getDaysInMonth } from "../helpers/format";
 
 export async function createService(
   telegramUserId: string,
@@ -216,9 +216,9 @@ export async function updateInstallmentDueDay(
     return false;
   }
 
-  const newDueDate = new Date(
+  const newDueDate = buildDueDate(
     currentDueDate.getFullYear(),
-    currentDueDate.getMonth(),
+    currentDueDate.getMonth() + 1,
     newDay
   );
 

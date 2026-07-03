@@ -3,7 +3,7 @@ import { KakebotContext, CardStmtWizardState } from "../../types/telegraf-contex
 import { StatementCurrency } from "../../types/index";
 import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
+import { buildDueDate, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import {
   buildCardStmtMonthKeyboard,
@@ -886,7 +886,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
 
   const stmtMonth = state.statementMonth!;
   const [year, month] = stmtMonth.split("-");
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, state.dueDay as number);
+  const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), state.dueDay as number);
 
   let statementId: string;
   try {

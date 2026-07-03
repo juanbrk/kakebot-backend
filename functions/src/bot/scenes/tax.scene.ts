@@ -3,7 +3,7 @@ import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.typ
 import { getMessageText } from "../../helpers/wizard";
 import { ServicePaymentMethod } from "../../types/service.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import { buildDueDate, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import { buildPaymentMethodKeyboard } from "../../helpers/payment-method";
 import {
@@ -224,7 +224,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
   const [year, month] = selectedMonth.split("-");
   const maxDay = getDaysInMonth(selectedMonth);
   const dueDay = Math.min(tax.estimatedDueDay, maxDay);
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, dueDay);
+  const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), dueDay);
 
   const installmentId = await saveTaxInstallment({
     telegramUserId,

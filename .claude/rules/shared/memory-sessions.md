@@ -8,6 +8,15 @@
 
 ### Pendiente
 - Test en botitio_testitoBot (Casos 2 y 3) y commit (a cargo del usuario)
+## 2026-07-03: Sección "Vencen hoy" en Próximos Vencimientos
+
+### Completado
+- Nueva sección "Vencen hoy"; buckets robustecidos para tolerar cualquier horario, no solo medianoche exacta
+- Fechas de vencimiento (servicio/impuesto/tarjeta) ahora se construyen sin depender del huso horario del servidor
+- Build + lint OK, QA manual validado
+
+### Pendiente
+- Commit (a cargo del usuario)
 
 ## 2026-07-02: Omitir prompt de comprobante al marcar cuota pagada si ya tiene comprobante
 

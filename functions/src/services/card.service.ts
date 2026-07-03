@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
 import { CreditCard, CardStatement } from "../types/index";
+import { buildDueDate } from "../helpers/format";
 import {
   CardStatementForDue,
   CreateCardParams,
@@ -241,7 +242,7 @@ export async function updateStatementDueDay({
 
   if (newDay < 1 || newDay > maxDay) return false;
 
-  const newDueDate = new Date(Date.UTC(year, month - 1, newDay, 12, 0, 0));
+  const newDueDate = buildDueDate(year, month, newDay);
   await getDb()
     .collection("card_statements")
     .doc(statementId)
