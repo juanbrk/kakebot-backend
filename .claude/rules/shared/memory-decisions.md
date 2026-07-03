@@ -1,5 +1,10 @@
 # Decisions Log
 
+## 2026-07-03: Marcar resumen de tarjeta como pagado edita mensajes en lugar de crear nuevos
+
+- **Decisión**: en el flujo de pago de resumen (`card-stmt.scene.ts` `stepInit` case `pay`), la confirmación y la pregunta de moneda editan el mensaje de opciones original (`ctx.editMessageText`, no reply nuevo). En la rama USD se edita primero a un contexto sin botones ("Estás por marcar como pagado el resumen · _mes · tarjeta_") y luego un `ctx.reply` nuevo lleva la pregunta de moneda + teclado; "Adjuntar" separa contexto (edita) e instrucciones (reply).
+- **Motivo**: cumplir "nunca dos mensajes con botones activos"; espeja `service.ts` `handleMarkAsPaid`. Caso 1 (solo ARS) sin cambios.
+- **Aplicado en**: `card.ts` (`handleMarkStatementAsPaid`: eliminado pre-edit) + `card-stmt.scene.ts` (`stepInit` case `pay` ARS/USD, `handlePayAttachARS`/`handlePayAttachUSD`).
 ## 2026-07-03: Vencimientos de hoy — buckets robustos y fechas ancladas a mediodía UTC
 
 Los buckets de Próximos Vencimientos pasaron a ser ventanas de día contiguas (en vez de igualdad exacta a medianoche), para tolerar cualquier hora del día. Las fechas de vencimiento (servicio/impuesto/tarjeta) ahora se construyen con un helper `buildDueDate` anclado a mediodía UTC en vez de medianoche implícita del proceso, para que el día mostrado no dependa del huso horario del servidor. Aparte, se renombraron dos funciones internas (`showInstallmentDetailInScene`, `attachFile`) por exigencia de naming del hook de scenes.

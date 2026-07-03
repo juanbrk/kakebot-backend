@@ -1,5 +1,13 @@
 # Session Log
 
+## 2026-07-03: Editar mensajes al marcar resumen de tarjeta como pagado
+
+### Completado
+- La confirmación y la pregunta de moneda editan el mensaje de opciones en vez de crear uno nuevo; la rama USD muestra contexto (mes · tarjeta) antes del selector de moneda. Caso 1 (solo ARS) sin cambios.
+- "Adjuntar" separa contexto e instrucciones. Build + lint OK.
+
+### Pendiente
+- Test en botitio_testitoBot (Casos 2 y 3) y commit (a cargo del usuario)
 ## 2026-07-03: Sección "Vencen hoy" en Próximos Vencimientos
 
 ### Completado
