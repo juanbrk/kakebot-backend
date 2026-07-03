@@ -245,6 +245,7 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `formatARS(amount)` | `helpers/format.ts` | ARS currency formatting (dot thousands, comma decimal) |
 | `MONTH_NAMES` | `helpers/format.ts` | Spanish month name array (0-indexed) |
 | `buildBackdatedTimestamp(yearMonth)` | `helpers/format.ts` | Last day of month at 17:00 ART as Firestore Timestamp |
+| `buildDueDate(year, month, day)` | `helpers/format.ts` | Due-date `Date` anchored at 12:00 UTC — use for any persisted dueDate (service/tax/card installments) to survive process-timezone differences between production (UTC) and local emulator (ART) |
 | `parseArgentineAmount(input)` | `helpers/parse-amount.ts` | Argentine-format string → number |
 | `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` |
 | `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message if possible, else reply |

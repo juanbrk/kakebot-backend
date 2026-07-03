@@ -28,7 +28,7 @@ export interface RenderInstallmentsListParams {
 
 /**
  * Parameters for the invoice scene's internal file-attach helper.
- * Used by attachFile() in invoice.scene.ts for both invoice and receipt flows.
+ * Used by handleAttachFile() in invoice.scene.ts for both invoice and receipt flows.
  */
 export interface AttachFileParams {
   ctx: KakebotContext;

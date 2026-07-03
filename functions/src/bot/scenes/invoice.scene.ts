@@ -14,7 +14,7 @@ import {
 } from "../../services/service.service";
 import { uploadInvoice, uploadReceipt } from "../../services/storage.service";
 import { downloadFile } from "../handlers/photo";
-import { getDaysInMonth, getMonthLabel } from "../../helpers/format";
+import { buildDueDate, getDaysInMonth, getMonthLabel } from "../../helpers/format";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { getMessageText } from "../../helpers/wizard";
 import { Service } from "../../types/service.types";
@@ -89,7 +89,7 @@ function buildMonthKeyboard(serviceId: string) {
  *
  * @param {AttachFileParams} params - ctx, state, telegramUserId, installmentId, successMessage
  */
-async function attachFile({
+async function handleAttachFile({
   ctx,
   state,
   telegramUserId,
@@ -324,7 +324,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
 
   try {
     const [year, month] = state.selectedMonth.split("-");
-    const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, day);
+    const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), day);
 
     const installmentId = await saveInstallment({
       telegramUserId,
@@ -336,7 +336,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
     });
 
     const successMessage = defaultSuccessMessage(state.flow, state.isNewService ?? false);
-    await attachFile({ ctx, state, telegramUserId, installmentId, successMessage });
+    await handleAttachFile({ ctx, state, telegramUserId, installmentId, successMessage });
     await ctx.scene.leave();
   } catch (error) {
     log.error("Error saving installment in invoice scene", error, {
@@ -380,7 +380,7 @@ async function handlePickService(ctx: KakebotContext): Promise<void> {
       await ctx.editMessageText(
         `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(currentMonth, true)}...`,
       );
-      await attachFile({
+      await handleAttachFile({
         ctx,
         state,
         telegramUserId,
@@ -448,7 +448,7 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
       await ctx.editMessageText(
         `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(dueMonth, true)}...`,
       );
-      await attachFile({
+      await handleAttachFile({
         ctx,
         state,
         telegramUserId,
