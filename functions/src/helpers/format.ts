@@ -39,6 +39,25 @@ export function buildBackdatedTimestamp(yearMonth: string): FirebaseFirestore.Ti
 }
 
 /**
+ * Builds a due-date Date anchored at 12:00 UTC (noon) of the given calendar day.
+ * Noon UTC guarantees the day survives a round-trip through local Date getters
+ * (getDate/getMonth/getFullYear) in both the production process (UTC, Cloud
+ * Functions) and the local emulator process (ART, UTC-3): the offset margin to
+ * either UTC day boundary is at least 9 hours, well above any real timezone
+ * offset this app will ever run under. This differs intentionally from
+ * buildBackdatedTimestamp's 20:00 UTC anchor, which serves a different purpose
+ * (end-of-month backdating, not a specific due day).
+ *
+ * @param {number} year - Full year, e.g. 2026
+ * @param {number} month - Calendar month, 1-indexed (1 = January, 12 = December)
+ * @param {number} day - Day of month, 1-indexed
+ * @return {Date} Date instance anchored at 12:00:00 UTC of the given day
+ */
+export function buildDueDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+/**
  * Returns a human-readable month label from a YYYY-MM string.
  *
  * @param {string} dueMonth - Month in "YYYY-MM" format

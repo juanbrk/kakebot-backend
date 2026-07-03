@@ -3,7 +3,7 @@ import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context
 import { ServicePaymentMethod } from "../../types/service.types";
 import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
+import { buildDueDate, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
 import { replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
 import {
@@ -256,7 +256,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
   }
   const telegramUserId = ctx.from?.id.toString() ?? "";
   const [year, month] = selectedMonth.split("-");
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, dueDay as number);
+  const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), dueDay as number);
 
   try {
     const existing = await getInstallment(serviceId, selectedMonth);
@@ -334,7 +334,7 @@ async function stepHandleEditAmount(ctx: KakebotContext): Promise<void> {
   const installmentId = state.installmentId || "";
   try {
     await updateInstallmentAmount(installmentId, amount);
-    await showInstallmentDetailInScene(ctx, installmentId);
+    await handleInstallmentDetail(ctx, installmentId);
     await ctx.scene.leave();
   } catch (error) {
     log.error("Error updating installment amount", error, { module: "service.scene" });
@@ -361,7 +361,7 @@ async function stepHandleEditDay(ctx: KakebotContext): Promise<void> {
   }
   try {
     await updateInstallmentDueDay(installmentId, day);
-    await showInstallmentDetailInScene(ctx, installmentId);
+    await handleInstallmentDetail(ctx, installmentId);
     await ctx.scene.leave();
   } catch (error) {
     log.error("Error updating installment due day", error, { module: "service.scene" });
@@ -583,7 +583,7 @@ async function handleReplaceDuplicate(ctx: KakebotContext): Promise<void> {
     return;
   }
   const [year, month] = selectedMonth.split("-");
-  const dueDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, dueDay as number);
+  const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), dueDay as number);
   try {
     await replaceInstallment(installmentId, partialAmount as number, dueDate);
     const day2 = String(dueDate.getDate()).padStart(2, "0");
@@ -704,7 +704,7 @@ async function handleInvoiceUpload(ctx: KakebotContext, documentFileId: string |
  * @param {string} installmentId - Firestore ID of the installment
  * @return {Promise<void>}
  */
-async function showInstallmentDetailInScene(ctx: KakebotContext, installmentId: string): Promise<void> {
+async function handleInstallmentDetail(ctx: KakebotContext, installmentId: string): Promise<void> {
   const installment = await getInstallmentById(installmentId);
   if (!installment) {
     await replyOrEdit(ctx, "No se encontró la cuota.");

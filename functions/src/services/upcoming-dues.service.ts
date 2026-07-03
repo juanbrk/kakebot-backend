@@ -8,15 +8,17 @@ import {
 } from "../types/upcoming-dues.types";
 
 /**
- * Bucket definitions: label, days cap, and lower bound in days from today.
- * The first bucket ("Vencen hoy") uses an INCLUSIVE lower bound (captures dueDate === today);
- * the rest use an EXCLUSIVE lower bound so buckets don't overlap.
+ * Bucket definitions: label plus the inclusive calendar-day window [fromDay, days]
+ * counted from today (day 0 = today). Windows are contiguous and non-overlapping:
+ * "Vencen hoy" is day 0, "Próximos 3 días" is days 1-3, and so on. Each window spans
+ * the full day range regardless of time of day, so a dueDate carrying a time component
+ * (not exactly midnight) still lands in the correct bucket.
  */
 const BUCKETS: { label: string; days: number; fromDay: number }[] = [
   { label: "Vencen hoy", days: 0, fromDay: 0 },
-  { label: "Próximos 3 días", days: 3, fromDay: 0 },
-  { label: "Próximos 5 días", days: 5, fromDay: 3 },
-  { label: "Próximos 7 días", days: 7, fromDay: 5 },
+  { label: "Próximos 3 días", days: 3, fromDay: 1 },
+  { label: "Próximos 5 días", days: 5, fromDay: 4 },
+  { label: "Próximos 7 días", days: 7, fromDay: 6 },
 ];
 
 /**
@@ -44,9 +46,11 @@ function addDays(base: Date, days: number): Date {
 }
 
 /**
- * Groups a flat list of due items into non-overlapping time buckets.
- * The first bucket ("Vencen hoy") captures items in [todayStart, days]; the rest
- * capture items in (fromDay, days] so no item is duplicated across buckets.
+ * Groups a flat list of due items into non-overlapping, contiguous day-window buckets.
+ * Each bucket captures items whose dueDate falls anywhere within its inclusive calendar-day
+ * window [fromDay, days] from today — the half-open range [todayStart + fromDay days,
+ * todayStart + (days + 1) days). Using the full day as the window (instead of an exact
+ * midnight match) keeps bucketing correct even if a dueDate carries a time component.
  *
  * @param {UpcomingDueItem[]} items - All items sorted by dueDate ascending
  * @param {Date} todayStart - Start of today
@@ -56,17 +60,13 @@ function groupIntoBuckets(
   items: UpcomingDueItem[],
   todayStart: Date
 ): UpcomingDuesBucket[] {
-  return BUCKETS.reduce<UpcomingDuesBucket[]>((acc, { label, days, fromDay }, index) => {
+  return BUCKETS.reduce<UpcomingDuesBucket[]>((acc, { label, days, fromDay }) => {
     const lowerBound = addDays(todayStart, fromDay);
-    const upperBound = addDays(todayStart, days);
-    const isTodayBucket = index === 0;
+    const upperBoundExclusive = addDays(todayStart, days + 1);
 
     const bucketItems = items.filter((item) => {
       const t = item.dueDate.getTime();
-      const passesLowerBound = isTodayBucket
-        ? t >= lowerBound.getTime()
-        : t > lowerBound.getTime();
-      return passesLowerBound && t <= upperBound.getTime();
+      return t >= lowerBound.getTime() && t < upperBoundExclusive.getTime();
     });
 
     if (bucketItems.length === 0) {
