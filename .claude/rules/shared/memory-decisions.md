@@ -1,5 +1,9 @@
 # Decisions Log
 
+## 2026-07-02: Sección "Vencen hoy" separada en lugar de fold-in al bucket "Próximos 3 días"
+
+Las cuotas con `dueDate` de hoy se muestran en una sección dedicada "Vencen hoy" (bucket con límite inferior inclusivo) en vez de sumarse al bucket "Próximos 3 días" como pedía el TICKET.md original, por preferencia explícita del usuario de distinguir visualmente lo urgente. Aplicado en `groupIntoBuckets`/`BUCKETS` (`services/upcoming-dues.service.ts`); solo el primer bucket usa límite inclusivo para no duplicar ítems.
+
 ## 2026-07-02: Omitir comprobante ya adjunto al marcar cuota como pagada — retorno al origen, no a un destino único
 
 - **Decisión**: si la cuota ya tiene `receiptUrl`, se omite la escena de comprobante y cada entry point vuelve a su propia pantalla de origen (`svc_pay` → detalle de la cuota vía `showInstallmentDetail`; `svc_pay_from` → menú de acciones del servicio vía `showServiceActionView`), en vez de forzar ambos a un único "menú de servicio" genérico como sugería el ticket original.

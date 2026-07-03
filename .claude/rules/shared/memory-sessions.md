@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-07-03: Sección "Vencen hoy" en Próximos Vencimientos
+
+### Completado
+- Nuevo bucket "Vencen hoy" para cuotas con vencimiento en el día actual, sin duplicar ítems en "Próximos 3 días"
+- Build + lint OK; QA manual confirmado en botitio_testitoBot; TICKET.md actualizado con criterios verificados
+
+### Pendiente
+- Commit (a cargo del usuario)
+
 ## 2026-07-02: Omitir prompt de comprobante al marcar cuota pagada si ya tiene comprobante
 
 ### Completado

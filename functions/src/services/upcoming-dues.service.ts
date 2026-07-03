@@ -7,8 +7,13 @@ import {
   UpcomingDuesResult,
 } from "../types/upcoming-dues.types";
 
-/** Bucket definitions: label, days cap, and lower bound (exclusive, in days from today). */
+/**
+ * Bucket definitions: label, days cap, and lower bound in days from today.
+ * The first bucket ("Vencen hoy") uses an INCLUSIVE lower bound (captures dueDate === today);
+ * the rest use an EXCLUSIVE lower bound so buckets don't overlap.
+ */
 const BUCKETS: { label: string; days: number; fromDay: number }[] = [
+  { label: "Vencen hoy", days: 0, fromDay: 0 },
   { label: "Próximos 3 días", days: 3, fromDay: 0 },
   { label: "Próximos 5 días", days: 5, fromDay: 3 },
   { label: "Próximos 7 días", days: 7, fromDay: 5 },
@@ -40,7 +45,8 @@ function addDays(base: Date, days: number): Date {
 
 /**
  * Groups a flat list of due items into non-overlapping time buckets.
- * Items due within days (fromDay, days] fall into each bucket.
+ * The first bucket ("Vencen hoy") captures items in [todayStart, days]; the rest
+ * capture items in (fromDay, days] so no item is duplicated across buckets.
  *
  * @param {UpcomingDueItem[]} items - All items sorted by dueDate ascending
  * @param {Date} todayStart - Start of today
@@ -50,13 +56,17 @@ function groupIntoBuckets(
   items: UpcomingDueItem[],
   todayStart: Date
 ): UpcomingDuesBucket[] {
-  return BUCKETS.reduce<UpcomingDuesBucket[]>((acc, { label, days, fromDay }) => {
+  return BUCKETS.reduce<UpcomingDuesBucket[]>((acc, { label, days, fromDay }, index) => {
     const lowerBound = addDays(todayStart, fromDay);
     const upperBound = addDays(todayStart, days);
+    const isTodayBucket = index === 0;
 
     const bucketItems = items.filter((item) => {
       const t = item.dueDate.getTime();
-      return t > lowerBound.getTime() && t <= upperBound.getTime();
+      const passesLowerBound = isTodayBucket
+        ? t >= lowerBound.getTime()
+        : t > lowerBound.getTime();
+      return passesLowerBound && t <= upperBound.getTime();
     });
 
     if (bucketItems.length === 0) {
