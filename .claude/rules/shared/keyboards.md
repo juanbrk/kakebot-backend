@@ -44,6 +44,50 @@ function buildPaginatedKeyboard(items, page, callbackPrefix) {
 | `buildServiceListKeyboard` | `keyboards/service.ts` | Yes |
 | `buildInvoiceServiceListKeyboard` | `keyboards/invoice.ts` | Yes |
 
+## Empty-State Submenus
+
+When a submenu offers actions that only make sense once the user has data (e.g. "Mis impuestos", "Seleccionar tarjeta"), the entry screen must reflect the empty state instead of leading the user into options that dead-end.
+
+Rules:
+
+1. **The handler queries for data before rendering**, then branches on `length === 0`.
+2. **Empty state uses a dedicated keyboard builder** that omits the actions that require data — it keeps only the create action and the back button. Do NOT reuse the full submenu keyboard and let the user tap into an empty list.
+3. **The empty-state text goes in plain text** (no `*...*`) between the breadcrumb and the bold action prompt. It is a descriptive status line, not an action prompt (see "Action Prompt Text — Always Bold" and `user-preferences.md`).
+
+### Pattern
+
+```typescript
+// Dedicated builder — omits data-dependent actions.
+export function buildTaxesEmptyStateKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Registrar impuesto", "tax_add")],
+    [Markup.button.callback("← Volver al menú", "menu_back")],
+  ]);
+}
+
+// Handler branches on whether the user has data.
+async function openTaxesMenu(ctx: Context): Promise<void> {
+  const taxes = await getTaxesByUser(telegramUserId);
+  const breadcrumb = buildBreadcrumb(["Impuestos"]);
+
+  if (taxes.length === 0) {
+    await replyOrEdit(ctx, breadcrumb + "No tenés ningún impuesto registrado.\n\n*¿Qué querés hacer?*", {
+      parse_mode: "Markdown",
+      reply_markup: buildTaxesEmptyStateKeyboard().reply_markup as any,
+    });
+    return;
+  }
+  // ...normal keyboard when data exists.
+}
+```
+
+### Canonical implementations
+
+| Empty-state builder | Handler | File |
+|---|---|---|
+| `buildTaxesEmptyStateKeyboard` | `openTaxesMenu` | `keyboards/tax.ts`, `handlers/tax.ts` |
+| `buildCardEmptyStateKeyboard` | `handleOpenCards` | `keyboards/card.ts`, `handlers/card.ts` |
+
 ## Button Order (see also user-preferences.md)
 
 - Left: negative/dismissive (Cancelar, Volver, Anterior)
