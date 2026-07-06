@@ -54,6 +54,22 @@ function formatServiceLine({ service, currentInstallment }: ServiceWithInstallme
 }
 
 /**
+ * Orders services within a section: those with a current installment first,
+ * ascending by due date; services without an installment go last.
+ *
+ * @param {ServiceWithInstallment[]} items - Services in a single section
+ * @return {ServiceWithInstallment[]} New array sorted by ascending due date, null-installment last
+ */
+function sortByDueDateAscending(items: ServiceWithInstallment[]): ServiceWithInstallment[] {
+  return [...items].sort((a, b) => {
+    if (!a.currentInstallment && !b.currentInstallment) return 0;
+    if (!a.currentInstallment) return 1;
+    if (!b.currentInstallment) return -1;
+    return a.currentInstallment.dueDate.toMillis() - b.currentInstallment.dueDate.toMillis();
+  });
+}
+
+/**
  * Builds a report section for a given list of services.
  * Returns an empty string if the list is empty (section is omitted).
  *
@@ -65,7 +81,7 @@ function buildSection(label: string, items: ServiceWithInstallment[]): string {
   if (items.length === 0) {
     return "";
   }
-  const lines = items.map(formatServiceLine).join("\n");
+  const lines = sortByDueDateAscending(items).map(formatServiceLine).join("\n");
   return `*${label}*\n${lines}`;
 }
 

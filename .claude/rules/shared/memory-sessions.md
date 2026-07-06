@@ -1,5 +1,13 @@
 # Session Log
 
+## 2026-07-06: Ordenar Métodos de Pago por vencimiento
+
+### Completado
+- Cada sección del reporte de Métodos de pago ordena sus servicios ascendente por `dueDate`; los sin cuota del mes (`$ -`) van al final. Nuevo helper `sortByDueDateAscending` aplicado en `buildSection` (`payment-method-report.service.ts`). Build + lint OK.
+
+### Pendiente
+- QA manual en botitio_testitoBot y commit (a cargo del usuario)
+
 ## 2026-07-05: Estado vacío en el submenú de Impuestos
 
 ### Completado
