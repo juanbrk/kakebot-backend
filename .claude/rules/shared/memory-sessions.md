@@ -1,5 +1,13 @@
 # Session Log
 
+## 2026-07-05: Estado vacío en el submenú de Impuestos
+
+### Completado
+- `openTaxesMenu` consulta `getTaxesByUser`: sin impuestos muestra "No tenés ningún impuesto registrado." y oculta "Mis impuestos" (nuevo `buildTaxesEmptyStateKeyboard`, espeja patrón de tarjetas). Con impuestos, sin cambios. Build + lint OK, QA manual validado. TICKET.md actualizado.
+
+### Pendiente
+- Commit y merge a main (a cargo del usuario)
+
 ## 2026-07-03: Editar mensajes al marcar resumen de tarjeta como pagado
 
 ### Completado

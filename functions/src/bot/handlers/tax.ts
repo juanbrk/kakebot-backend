@@ -22,6 +22,7 @@ import {
 import { downloadFromUrl } from "../../services/storage.service";
 import {
   buildTaxesSubmenuKeyboard,
+  buildTaxesEmptyStateKeyboard,
   buildTaxMisImpuestosKeyboard,
   buildTaxListKeyboard,
   buildTaxActionKeyboard,
@@ -73,8 +74,20 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
 
 async function openTaxesMenu(ctx: Context): Promise<void> {
   await ctx.answerCbQuery?.();
-  const text = buildBreadcrumb(["Impuestos"]) + "*¿Qué querés hacer?*";
-  await replyOrEdit(ctx, text, {
+  const telegramUserId = ctx.from?.id.toString() || "";
+  const taxes = await getTaxesByUser(telegramUserId);
+  const breadcrumb = buildBreadcrumb(["Impuestos"]);
+
+  if (taxes.length === 0) {
+    await replyOrEdit(ctx, breadcrumb + "No tenés ningún impuesto registrado.\n\n*¿Qué querés hacer?*", {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: buildTaxesEmptyStateKeyboard().reply_markup as any,
+    });
+    return;
+  }
+
+  await replyOrEdit(ctx, breadcrumb + "*¿Qué querés hacer?*", {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildTaxesSubmenuKeyboard().reply_markup as any,

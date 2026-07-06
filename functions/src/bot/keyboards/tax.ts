@@ -18,6 +18,19 @@ export function buildTaxesSubmenuKeyboard() {
 }
 
 /**
+ * Builds the taxes section submenu keyboard for the empty state
+ * (user has no taxes registered): omits the "Mis impuestos" option.
+ *
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildTaxesEmptyStateKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Registrar impuesto", "tax_add")],
+    [Markup.button.callback("← Volver al menú", "menu_back")],
+  ]);
+}
+
+/**
  * Builds the "Mis impuestos" submenu keyboard.
  *
  * @return {Markup.Markup} Inline keyboard markup
