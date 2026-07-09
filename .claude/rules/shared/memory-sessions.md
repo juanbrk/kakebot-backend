@@ -1,5 +1,13 @@
 # Session Log
 
+## 2026-07-08: Documentar patrón de archivo como input primario en WizardScenes
+
+### Completado
+- Nueva subsección en `wizard-scenes.md` §7.3 para escenas donde el archivo es el input primario (varios cursores válidos, sin mensaje de error al reemplazar archivo); referencia canónica `doc-router.scene.ts`. Ítem agregado al checklist pre-PR §16 y fila nueva en la tabla de referencias. Cambio puramente documental, sin código.
+
+### Pendiente
+- Commit (a cargo del usuario)
+
 ## 2026-07-06: Ordenar Métodos de Pago por vencimiento
 
 ### Completado
