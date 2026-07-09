@@ -320,6 +320,25 @@ Omitirlo causa que el botón se vea "girando" en el cliente de Telegram.
 
 Patrón de delegación cuando el archivo llega fuera del momento esperado: `tax.scene.ts:547-551`.
 
+**Flujos que procesan archivos como input primario.** Aplica cuando el archivo en sí ES lo que se está recolectando, válido en varias posiciones de cursor (no en un único step designado) — ej. `doc-router.scene.ts`, donde los cursores 0 y 1 son ambos "esperando archivo o elección de tipo". A diferencia del caso anterior, recibir un archivo acá no es un error: es el input principal del flujo. Si el cursor está dentro del rango válido, el handler actualiza `state.pendingFileId`/`pendingFileType` (o equivalente) directamente y re-presenta el mismo prompt/teclado, sin texto de error. Solo se delega a `repromptCurrentStep` cuando el cursor está fuera de ese rango.
+
+```typescript
+async function handlePhotoWhileWaiting(ctx: KakebotContext): Promise<void> {
+  if (ctx.wizard.cursor !== 0 && ctx.wizard.cursor !== TYPE_GUARD_STEP) {
+    await repromptCurrentStep(ctx);
+    return;
+  }
+  const state = ctx.wizard.state as [Domain]WizardState;
+  // extraer file_id de ctx.message y asignarlo a state.pendingFileId/pendingFileType
+  await ctx.reply(
+    "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.",
+    buildDocTypeKeyboard(),
+  ); // mismo prompt que stepInit — sin mensaje de error
+}
+```
+
+Implementación canónica: `doc-router.scene.ts:63-85` (`handlePhotoWhileWaiting`) y `doc-router.scene.ts:87-109` (`handleDocumentWhileWaiting`).
+
 ---
 
 ## 8. UX
@@ -608,6 +627,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] `scene.hears(CANCEL_REGEX, handleCancelWord)` registrado.
 - [ ] `scene.on("photo", ...)` registrado.
 - [ ] `scene.on("document", ...)` registrado.
+- [ ] Si el scene procesa archivos como input primario: `scene.on("photo"/"document")` actualizan state y re-presentan el prompt actual — nunca `repromptCurrentStep` mientras el cursor esté en rango válido (§7.3).
 - [ ] Todo `scene.action(...)` handler empieza con `await ctx.answerCbQuery();`.
 
 ### `repromptCurrentStep`
@@ -718,6 +738,7 @@ Referencia: `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` / `handl
 | `selectStep` en action handler | `tax.scene.ts:382` |
 | Try/catch + `log.error` estructurado | `tax.scene.ts:569-580` |
 | Photo/document handlers con cursor check | `tax.scene.ts:540-581` |
+| Archivo como input primario (photo/document handlers) | `doc-router.scene.ts:63-109` |
 | Cancel word handler | `tax.scene.ts:636-639` |
 | Registro de event handlers | `tax.scene.ts:653-665` |
 | `WizardState` interface | `types/telegraf-context.types.ts` (buscar `[Domain]WizardState`) |
