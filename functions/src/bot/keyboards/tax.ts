@@ -1,6 +1,6 @@
 import { Markup } from "telegraf";
 import { Tax, TaxInstallment, BuildTaxInstallmentDetailKeyboardParams, BuildTaxActionKeyboardParams } from "../../types/tax.types";
-import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatDueDateDayMonth, MONTH_NAMES } from "../../helpers/format";
 
 const TAXES_PER_PAGE = 6;
 
@@ -310,9 +310,6 @@ export function buildTaxInstallmentDetailKeyboard({
 export function buildTaxInstallmentDetailText(
   installment: TaxInstallment,
 ): string {
-  const dueDate = installment.dueDate.toDate();
-  const day = String(dueDate.getDate()).padStart(2, "0");
-  const month = String(dueDate.getMonth() + 1).padStart(2, "0");
   const statusLine = installment.isPaid
     ? "*Estado*: ✅ Pagado"
     : "*Estado*: Pendiente";
@@ -320,7 +317,7 @@ export function buildTaxInstallmentDetailText(
   return (
     `*Cuota: ${installment.taxName}*\n\n`
     + `*Monto*: ${formatARS(installment.amount)}\n`
-    + `*Vencimiento*: ${day}/${month}\n`
+    + `*Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}\n`
     + statusLine
   );
 }

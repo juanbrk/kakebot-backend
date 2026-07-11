@@ -1,7 +1,7 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
-import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatDueDateDayMonth, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -505,20 +505,25 @@ async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
 
   let cuotaLine: string;
   let estadoLine: string | null;
+  let dueDateLine: string;
   if (!installment) {
     cuotaLine = `• *Cuota ${monthLabel}*: Sin registrar`;
     estadoLine = null;
+    dueDateLine = "• *Vencimiento*: No disponible";
   } else if (installment.isPaid) {
     cuotaLine = `• *Cuota ${monthLabel}*: ${formatARS(installment.amount)}`;
     estadoLine = "• *Estado*: ✅ Pagado";
+    dueDateLine = `• *Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}`;
   } else {
     cuotaLine = `• *Cuota ${monthLabel}*: ${formatARS(installment.amount)}`;
     estadoLine = "• *Estado*: Pendiente";
+    dueDateLine = `• *Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}`;
   }
 
   const details = [
     cuotaLine,
     estadoLine,
+    dueDateLine,
     `• *Medio de pago*: ${pmLabel}`,
   ]
     .filter(Boolean)

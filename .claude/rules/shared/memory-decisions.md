@@ -1,5 +1,18 @@
 # Decisions Log
 
+## 2026-07-11: Vencimiento por cuota reemplaza el "día estimado" del impuesto; reportes validados
+
+- **Decisión**: se elimina `estimatedDueDay` de `Tax`; "Cambiar vencimiento" pasa al detalle de cada cuota (`tax_edit_due:{installmentId}`) y edita su propio `dueDate`, validado contra su mes. El detalle del impuesto y la sección IMPUESTOS del reporte mensual ahora muestran ese vencimiento por cuota, igual que SERVICIOS/TARJETAS.
+- **Motivo**: mantener `estimatedDueDay` como referencia aparte (decisión 07-10) resultó redundante una vez que cada cuota pide su propio día; una investigación (`PERSONA: Investigator`) confirmó además que los reportes ya usaban `dueDate` por cuota, no el campo eliminado, y que solo faltaba mostrarlo en el reporte mensual.
+- **Aplicado en**: `tax.scene.ts` (`stepHandleEditInstallmentDueDay` reemplaza `stepHandleEditDueDay`), `tax.service.ts` (`updateTaxInstallmentDueDay` reemplaza `updateTaxEstimatedDueDay`), `keyboards/tax.ts` (`buildTaxInstallmentDetailKeyboard`; nuevo helper compartido `formatDueDateDayMonth` en `helpers/format.ts`), `handlers/tax.ts` (`handleEditInstallmentDueDay` reemplaza `handleChangeDueDay`; `showTaxActionView` agrega línea de vencimiento), `report.service.ts` (sección IMPUESTOS agrega sufijo `(vence dd/mm)`/`(Pagado) ✅`).
+
+## 2026-07-10: Día de vencimiento por cuota y edición de vencimiento estimado del impuesto
+
+- **Decisión**: al registrar una cuota de impuesto, el día de vencimiento se pide explícitamente al usuario (Mes → Monto → Día → ¿Pagada?) en vez de heredar `estimatedDueDay` del impuesto capado al mes. El `estimatedDueDay` del impuesto ahora solo sirve de referencia inicial, editable por separado.
+- **Motivo**: cada cuota puede vencer un día distinto al estimado (ej. feriados, cambios de fecha del organismo); forzar el `estimatedDueDay` original perdía esa flexibilidad.
+- **Decisión**: la edición de `estimatedDueDay` es una nueva ruta de entrada al `tax.scene.ts` (texto libre 1-31), espejando el patrón `edit_day` ya usado en `service.scene.ts`, en vez de un flujo dedicado nuevo.
+- **Aplicado en**: `tax.scene.ts` (`stepHandleInstallmentDueDay`, `stepHandleEditDueDay`), `tax.service.ts` (`updateTaxEstimatedDueDay`), `handlers/tax.ts` (`handleChangeDueDay`).
+
 ## 2026-07-03: Marcar resumen de tarjeta como pagado edita mensajes en lugar de crear nuevos
 
 - **Decisión**: en el flujo de pago de resumen (`card-stmt.scene.ts` `stepInit` case `pay`), la confirmación y la pregunta de moneda editan el mensaje de opciones original (`ctx.editMessageText`, no reply nuevo). En la rama USD se edita primero a un contexto sin botones ("Estás por marcar como pagado el resumen · _mes · tarjeta_") y luego un `ctx.reply` nuevo lleva la pregunta de moneda + teclado; "Adjuntar" separa contexto (edita) e instrucciones (reply).
