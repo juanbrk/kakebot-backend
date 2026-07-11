@@ -196,7 +196,11 @@ export async function generateMonthlyReport(
       const pmLabel = tax?.paymentMethod
         ? ` (${formatServicePaymentMethod(tax.paymentMethod)})`
         : "";
-      detailLines.push(` • ${inst.taxName}${pmLabel}: ${formatARS(inst.amount)}`);
+      const dueDate = inst.dueDate.toDate();
+      const day = String(dueDate.getDate()).padStart(2, "0");
+      const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
+      const dueSuffix = inst.isPaid ? "(Pagado) ✅" : `(vence ${day}/${mo})`;
+      detailLines.push(` • ${inst.taxName}${pmLabel}: ${formatARS(inst.amount)} ${dueSuffix}`);
     }
     detailLines.push("");
   }

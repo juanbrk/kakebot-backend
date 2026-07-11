@@ -6,8 +6,6 @@ export interface Tax {
   telegramUserId: string;
   name: string;
   normalizedName: string;
-  /** Estimated day of month (1-28) when this tax is due. */
-  estimatedDueDay: number;
   paymentMethod?: ServicePaymentMethod;
   createdAt: admin.firestore.Timestamp;
 }
@@ -18,7 +16,6 @@ export interface Tax {
 export interface CreateTaxParams {
   telegramUserId: string;
   name: string;
-  estimatedDueDay: number;
   paymentMethod?: ServicePaymentMethod;
 }
 

@@ -73,6 +73,19 @@ export function getMonthLabel(dueMonth: string, monthNameOnly = false): string {
 }
 
 /**
+ * Formats a Firestore Timestamp as a "DD/MM" day-month string.
+ *
+ * @param {admin.firestore.Timestamp} dueDate - Due date timestamp
+ * @return {string} Formatted string, e.g. "20/04"
+ */
+export function formatDueDateDayMonth(dueDate: admin.firestore.Timestamp): string {
+  const date = dueDate.toDate();
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+}
+
+/**
  * Formats a number as USD currency string using Argentine locale conventions.
  *
  * @param {number} amount - Dollar amount to format

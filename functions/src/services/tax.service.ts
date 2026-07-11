@@ -17,7 +17,6 @@ import {
 export async function createTax({
   telegramUserId,
   name,
-  estimatedDueDay,
   paymentMethod,
 }: CreateTaxParams): Promise<string> {
   const normalizedName = name.toLowerCase().trim();
@@ -25,7 +24,6 @@ export async function createTax({
     telegramUserId,
     name,
     normalizedName,
-    estimatedDueDay,
     createdAt: admin.firestore.Timestamp.now(),
   };
   if (paymentMethod !== undefined) {
@@ -51,6 +49,23 @@ export async function updateTaxPaymentMethod({
       ? paymentMethod
       : admin.firestore.FieldValue.delete();
   await getDb().collection("taxes").doc(taxId).update({ paymentMethod: value });
+}
+
+/**
+ * Updates the due date of a tax installment.
+ *
+ * @param {string} installmentId - Tax installment document ID
+ * @param {Date} dueDate - New due date, already validated against its month
+ * @return {void}
+ */
+export async function updateTaxInstallmentDueDay(
+  installmentId: string,
+  dueDate: Date
+): Promise<void> {
+  await getDb()
+    .collection("tax_installments")
+    .doc(installmentId)
+    .update({ dueDate: admin.firestore.Timestamp.fromDate(dueDate) });
 }
 
 /**

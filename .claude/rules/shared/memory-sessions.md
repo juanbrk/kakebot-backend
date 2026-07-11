@@ -1,5 +1,25 @@
 # Session Log
 
+## 2026-07-11: Vencimiento por cuota del impuesto — cleanup final y validación de reportes
+
+### Completado
+- Se elimina `estimatedDueDay` del impuesto; "Cambiar vencimiento" pasa al detalle de cada cuota y edita su propio vencimiento, validado contra el mes de esa cuota.
+- Nuevo helper `formatDueDateDayMonth` reemplaza el cálculo inline duplicado; el detalle del impuesto (`showTaxActionView`) también muestra ahora el vencimiento de la cuota actual.
+- Investigación confirmó que los reportes (balance mensual, Próximos Vencimientos, Métodos de pago) ya eran compatibles con el cambio; de paso se corrigió que la sección IMPUESTOS del reporte mensual no mostraba `(vence dd/mm)`/`(Pagado) ✅` como sí hacen SERVICIOS y TARJETAS.
+- Build + lint OK en todo momento.
+
+### Pendiente
+- QA manual en botitio_testitoBot y commit (a cargo del usuario)
+
+## 2026-07-10: Día de vencimiento por cuota + editar vencimiento estimado del impuesto
+
+### Completado
+- "Nueva cuota" ahora pide el día de vencimiento de la cuota (Mes → Monto → Día → ¿Pagada?), validado contra el mes; el flujo de creación también lo pide para su primera cuota. Nuevo step `stepHandleInstallmentDueDay` en `tax.scene.ts`.
+- Submenú Modificar tiene "Cambiar vencimiento": edita `estimatedDueDay` vía texto libre (1-31) por nueva ruta de entrada al scene, espejando el patrón `edit_day` de `service.scene.ts`. Nuevo `updateTaxEstimatedDueDay` + handler `handleChangeDueDay`. Build + lint OK.
+
+### Pendiente
+- QA manual en botitio_testitoBot y commit (a cargo del usuario)
+
 ## 2026-07-08: Documentar patrón de archivo como input primario en WizardScenes
 
 ### Completado
