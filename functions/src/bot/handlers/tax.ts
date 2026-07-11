@@ -1,7 +1,7 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
-import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -62,7 +62,7 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^tax_back_hist:(.+)$/, handleBackToTaxHistory);
   bot.action(/^tax_edit_pm:(.+)$/, handleEditPaymentMethod);
   bot.action(/^tax_chg_pm:(.+)$/, handleChangePaymentMethod);
-  bot.action(/^tax_chg_due:(.+)$/, handleChangeDueDay);
+  bot.action(/^tax_edit_due:(.+)$/, handleEditInstallmentDueDay);
   bot.action(/^tax_update_pm:(.+):(credit_card|auto_debit|manual)$/, async (ctx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const match = (ctx as any).match as string[];
@@ -125,9 +125,7 @@ async function handleListTaxes(ctx: Context): Promise<void> {
   if (taxes.length === 0) {
     body = "No tenés impuestos registrados.";
   } else {
-    const lines = taxes.map(
-      (tax) => `• ${tax.name} (vence el día ${tax.estimatedDueDay})`,
-    );
+    const lines = taxes.map((tax) => `• ${tax.name}`);
     body = "*Tus impuestos:*\n\n" + lines.join("\n");
   }
 
@@ -501,7 +499,6 @@ async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
 
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
-  const dueLine = `• *Vencimiento estimado*: día ${tax.estimatedDueDay}`;
   const pmLabel = tax.paymentMethod
     ? formatServicePaymentMethod(tax.paymentMethod)
     : "No registrado";
@@ -520,7 +517,6 @@ async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
   }
 
   const details = [
-    dueLine,
     cuotaLine,
     estadoLine,
     `• *Medio de pago*: ${pmLabel}`,
@@ -621,28 +617,42 @@ async function handleUpdatePaymentMethod(
 }
 
 /**
- * Enters the tax scene to edit the tax's estimated due day via free-text input.
+ * Enters the tax scene to edit a single installment's due day via free-text input.
  * Sends a context message (edit) first; the scene's stepInit prompts for the new day.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
-async function handleChangeDueDay(ctx: KakebotContext): Promise<void> {
+async function handleEditInstallmentDueDay(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const taxId = ((ctx as any).match as string[])[1];
-  const tax = await getTaxById(taxId);
-  const taxName = tax?.name || "";
+  const installmentId = ((ctx as any).match as string[])[1];
+  const installment = await getTaxInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("Cuota no encontrada.");
+    return;
+  }
+
+  const taxName = installment.taxName;
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const maxDay = getDaysInMonth(installment.dueMonth);
 
   await ctx.editMessageText(
-    buildBreadcrumb(["Impuestos", taxName, "Modificar", "Vencimiento"]) +
-      `*Vas a modificar el día de vencimiento estimado de ${taxName}*\n_Escribí "cancelar" o "salir" para anular._`,
+    buildBreadcrumb(["Impuestos", taxName, "Historial", monthLabel]) +
+      `*Vas a modificar el vencimiento de la cuota de ${monthLabel}*\n_Escribí "cancelar" para anular._`,
     { parse_mode: "Markdown" },
   );
   await ctx.reply(
-    "*¿Cuál es el nuevo día de vencimiento estimado? (1-31)*",
+    `*¿Cuál es el nuevo día de vencimiento? (1-${maxDay})*`,
     { parse_mode: "Markdown" },
   );
 
-  await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName, editDueDay: true } as TaxWizardState);
+  await ctx.scene.enter(TAX_SCENE_ID, {
+    taxId: installment.taxId,
+    taxName,
+    installmentId,
+    selectedMonth: installment.dueMonth,
+    editDueDay: true,
+  } as TaxWizardState);
 }
 

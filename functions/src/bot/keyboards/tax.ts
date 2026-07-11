@@ -128,7 +128,6 @@ export function buildTaxActionKeyboard({
 export function buildTaxEditOptionsKeyboard(taxId: string) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Cambiar método de pago", `tax_chg_pm:${taxId}`)],
-    [Markup.button.callback("Cambiar vencimiento", `tax_chg_due:${taxId}`)],
     [Markup.button.callback("\u2190 Volver a detalles de impuesto", `tax_back_tax:${taxId}`)],
   ]);
 }
@@ -295,6 +294,7 @@ export function buildTaxInstallmentDetailKeyboard({
   if (isPaid && hasReceipt) {
     rows.push([Markup.button.callback("Descargar comprobante", `tax_dl_rec:${installmentId}`)]);
   }
+  rows.push([Markup.button.callback("Cambiar vencimiento", `tax_edit_due:${installmentId}`)]);
 
   rows.push([Markup.button.callback("\u2190 Volver al historial", `tax_back_hist:${taxId}`)]);
 

@@ -19,7 +19,7 @@ import {
   saveTaxInstallment,
   markTaxInstallmentAsPaid,
   saveTaxReceiptUrl,
-  updateTaxEstimatedDueDay,
+  updateTaxInstallmentDueDay,
 } from "../../services/tax.service";
 import { uploadTaxReceipt } from "../../services/storage.service";
 import { downloadFile } from "../handlers/photo";
@@ -29,9 +29,9 @@ export const TAX_SCENE_ID = "tax-wizard";
 const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
 
 // Direct-jump targets used with ctx.wizard.selectStep().
-const AMOUNT_STEP = 5;
-const RECEIPT_GUARD_STEP = 8;
-const EDIT_DUE_DAY_STEP = 9;
+const AMOUNT_STEP = 4;
+const RECEIPT_GUARD_STEP = 7;
+const EDIT_DUE_DAY_STEP = 8;
 
 
 /**
@@ -55,19 +55,20 @@ async function getAvailableMonthsForTax(taxId: string): Promise<string[]> {
 
 /**
  * Step 0: routes the wizard depending on entry path.
- * - Edit-estimated-due-day entry (taxId + editDueDay): jumps to EDIT_DUE_DAY_STEP (prompt sent by the handler).
+ * - Edit-installment-due-day entry (installmentId + editDueDay): jumps to EDIT_DUE_DAY_STEP
+ *   (prompt sent by the handler).
  * - Receipt-only entry (installmentId, no selectedMonth): jumps to RECEIPT_GUARD_STEP.
  * - Installment-month entry (taxId set, no selectedMonth): shows month selector, parks at cursor 0.
- * - Full creation entry: shows intro + name prompt, advances to NAME_STEP.
+ * - Full creation entry: shows intro + name prompt, advances to step 1.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function stepInit(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as TaxWizardState;
 
-  if (state.editDueDay && state.taxId) {
-    // Edit-estimated-due-day entry from the "Modificar" submenu.
-    // The prompt is sent by handleChangeDueDay before entering; just park at the edit step.
+  if (state.editDueDay && state.installmentId) {
+    // Edit-installment-due-day entry from the installment detail view.
+    // The prompt is sent by handleEditInstallmentDueDay before entering; just park at the edit step.
     ctx.wizard.selectStep(EDIT_DUE_DAY_STEP);
     return;
   }
@@ -107,7 +108,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 1: validates the tax name and prompts for the estimated due day.
+ * Step 1: validates the tax name and shows the payment method keyboard.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -120,30 +121,6 @@ async function stepHandleName(ctx: KakebotContext): Promise<void> {
 
   (ctx.wizard.state as TaxWizardState).taxName = name;
 
-  await ctx.reply(
-    "*¿Qué día del mes vence aproximadamente?*\n_Ingresá un número del 1 al 31. Ej: 20_",
-    { parse_mode: "Markdown" },
-  );
-  ctx.wizard.next();
-}
-
-/**
- * Step 2: validates the estimated due day and shows the payment method keyboard.
- *
- * @param {KakebotContext} ctx - Telegraf context
- */
-async function stepHandleDay(ctx: KakebotContext): Promise<void> {
-  const dayStr = getMessageText(ctx);
-  const day = parseInt(dayStr ?? "", 10);
-
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
-  if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
-    return;
-  }
-
-  (ctx.wizard.state as TaxWizardState).estimatedDueDay = day;
-
   const keyboard = buildPaymentMethodKeyboard({ callbackPrefix: "tax_pm" });
   await ctx.reply("*Seleccioná el método de pago*", {
     parse_mode: "Markdown",
@@ -154,7 +131,7 @@ async function stepHandleDay(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 3: cursor guard — fires when user sends text while the payment method keyboard is showing.
+ * Step 2: cursor guard — fires when user sends text while the payment method keyboard is showing.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -169,7 +146,7 @@ async function stepGuardPaymentMethod(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 4: cursor guard — fires when user sends text while the month keyboard is showing.
+ * Step 3: cursor guard — fires when user sends text while the month keyboard is showing.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -194,7 +171,7 @@ async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 5: validates the installment amount and prompts for the installment due day.
+ * Step 4: validates the installment amount and prompts for the installment due day.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -229,7 +206,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 6: validates the installment due day, saves the installment, and shows the "mark as paid?" prompt.
+ * Step 5: validates the installment due day, saves the installment, and shows the "mark as paid?" prompt.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -290,7 +267,7 @@ async function stepHandleInstallmentDueDay(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 7: cursor guard — fires when user sends text while the "mark as paid?" keyboard is showing.
+ * Step 6: cursor guard — fires when user sends text while the "mark as paid?" keyboard is showing.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -308,7 +285,7 @@ async function stepGuardPaidDecision(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 8: cursor guard — fires when user sends text while waiting for a receipt photo/document.
+ * Step 7: cursor guard — fires when user sends text while waiting for a receipt photo/document.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -325,36 +302,49 @@ async function stepGuardReceipt(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 9: validates and persists the tax's new estimated due day, then leaves the scene.
- * Entered via the "Modificar" → "Cambiar vencimiento" flow. Validates 1-31 (month-independent).
+ * Step 8: validates and persists a new due day for an existing tax installment, then leaves the scene.
+ * Entered via the installment detail view's "Cambiar vencimiento" button. Validates the day against
+ * the installment's own month (via getDaysInMonth), not a fixed 1-31 range.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
-async function stepHandleEditDueDay(ctx: KakebotContext): Promise<void> {
+async function stepHandleEditInstallmentDueDay(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as TaxWizardState;
+  const selectedMonth = state.selectedMonth ?? "";
+  const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
+
   const dayStr = getMessageText(ctx);
   const day = parseInt(dayStr ?? "", 10);
 
-  const isValidDay = Number.isInteger(day) && day >= 1 && day <= 31;
+  const isValidDay = Number.isInteger(day) && day >= 1 && day <= maxDay;
   if (!isValidDay) {
-    await ctx.reply("Día inválido. Ingresá un número entre 1 y 31.");
+    await ctx.reply(`Día inválido. Ingresá un número entre 1 y ${maxDay}.`);
     return;
   }
 
-  const taxId = state.taxId ?? "";
-  if (!taxId) {
+  const taxName = state.taxName ?? "";
+  const installmentId = state.installmentId ?? "";
+  const telegramUserId = ctx.from?.id.toString() ?? "";
+
+  const hasRequiredData = taxName && installmentId && selectedMonth;
+  if (!hasRequiredData) {
     await ctx.reply("Error: datos de sesión incompletos.");
     await ctx.scene.leave();
     return;
   }
 
-  const telegramUserId = ctx.from?.id.toString() ?? "";
+  const [year, month] = selectedMonth.split("-");
+  const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), day);
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
   try {
-    await updateTaxEstimatedDueDay({ taxId, estimatedDueDay: day });
-    await ctx.reply(`✅ Día de vencimiento actualizado a ${day}.`);
+    await updateTaxInstallmentDueDay(installmentId, dueDate);
+    await ctx.reply(
+      `✅ Modificaste la fecha de vencimiento de ${taxName} para la cuota de ${monthLabel}.`,
+    );
     await ctx.scene.leave();
   } catch (error) {
-    log.error("Error updating tax estimated due day", error, {
+    log.error("Error updating tax installment due day", error, {
       module: "tax.scene",
       userId: telegramUserId,
     });
@@ -380,10 +370,8 @@ async function handlePaymentMethod(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const method = ((ctx as any).match as string[])[1] as ServicePaymentMethod;
   const name = state.taxName ?? "";
-  const day = state.estimatedDueDay;
 
-  const hasRequiredData = name && typeof day === "number" && day >= 1;
-  if (!hasRequiredData) {
+  if (!name) {
     await ctx.reply("Error: datos de sesión incompletos.");
     await ctx.scene.leave();
     return;
@@ -392,7 +380,6 @@ async function handlePaymentMethod(ctx: KakebotContext): Promise<void> {
   const taxId = await createTax({
     telegramUserId,
     name,
-    estimatedDueDay: day as number,
     paymentMethod: method,
   });
 
@@ -416,7 +403,7 @@ async function handlePaymentMethod(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Handles month selection during tax creation (scene step 4 → 5).
+ * Handles month selection during tax creation.
  * Sets selectedMonth in state and shows the amount prompt.
  *
  * @param {KakebotContext} ctx - Telegraf context
@@ -553,13 +540,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
       { parse_mode: "Markdown" },
     );
     break;
-  case 2:
-    await ctx.reply(
-      "*¿Qué día del mes vence aproximadamente?*\n_Ingresá un número del 1 al 31. Ej: 20_",
-      { parse_mode: "Markdown" },
-    );
-    break;
-  case 3: {
+  case 2: {
     const pmKeyboard = buildPaymentMethodKeyboard({ callbackPrefix: "tax_pm" });
     await ctx.reply("*Seleccioná el método de pago*", {
       parse_mode: "Markdown",
@@ -568,10 +549,10 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     });
     break;
   }
-  case 4:
+  case 3:
     await stepGuardMonth(ctx);
     break;
-  case 5: {
+  case 4: {
     const [year, month] = (state.selectedMonth ?? "").split("-");
     const monthLabel = month
       ? `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`
@@ -582,7 +563,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     );
     break;
   }
-  case 6: {
+  case 5: {
     const selectedMonth = state.selectedMonth ?? "";
     const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
     await ctx.reply(
@@ -591,7 +572,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     );
     break;
   }
-  case 7: {
+  case 6: {
     const installmentId = state.installmentId ?? "";
     const paidKeyboard = buildTaxPaidPromptKeyboard(installmentId);
     await ctx.reply("*¿Deseás marcar la cuota como pagada?*", {
@@ -601,12 +582,15 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     });
     break;
   }
-  case 9:
+  case EDIT_DUE_DAY_STEP: {
+    const selectedMonth = state.selectedMonth ?? "";
+    const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
     await ctx.reply(
-      "*¿Cuál es el nuevo día de vencimiento estimado?*\n_Ingresá un número del 1 al 31._",
+      `*¿Cuál es el nuevo día de vencimiento de esta cuota? (1-${maxDay})*`,
       { parse_mode: "Markdown" },
     );
     break;
+  }
   default:
     break;
   }
@@ -621,9 +605,9 @@ async function handleReceiptPhoto(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as TaxWizardState;
   const installmentId = state.installmentId ?? "";
 
-  // Accept photo at step 7 (normal post-paid flow) OR on receipt-only entry
+  // Accept photo at RECEIPT_GUARD_STEP (normal post-paid flow) OR on receipt-only entry
   // (Flujo 3: installmentId pre-set, no taxId/selectedMonth — cursor stays at 0
-  // because selectStep(7) in stepInit doesn't persist across updates reliably).
+  // because selectStep(RECEIPT_GUARD_STEP) in stepInit doesn't persist across updates reliably).
   const isReceiptOnlyEntry = !!installmentId && !state.taxId && !state.selectedMonth;
   if (ctx.wizard.cursor !== RECEIPT_GUARD_STEP && !isReceiptOnlyEntry) {
     await repromptCurrentStep(ctx);
@@ -722,14 +706,13 @@ export const taxScene = new Scenes.WizardScene<KakebotContext>(
   TAX_SCENE_ID,
   stepInit,
   stepHandleName,
-  stepHandleDay,
   stepGuardPaymentMethod,
   stepGuardMonth,
   stepHandleAmount,
   stepHandleInstallmentDueDay,
   stepGuardPaidDecision,
   stepGuardReceipt,
-  stepHandleEditDueDay,
+  stepHandleEditInstallmentDueDay,
 );
 
 taxScene.hears(CANCEL_REGEX, handleCancelWord);
