@@ -6,6 +6,7 @@ import {
   SaveTaxInstallmentParams,
   CreateTaxParams,
   UpdateTaxPaymentMethodParams,
+  UpdateTaxEstimatedDueDayParams,
 } from "../types/tax.types";
 
 /**
@@ -51,6 +52,19 @@ export async function updateTaxPaymentMethod({
       ? paymentMethod
       : admin.firestore.FieldValue.delete();
   await getDb().collection("taxes").doc(taxId).update({ paymentMethod: value });
+}
+
+/**
+ * Updates the estimated due day of an existing tax.
+ *
+ * @param {UpdateTaxEstimatedDueDayParams} params - taxId and new estimated due day (1-31)
+ * @return {void}
+ */
+export async function updateTaxEstimatedDueDay({
+  taxId,
+  estimatedDueDay,
+}: UpdateTaxEstimatedDueDayParams): Promise<void> {
+  await getDb().collection("taxes").doc(taxId).update({ estimatedDueDay });
 }
 
 /**

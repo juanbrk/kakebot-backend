@@ -128,6 +128,7 @@ export function buildTaxActionKeyboard({
 export function buildTaxEditOptionsKeyboard(taxId: string) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Cambiar método de pago", `tax_chg_pm:${taxId}`)],
+    [Markup.button.callback("Cambiar vencimiento", `tax_chg_due:${taxId}`)],
     [Markup.button.callback("\u2190 Volver a detalles de impuesto", `tax_back_tax:${taxId}`)],
   ]);
 }

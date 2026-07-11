@@ -62,6 +62,7 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^tax_back_hist:(.+)$/, handleBackToTaxHistory);
   bot.action(/^tax_edit_pm:(.+)$/, handleEditPaymentMethod);
   bot.action(/^tax_chg_pm:(.+)$/, handleChangePaymentMethod);
+  bot.action(/^tax_chg_due:(.+)$/, handleChangeDueDay);
   bot.action(/^tax_update_pm:(.+):(credit_card|auto_debit|manual)$/, async (ctx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const match = (ctx as any).match as string[];
@@ -617,5 +618,31 @@ async function handleUpdatePaymentMethod(
   await ctx.answerCbQuery();
   await updateTaxPaymentMethod({ taxId, paymentMethod });
   await showTaxActionView(ctx, taxId);
+}
+
+/**
+ * Enters the tax scene to edit the tax's estimated due day via free-text input.
+ * Sends a context message (edit) first; the scene's stepInit prompts for the new day.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleChangeDueDay(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const taxId = ((ctx as any).match as string[])[1];
+  const tax = await getTaxById(taxId);
+  const taxName = tax?.name || "";
+
+  await ctx.editMessageText(
+    buildBreadcrumb(["Impuestos", taxName, "Modificar", "Vencimiento"]) +
+      `*Vas a modificar el día de vencimiento estimado de ${taxName}*\n_Escribí "cancelar" o "salir" para anular._`,
+    { parse_mode: "Markdown" },
+  );
+  await ctx.reply(
+    "*¿Cuál es el nuevo día de vencimiento estimado? (1-31)*",
+    { parse_mode: "Markdown" },
+  );
+
+  await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName, editDueDay: true } as TaxWizardState);
 }
 

@@ -28,8 +28,12 @@ export interface TaxWizardState {
   taxId?: string;
   /** Selected month in YYYY-MM format for the installment being registered. */
   selectedMonth?: string;
-  /** Firestore ID of the saved installment, set after saving in stepHandleAmount. */
+  /** Installment amount, stored between stepHandleAmount and stepHandleInstallmentDueDay. */
+  amount?: number;
+  /** Firestore ID of the saved installment, set after saving in stepHandleInstallmentDueDay. */
   installmentId?: string;
+  /** True when entering the scene to edit the tax's estimated due day. */
+  editDueDay?: boolean;
 }
 
 /**
