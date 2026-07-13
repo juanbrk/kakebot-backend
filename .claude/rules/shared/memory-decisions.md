@@ -1,5 +1,10 @@
 # Decisions Log
 
+## 2026-07-13: "Marcar como pagado" de impuesto entra a la escena para validar el comprobante
+
+- **Decisión**: `handleMarkAsPaid` (`tax.ts`), compartido por el botón directo del submenú y por Historial de cuotas, ahora entra a `TAX_SCENE_ID` al mostrar el prompt Omitir/Adjuntar en vez de un `ctx.reply()` suelto.
+- **Motivo**: sin escena activa, texto libre en esa ventana caía en el parser global de gastos. Mismo patrón ya usado por `handleAttachReceipt` (`wizard-scenes.md §10.3`).
+
 ## 2026-07-11: Vencimiento por cuota reemplaza el "día estimado" del impuesto; reportes validados
 
 - **Decisión**: se elimina `estimatedDueDay` de `Tax`; "Cambiar vencimiento" pasa al detalle de cada cuota (`tax_edit_due:{installmentId}`) y edita su propio `dueDate`, validado contra su mes. El detalle del impuesto y la sección IMPUESTOS del reporte mensual ahora muestran ese vencimiento por cuota, igual que SERVICIOS/TARJETAS.

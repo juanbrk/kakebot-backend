@@ -247,7 +247,14 @@ async function handlePaidYes(ctx: Context): Promise<void> {
   });
 }
 
-async function handleMarkAsPaid(ctx: Context): Promise<void> {
+/**
+ * Marks a tax installment as paid and prompts for a receipt.
+ * Enters the tax scene at the receipt guard step so stray text/photos are
+ * validated instead of falling through to the global expense parser.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
@@ -264,6 +271,8 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
+
+  await ctx.scene.enter(TAX_SCENE_ID, { installmentId } as TaxWizardState);
 }
 
 async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
