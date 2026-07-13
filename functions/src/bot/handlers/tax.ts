@@ -533,7 +533,9 @@ async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
     buildBreadcrumb(["Impuestos", tax.name]) +
     details +
     "\n\n*¿Qué querés hacer?*";
-  const keyboard = buildTaxActionKeyboard({ taxId });
+  const payableInstallmentId =
+    installment && !installment.isPaid ? installment.id : undefined;
+  const keyboard = buildTaxActionKeyboard({ taxId, payableInstallmentId });
 
   await replyOrEdit(ctx, text, {
     parse_mode: "Markdown",
