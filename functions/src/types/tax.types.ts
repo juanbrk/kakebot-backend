@@ -71,4 +71,6 @@ export interface BuildTaxInstallmentDetailKeyboardParams {
 export interface BuildTaxActionKeyboardParams {
   taxId: string;
   paymentMethod?: ServicePaymentMethod;
+  /** Current-month installment id, present only when it exists and is unpaid. */
+  payableInstallmentId?: string;
 }

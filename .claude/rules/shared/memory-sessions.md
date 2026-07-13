@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-07-12/13: Botón "Marcar como pagado" en submenú de impuesto + fix validación comprobante
+
+### Completado
+- Nuevo botón "Marcar como pagado" en el submenú principal del impuesto (evita pasar por Historial).
+- Bug fix: esa acción (y la de Historial) no validaba la respuesta al pedir comprobante; texto libre disparaba el flujo de gasto. Corregido entrando a la escena del wizard.
+- Build + lint OK.
+
+### Pendiente
+- QA manual en botitio_testitoBot y commit (a cargo del usuario)
+
 ## 2026-07-11: Vencimiento por cuota del impuesto — cleanup final y validación de reportes
 
 ### Completado

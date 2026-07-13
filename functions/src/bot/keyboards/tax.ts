@@ -101,21 +101,27 @@ export function buildTaxListKeyboard(
 
 /**
  * Builds the action keyboard for a selected tax.
+ * When payableInstallmentId is present, prepends a "Marcar como pagado" row.
  *
- * @param {BuildTaxActionKeyboardParams} params - taxId and optional paymentMethod
+ * @param {BuildTaxActionKeyboardParams} params - taxId, optional paymentMethod, optional payableInstallmentId
  * @return {Markup.Markup} Inline keyboard markup
  */
 export function buildTaxActionKeyboard({
   taxId,
+  payableInstallmentId,
 }: BuildTaxActionKeyboardParams) {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback("Nueva cuota", `tax_reg:${taxId}`),
-      Markup.button.callback("Modificar", `tax_edit_pm:${taxId}`),
-    ],
-    [Markup.button.callback("Historial de cuotas", `tax_hist:${taxId}`)],
-    [Markup.button.callback("\u2190 Volver a impuestos", "tax_view")],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[][] = [];
+  if (payableInstallmentId) {
+    rows.push([Markup.button.callback("Marcar como pagado", `tax_pay:${payableInstallmentId}`)]);
+  }
+  rows.push([
+    Markup.button.callback("Nueva cuota", `tax_reg:${taxId}`),
+    Markup.button.callback("Modificar", `tax_edit_pm:${taxId}`),
   ]);
+  rows.push([Markup.button.callback("Historial de cuotas", `tax_hist:${taxId}`)]);
+  rows.push([Markup.button.callback("\u2190 Volver a impuestos", "tax_view")]);
+  return Markup.inlineKeyboard(rows);
 }
 
 /**
