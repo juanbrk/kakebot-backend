@@ -2,6 +2,7 @@ import { Scenes } from "telegraf";
 import { KakebotContext, CardCreateWizardState } from "../../types/telegraf-context.types";
 import { CreditCardProcessor } from "../../types/index";
 import { log } from "../../helpers/logger";
+import { editOrReply } from "../../helpers/telegram";
 import { getMessageText } from "../../helpers/wizard";
 import {
   buildCardProcessorKeyboard,
@@ -200,7 +201,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   const processorLabel = state.processor === "VISA" ? "Visa" : "Master";
   const cardLabel = `${processorLabel} ${state.lastFourDigits} - ${state.bank}`;
 
-  await ctx.editMessageText(`✅ Tarjeta *${cardLabel}* registrada.`, {
+  await editOrReply(ctx, `✅ Tarjeta *${cardLabel}* registrada.`, {
     parse_mode: "Markdown",
   });
   await ctx.scene.leave();

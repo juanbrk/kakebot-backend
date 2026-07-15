@@ -31,7 +31,7 @@ import {
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
 import { formatARS, MONTH_NAMES } from "../../helpers/format";
-import { replyOrEdit } from "../../helpers/telegram";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
@@ -540,7 +540,7 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText("✅ Cuota marcada como pagada.");
+  await editOrReply(ctx, "✅ Cuota marcada como pagada.");
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "receipt",
     installmentId,
@@ -578,7 +578,7 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText("✅ Cuota marcada como pagada.");
+  await editOrReply(ctx, "✅ Cuota marcada como pagada.");
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "receipt",
     installmentId: installment.id || "",
@@ -677,7 +677,7 @@ async function handleConfirmDelete(ctx: Context): Promise<void> {
   const serviceName = service?.name || null;
   if (serviceName) {
     await deleteService(serviceId);
-    await ctx.editMessageText(`✅ Servicio '${serviceName}' eliminado.`);
+    await editOrReply(ctx, `✅ Servicio '${serviceName}' eliminado.`);
   }
 }
 

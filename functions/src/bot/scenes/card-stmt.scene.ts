@@ -5,6 +5,7 @@ import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
 import { log } from "../../helpers/logger";
+import { editOrReply } from "../../helpers/telegram";
 import {
   buildCardStmtMonthKeyboard,
   buildCardCurrencyKeyboard,
@@ -114,7 +115,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
         await ctx.scene.leave();
         return;
       }
-      await ctx.editMessageText(
+      await editOrReply(
+        ctx,
         `✅ Resumen marcado como pagado.\n_${monthLabel} · ${cardLabel}_`,
         { parse_mode: "Markdown" },
       );
@@ -905,7 +907,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   }
 
   state.statementId = statementId;
-  await ctx.editMessageText("✅ Resumen cargado correctamente.");
+  await editOrReply(ctx, "✅ Resumen cargado correctamente.");
   await ctx.reply("¿Deseas adjuntar el PDF del resumen?", buildCardStmtReceiptKeyboard(statementId));
   ctx.wizard.selectStep(CREATE_PDF_STEP);
 }
@@ -985,7 +987,7 @@ async function handlePayCurrencyUSD(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText("✅ Resumen marcado como pagado.");
+  await editOrReply(ctx, "✅ Resumen marcado como pagado.");
   await ctx.reply(
     "Recordá descontar el item correspondiente a la percepción RG 5617 del total a pagar en pesos, correspondiente al 30% de tus gastos en dolares alcanzados por la Resolución General",
   );
@@ -1164,7 +1166,7 @@ async function handleConfirmEditArs(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(`✅ Modificaste el monto en pesos. Nuevo monto: ${formatARS(amount)}.`);
+  await editOrReply(ctx, `✅ Modificaste el monto en pesos. Nuevo monto: ${formatARS(amount)}.`);
   await ctx.scene.leave();
 
   const updatedStatement = await getStatementById(statementId);
@@ -1210,7 +1212,7 @@ async function handleConfirmEditUsd(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(`✅ Modificaste el monto en dólares. Nuevo monto: ${formatUSD(amountUSD)}.`);
+  await editOrReply(ctx, `✅ Modificaste el monto en dólares. Nuevo monto: ${formatUSD(amountUSD)}.`);
   await ctx.scene.leave();
 
   const updatedStatement = await getStatementById(statementId);
@@ -1252,7 +1254,8 @@ async function handleConfirmEditDay(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(
+  await editOrReply(
+    ctx,
     `✅ Modificaste el vencimiento. Nuevo vencimiento: ${String(newDay).padStart(2, "0")}/${month || "?"}.`,
   );
   await ctx.scene.leave();

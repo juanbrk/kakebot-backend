@@ -4,7 +4,7 @@ import { ServicePaymentMethod } from "../../types/service.types";
 import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
-import { replyOrEdit } from "../../helpers/telegram";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
 import {
   buildPaymentMethodKeyboard,
@@ -432,7 +432,8 @@ async function handlePaymentMethodSelected(ctx: KakebotContext): Promise<void> {
     await ctx.reply("Error al guardar el método de pago. Intentá de nuevo.");
     return;
   }
-  await ctx.editMessageText(
+  await editOrReply(
+    ctx,
     `✅ Servicio '${serviceName}' creado.\n\n*¿Deseas agregar una cuota ahora?*`,
     {
       parse_mode: "Markdown",
