@@ -587,16 +587,18 @@ async function handleReplaceDuplicate(ctx: KakebotContext): Promise<void> {
   const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), dueDay as number);
   try {
     await replaceInstallment(installmentId, partialAmount as number, dueDate);
-    const day2 = String(dueDate.getDate()).padStart(2, "0");
-    const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
-    await ctx.editMessageText(
-      `✅ Cuota reemplazada: ${serviceName} ${formatARS(partialAmount as number)} (vence ${day2}/${month2})`,
-    );
-    await ctx.scene.leave();
   } catch (error) {
     log.error("Error replacing installment", error, { module: "service.scene" });
     await ctx.reply("Error al reemplazar la cuota. Intentá de nuevo.");
+    return;
   }
+  const day2 = String(dueDate.getDate()).padStart(2, "0");
+  const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
+  await editOrReply(
+    ctx,
+    `✅ Cuota reemplazada: ${serviceName} ${formatARS(partialAmount as number)} (vence ${day2}/${month2})`,
+  );
+  await ctx.scene.leave();
 }
 
 // --- File upload handlers ---

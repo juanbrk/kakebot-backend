@@ -1,5 +1,12 @@
 # Decisions Log
 
+## 2026-07-15: Helper `editOrReply` para confirmaciones write-then-edit + auditoría de edits cosméticos
+
+- **Decisión**: nuevo helper `editOrReply` (superset resiliente de `replyOrEdit`, que queda intacto) se aplicó a los 16 sitios reales donde un write se confirma editando un mensaje, para que un fallo de edición nunca vuelva a abortar el flujo tras persistir el dato.
+- **Motivo**: sin él, un error de Telegram al editar dejaba el cambio guardado pero sin confirmación ni teclado siguiente; se encontró un caso oculto de este bug durante la auditoría (reemplazo de cuota duplicada en `service.scene.ts`).
+- **Decisión**: los ~91 edits cosméticos restantes (sin write previo) NO se migran en bloque — es lo que la propia convención `wizard-scenes.md §9.4` ya pedía, y el valor de auditar estaba en encontrar el caso oculto, no en barrer código correcto.
+- **Aside**: el loop de categorización queda afuera porque usa `ctx.telegram.editMessageText` de bajo nivel por su invariante de mensaje único in-place, incompatible con el helper — follow-up en `/techdebt`.
+
 ## 2026-07-13: "Marcar como pagado" de impuesto entra a la escena para validar el comprobante
 
 - **Decisión**: `handleMarkAsPaid` (`tax.ts`), compartido por el botón directo del submenú y por Historial de cuotas, ahora entra a `TAX_SCENE_ID` al mostrar el prompt Omitir/Adjuntar en vez de un `ctx.reply()` suelto.

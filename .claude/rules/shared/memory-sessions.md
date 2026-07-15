@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply)
+
+### Completado
+- Nuevo helper que evita perder la confirmación al usuario cuando falla la edición de un mensaje después de guardar un cambio; migrados todos los flujos afectados (16 sitios en total).
+- Auditados todos los edits restantes del bot: la mayoría eran cosméticos y no necesitaban cambios; se encontró y corrigió un caso oculto (reemplazo de cuota duplicada).
+- Validado en botitio_testitoBot, incluyendo el caso de fallo simulado.
+
+### Pendiente
+- QA manual final y commit (a cargo del usuario); un caso de categorización queda para /techdebt aparte.
+
 ## 2026-07-12/13: Botón "Marcar como pagado" en submenú de impuesto + fix validación comprobante
 
 ### Completado
