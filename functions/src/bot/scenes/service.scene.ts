@@ -9,17 +9,14 @@ import { log } from "../../helpers/logger";
 import {
   buildPaymentMethodKeyboard,
   buildFilteredMonthKeyboard,
-  buildDuplicateKeyboard,
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
 } from "../keyboards/service";
 import {
   createService,
-  getInstallment,
   getInstallmentById,
   getInstallmentsByService,
   saveInstallment,
-  replaceInstallment,
   updateServiceName,
   updateServicePaymentMethod,
   updateInstallmentAmount,
@@ -231,8 +228,7 @@ async function stepHandleDay(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Validates the installment amount, checks for duplicates, and either saves
- * the installment or presents a duplicate-resolution keyboard.
+ * Validates the installment amount and saves the installment.
  *
  * @param {KakebotContext} ctx - Wizard context
  */
@@ -259,13 +255,6 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
   const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), dueDay as number);
 
   try {
-    const existing = await getInstallment(serviceId, selectedMonth);
-    if (existing) {
-      state.partialAmount = amount;
-      const keyboard = buildDuplicateKeyboard(existing.id || "");
-      await ctx.reply("Ya existe cuota registrada para este mes.", keyboard);
-      return;
-    }
     const installmentId = await saveInstallment({
       telegramUserId,
       serviceId,
@@ -550,57 +539,6 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   ctx.wizard.next();
 }
 
-/**
- * Skips the current duplicate installment registration.
- * Callback: svc_skip
- *
- * @param {KakebotContext} ctx - Wizard context
- */
-async function handleSkipDuplicate(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText("Registro de cuota omitido.");
-  await ctx.scene.leave();
-}
-
-/**
- * Replaces the existing duplicate installment with the new amount/day from wizard state.
- * Callback: svc_replace:{installmentId}
- *
- * @param {KakebotContext} ctx - Wizard context
- */
-async function handleReplaceDuplicate(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const installmentId = ((ctx as any).match as string[])[1];
-  const state = ctx.wizard.state as ServiceWizardState;
-  const partialAmount = state.partialAmount;
-  const dueDay = state.dueDay;
-  const selectedMonth = state.selectedMonth || "";
-  const serviceName = state.serviceName || "";
-  const hasRequiredData = partialAmount && dueDay != null && selectedMonth;
-  if (!hasRequiredData) {
-    await ctx.editMessageText("Error: datos de sesión incompletos.");
-    await ctx.scene.leave();
-    return;
-  }
-  const [year, month] = selectedMonth.split("-");
-  const dueDate = buildDueDate(parseInt(year, 10), parseInt(month, 10), dueDay as number);
-  try {
-    await replaceInstallment(installmentId, partialAmount as number, dueDate);
-  } catch (error) {
-    log.error("Error replacing installment", error, { module: "service.scene" });
-    await ctx.reply("Error al reemplazar la cuota. Intentá de nuevo.");
-    return;
-  }
-  const day2 = String(dueDate.getDate()).padStart(2, "0");
-  const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
-  await editOrReply(
-    ctx,
-    `✅ Cuota reemplazada: ${serviceName} ${formatARS(partialAmount as number)} (vence ${day2}/${month2})`,
-  );
-  await ctx.scene.leave();
-}
-
 // --- File upload handlers ---
 
 /**
@@ -847,8 +785,6 @@ serviceScene.action(/^svc_pm_new:([^:]+):([^:]+)$/, handlePaymentMethodSelected)
 serviceScene.action("svc_no_cuota", handleSkipInstallment);
 serviceScene.action(/^svc_scene_add_installment:(.+)$/, handleConfirmAddInstallment);
 serviceScene.action(/^svc_month:(.+):(\d{4}-\d{2})$/, handleMonthSelected);
-serviceScene.action("svc_skip", handleSkipDuplicate);
-serviceScene.action(/^svc_replace:(.+)$/, handleReplaceDuplicate);
 
 serviceScene.on("photo", async (ctx) => {
   const cursor = ctx.wizard.cursor;

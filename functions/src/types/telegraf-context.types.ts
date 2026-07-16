@@ -118,8 +118,6 @@ export interface ServiceWizardState {
   availableMonths?: string[];
   /** Due day (1-31) stored between stepHandleDay and stepHandleAmount. */
   dueDay?: number;
-  /** Temporary amount stored while awaiting duplicate resolution. */
-  partialAmount?: number;
 }
 
 /**
