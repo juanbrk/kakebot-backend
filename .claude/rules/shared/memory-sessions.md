@@ -1,14 +1,11 @@
 # Session Log
 
-## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply)
+## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply) + eliminación de código muerto
 
 ### Completado
 - Nuevo helper que evita perder la confirmación al usuario cuando falla la edición de un mensaje después de guardar un cambio; migrados todos los flujos afectados (16 sitios en total).
-- Auditados todos los edits restantes del bot: la mayoría eran cosméticos y no necesitaban cambios; se encontró y corrigió un caso oculto (reemplazo de cuota duplicada).
-- Validado en botitio_testitoBot, incluyendo el caso de fallo simulado.
-
-### Pendiente
-- QA manual final y commit (a cargo del usuario); un caso de categorización queda para /techdebt aparte.
+- Auditados todos los edits restantes del bot: la mayoría eran cosméticos y no necesitaban cambios; se encontró un caso oculto (reemplazo de cuota duplicada), que una investigación posterior confirmó como código inalcanzable — el fix inicial fue reemplazado por la eliminación completa del subsistema (`service.scene.ts`, `keyboards/service.ts`, `service.service.ts`, `partialAmount` en `ServiceWizardState`).
+- Validado en botitio_testitoBot (helper), build + lint limpios (eliminación).
 
 ## 2026-07-12/13: Botón "Marcar como pagado" en submenú de impuesto + fix validación comprobante
 
@@ -16,9 +13,6 @@
 - Nuevo botón "Marcar como pagado" en el submenú principal del impuesto (evita pasar por Historial).
 - Bug fix: esa acción (y la de Historial) no validaba la respuesta al pedir comprobante; texto libre disparaba el flujo de gasto. Corregido entrando a la escena del wizard.
 - Build + lint OK.
-
-### Pendiente
-- QA manual en botitio_testitoBot y commit (a cargo del usuario)
 
 ## 2026-07-11: Vencimiento por cuota del impuesto — cleanup final y validación de reportes
 
@@ -28,17 +22,11 @@
 - Investigación confirmó que los reportes (balance mensual, Próximos Vencimientos, Métodos de pago) ya eran compatibles con el cambio; de paso se corrigió que la sección IMPUESTOS del reporte mensual no mostraba `(vence dd/mm)`/`(Pagado) ✅` como sí hacen SERVICIOS y TARJETAS.
 - Build + lint OK en todo momento.
 
-### Pendiente
-- QA manual en botitio_testitoBot y commit (a cargo del usuario)
-
 ## 2026-07-10: Día de vencimiento por cuota + editar vencimiento estimado del impuesto
 
 ### Completado
 - "Nueva cuota" ahora pide el día de vencimiento de la cuota (Mes → Monto → Día → ¿Pagada?), validado contra el mes; el flujo de creación también lo pide para su primera cuota. Nuevo step `stepHandleInstallmentDueDay` en `tax.scene.ts`.
 - Submenú Modificar tiene "Cambiar vencimiento": edita `estimatedDueDay` vía texto libre (1-31) por nueva ruta de entrada al scene, espejando el patrón `edit_day` de `service.scene.ts`. Nuevo `updateTaxEstimatedDueDay` + handler `handleChangeDueDay`. Build + lint OK.
-
-### Pendiente
-- QA manual en botitio_testitoBot y commit (a cargo del usuario)
 
 ## 2026-07-08: Documentar patrón de archivo como input primario en WizardScenes
 
@@ -52,9 +40,6 @@
 
 ### Completado
 - Cada sección del reporte de Métodos de pago ordena sus servicios ascendente por `dueDate`; los sin cuota del mes (`$ -`) van al final. Nuevo helper `sortByDueDateAscending` aplicado en `buildSection` (`payment-method-report.service.ts`). Build + lint OK.
-
-### Pendiente
-- QA manual en botitio_testitoBot y commit (a cargo del usuario)
 
 ## 2026-07-05: Estado vacío en el submenú de Impuestos
 

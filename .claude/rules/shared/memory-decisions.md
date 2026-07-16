@@ -1,11 +1,13 @@
 # Decisions Log
 
-## 2026-07-15: Helper `editOrReply` para confirmaciones write-then-edit + auditoría de edits cosméticos
+## 2026-07-15: Helper `editOrReply` (write-then-edit) + eliminación del subsistema de "cuota duplicada" (código inalcanzable)
 
-- **Decisión**: nuevo helper `editOrReply` (superset resiliente de `replyOrEdit`, que queda intacto) se aplicó a los 16 sitios reales donde un write se confirma editando un mensaje, para que un fallo de edición nunca vuelva a abortar el flujo tras persistir el dato.
-- **Motivo**: sin él, un error de Telegram al editar dejaba el cambio guardado pero sin confirmación ni teclado siguiente; se encontró un caso oculto de este bug durante la auditoría (reemplazo de cuota duplicada en `service.scene.ts`).
-- **Decisión**: los ~91 edits cosméticos restantes (sin write previo) NO se migran en bloque — es lo que la propia convención `wizard-scenes.md §9.4` ya pedía, y el valor de auditar estaba en encontrar el caso oculto, no en barrer código correcto.
-- **Aside**: el loop de categorización queda afuera porque usa `ctx.telegram.editMessageText` de bajo nivel por su invariante de mensaje único in-place, incompatible con el helper — follow-up en `/techdebt`.
+- **Decisión**: nuevo helper `editOrReply` (superset resiliente de `replyOrEdit`, intacto) aplicado a los 16 sitios donde un write se confirma editando un mensaje, para que un fallo de edición no aborte el flujo tras persistir el dato. Los ~91 edits cosméticos restantes no se migran (sin write previo, ya cubierto por `wizard-scenes.md §9.4`).
+- **Decisión**: se elimina por completo el subsistema de "cuota duplicada" en `service.scene.ts` (`if (existing)` en `stepHandleAmount`, `handleSkipDuplicate`, `handleReplaceDuplicate`, `buildDuplicateKeyboard`, `replaceInstallment`, campo `partialAmount` de `ServiceWizardState`) — investigación confirmó que es código inalcanzable: todo entry point al flujo `installment` ya filtra meses con cuota existente desde la decisión del 2026-05-21, así que `stepHandleAmount` nunca recibe un `selectedMonth` con cuota previa.
+- **Motivo**: la auditoría de edits cosméticos encontró un caso oculto de bug (reemplazo de cuota duplicada) y lo arregló primero (commit `d89134a`); una investigación posterior determinó que la rama arreglada nunca se ejecuta en producción, por lo que el fix quedó superado por la eliminación completa (commit `b4a16c6`). El fix inicial no era incorrecto, solo innecesario.
+- **No se toca**: `getInstallment` (`service.service.ts`) — sigue en uso por `invoice.scene.ts` y `handlers/service.ts`.
+- **Aside**: el loop de categorización queda afuera del helper `editOrReply` (usa `ctx.telegram.editMessageText` de bajo nivel, incompatible) — follow-up en `/techdebt`.
+- **Aplicado en**: `helpers/telegram.ts`, `bot/scenes/service.scene.ts`, `bot/keyboards/service.ts`, `services/service.service.ts`, `types/telegraf-context.types.ts`. Build + lint limpios en ambos cambios.
 
 ## 2026-07-13: "Marcar como pagado" de impuesto entra a la escena para validar el comprobante
 
