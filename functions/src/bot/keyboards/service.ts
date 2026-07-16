@@ -214,15 +214,6 @@ export function buildFilteredMonthKeyboard(
   return Markup.inlineKeyboard(rows);
 }
 
-export function buildDuplicateKeyboard(installmentId: string) {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback("Omitir", "svc_skip"),
-      Markup.button.callback("Reemplazar", `svc_replace:${installmentId}`),
-    ],
-  ]);
-}
-
 export function buildDeleteConfirmKeyboard(serviceId: string) {
   return Markup.inlineKeyboard([
     [

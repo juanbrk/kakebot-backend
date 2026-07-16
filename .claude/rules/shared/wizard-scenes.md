@@ -419,6 +419,24 @@ Referencia: `tax.scene.ts:358-383`.
 
 `replyOrEdit` (de `helpers/telegram.ts`) se usa cuando el handler puede ser invocado desde un callback (entonces edita) o desde un mensaje normal (entonces responde). Útil en `handleConfirm`/`handleCancel` cuando el confirm puede llegar también por texto. En la mayoría de los casos elegir explícitamente entre `editMessageText` y `reply`.
 
+### 9.4 Confirmación después de una escritura — usar `editOrReply`
+
+Cuando un action handler primero **persiste** algo (write a Firestore: `markInstallmentAsPaid`, `createTax`, `deleteService`, etc.) y recién después edita el mensaje para confirmar, la edición NO debe ser un `ctx.editMessageText` pelado. Si esa edición tira ("message can't be edited", "message to edit not found", o el step se entró desde un contexto sin callback), el throw aborta el resto del flujo **después** de que el dato ya se guardó: el usuario queda con el cambio persistido pero sin confirmación ni el teclado del próximo paso.
+
+Usar `editOrReply(ctx, text, extra?)` (de `helpers/telegram.ts`) en su lugar. Edita igual que antes en el happy path; si la edición falla por cualquier motivo que no sea "message is not modified", manda el texto como un `ctx.reply` nuevo y el flujo continúa.
+
+```typescript
+async function handleConfirmDelete(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  await deleteService(serviceId);          // write ya commiteado
+  await editOrReply(ctx, `✅ Servicio '${serviceName}' eliminado.`, {
+    parse_mode: "Markdown",
+  });                                       // si el edit falla, cae a reply — el flujo no muere
+}
+```
+
+Regla: **write-then-edit → `editOrReply`**. Edición cosmética sin write previo → `editMessageText` directo (o `replyOrEdit` si el handler es dual-context). Referencias: `tax.ts` (`handleMarkAsPaid`), `service.ts` (`handleConfirmDelete`), `card-stmt.scene.ts` (`stepInit` case `pay`).
+
 ---
 
 ## 10. `ctx.scene.leave()` ordering

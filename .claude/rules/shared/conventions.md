@@ -248,7 +248,8 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `buildDueDate(year, month, day)` | `helpers/format.ts` | Due-date `Date` anchored at 12:00 UTC — use for any persisted dueDate (service/tax/card installments) to survive process-timezone differences between production (UTC) and local emulator (ART) |
 | `parseArgentineAmount(input)` | `helpers/parse-amount.ts` | Argentine-format string → number |
 | `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` |
-| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message if possible, else reply |
+| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message when triggered from a callback, else reply. Ignores "not modified". Use for plain dual-context edits (no preceding write). |
+| `editOrReply(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message; on any edit failure other than "not modified", fall back to a fresh reply. Use at write-then-edit sites so a failed edit never abandons a flow after data was persisted. |
 
 **Breadcrumb pattern** — every screen that uses `buildBreadcrumb` MUST use `parse_mode: "Markdown"`:
 ```typescript

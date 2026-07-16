@@ -4,7 +4,7 @@ import { ServicePaymentMethod } from "../../types/service.types";
 import { formatARS, formatDueDateDayMonth, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { replyOrEdit } from "../../helpers/telegram";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
 import {
   buildPaymentMethodKeyboard,
@@ -235,7 +235,7 @@ async function handlePaidYes(ctx: Context): Promise<void> {
   const installmentId = ((ctx as any).match as string[])[1];
   await markTaxInstallmentAsPaid(installmentId);
 
-  await ctx.editMessageText("✅ Cuota marcada como pagada.", {
+  await editOrReply(ctx, "✅ Cuota marcada como pagada.", {
     parse_mode: "Markdown",
   });
 
@@ -261,7 +261,7 @@ async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
 
   await markTaxInstallmentAsPaid(installmentId);
 
-  await ctx.editMessageText("✅ Cuota marcada como pagada.", {
+  await editOrReply(ctx, "✅ Cuota marcada como pagada.", {
     parse_mode: "Markdown",
   });
 

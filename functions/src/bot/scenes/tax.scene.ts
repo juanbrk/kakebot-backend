@@ -5,6 +5,7 @@ import { ServicePaymentMethod } from "../../types/service.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { log } from "../../helpers/logger";
+import { editOrReply } from "../../helpers/telegram";
 import { buildPaymentMethodKeyboard } from "../../helpers/payment-method";
 import {
   buildFilteredTaxMonthKeyboard,
@@ -386,7 +387,7 @@ async function handlePaymentMethod(ctx: KakebotContext): Promise<void> {
   state.taxId = taxId;
   state.paymentMethod = method;
 
-  await ctx.editMessageText(`✅ Impuesto '${name}' creado.`);
+  await editOrReply(ctx, `✅ Impuesto '${name}' creado.`);
 
   const availableMonths = await getAvailableMonthsForTax(taxId);
 
@@ -447,7 +448,7 @@ async function handlePaidYes(ctx: KakebotContext): Promise<void> {
   const installmentId = ((ctx as any).match as string[])[1];
 
   await markTaxInstallmentAsPaid(installmentId);
-  await ctx.editMessageText("✅ Cuota marcada como pagada.", { parse_mode: "Markdown" });
+  await editOrReply(ctx, "✅ Cuota marcada como pagada.", { parse_mode: "Markdown" });
 
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
   await ctx.reply("*¿Deseás adjuntar un comprobante?*", {

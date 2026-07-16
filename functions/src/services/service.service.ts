@@ -161,20 +161,6 @@ export async function getInstallment(
   };
 }
 
-export async function replaceInstallment(
-  installmentId: string,
-  amount: number,
-  dueDate: Date
-): Promise<void> {
-  await getDb()
-    .collection("service_installments")
-    .doc(installmentId)
-    .update({
-      amount,
-      dueDate: admin.firestore.Timestamp.fromDate(dueDate),
-    });
-}
-
 export async function updateInstallmentAmount(
   installmentId: string,
   amount: number
