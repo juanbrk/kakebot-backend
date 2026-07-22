@@ -395,7 +395,7 @@ Una sola opción por caso; `ctx.editMessageText` pelado está **prohibido** en `
 
 | Caso | Usar | Semántica ante fallo de edición |
 |---|---|---|
-| Edición cosmética en un action handler (navegar/re-mostrar pantalla, consumir el botón; **sin** write previo) | `replyOrEdit(ctx, text, extra?)` | En contexto callback edita y traga *cualquier* error (el doble-tap "message is not modified" es un no-op silencioso); sin callback, responde con mensaje nuevo |
+| Edición cosmética en un action handler (navegar/re-mostrar pantalla, consumir el botón; **sin** write previo) | `replyOrEdit(ctx, text, extra?)` | En contexto callback edita y traga *cualquier* error, pero solo el doble-tap "message is not modified" es silencioso: cualquier otro motivo queda como `log.warn`. Sin callback, responde con mensaje nuevo |
 | Confirmación **después** de una escritura (Firestore/GCS) | `editOrReply(ctx, text, extra?)` | Edita; traga solo "not modified"; ante cualquier otro fallo loguea warning y cae a `ctx.reply` — la confirmación nunca se pierde (§9.4) |
 | `ctx.editMessageText` pelado | **Prohibido** | Tira ante cualquier fallo, incluido el no-op del doble-tap — ese era el bug-pattern que motivó la regla |
 
@@ -429,6 +429,8 @@ Referencia: `tax.scene.ts` (`handleMonthSelected`).
 ### 9.3 Semántica de `replyOrEdit` — qué cubre y qué no
 
 `replyOrEdit` (de `helpers/telegram.ts`) también cubre el caso dual-context: si el handler llega desde un callback edita, y si llega desde un mensaje de texto responde (útil en `handleConfirm`/`handleCancel` que aceptan ambas vías). Tener presente que en callback **traga cualquier error de edición**, no solo "not modified" — por eso solo es apto para ediciones cosméticas: si el mensaje editado confirma un dato ya persistido, corresponde `editOrReply` (§9.4), cuyo fallback a `reply` garantiza que la confirmación llegue.
+
+Tragar no significa perder el rastro: desde 2026-07-22 `replyOrEdit` distingue el motivo igual que `editOrReply`. Solo `"message is not modified"` (el doble-tap) se ignora en silencio; cualquier otro fallo — Markdown roto por un nombre interpolado, mensaje demasiado viejo para editar, 429 — sale como `log.warn` con `module: "helpers/telegram"`, `userId` y `reason`. La diferencia con `editOrReply` sigue siendo el **fallback**, no el logging: `replyOrEdit` no reintenta con `ctx.reply`, así que la pantalla puede no actualizarse nunca. Consecuencia a tener presente al escribir un action handler: si después del `replyOrEdit` se mueve el cursor (`ctx.wizard.selectStep`/`next`), un edit fallido deja el wizard esperando un callback de un teclado que nunca se entregó — el `log.warn` es hoy la única señal de que eso pasó.
 
 ### 9.4 Confirmación después de una escritura — usar `editOrReply`
 

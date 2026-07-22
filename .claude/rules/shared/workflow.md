@@ -22,6 +22,10 @@ npm run go       # → Test (botitio_testitoBot) → Set polling
 No hace falta ningún deploy real para testear: "Set polling" ya ejecuta el mismo código de handlers/scenes contra el bot de test real, con logs de `log.error`/`console.log` visibles en la terminal al instante. Reservar un deploy real solo si hace falta validar específicamente el transporte webhook (no aplica a la mayoría de los cambios de lógica del bot).
 - Test en Telegram vía @botitio_testitoBot
 
+⚠️ **Al trabajar en un worktree, verificar desde qué checkout corre el polling ANTES de tocar un botón.**
+Todos los worktrees hablan con el mismo `botitio_testitoBot`, así que un polling levantado desde el repo equivocado responde en Telegram con normalidad y el QA parece válido — pero está ejercitando otra branch. Síntoma típico: el fix "no funciona" y los logs muestran exactamente el comportamiento previo al cambio.
+Chequeo: mirar la ruta en cualquier stack trace o en el output de `tsc --watch` — debe contener el nombre del worktree, no el del repo principal. Corolario: **un solo `npm run go` a la vez**; si quedó otro corriendo, los dos compiten por los updates del mismo bot (long-polling) y las respuestas alternan de forma no determinística.
+
 ### 3. Verify Firestore Indexes (production only)
 ```bash
 gcloud functions logs read bot --limit 100 --project kakebot-972c2 2>&1 | grep "requires an index"
