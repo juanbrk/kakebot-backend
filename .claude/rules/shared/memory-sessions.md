@@ -1,15 +1,22 @@
 # Session Log
 
-## 2026-07-16/22: Unificación de edits cosméticos bajo replyOrEdit + hook de enforcement — QA cerrada
+## 2026-07-22: Auditoría post-QA — logging de fallos de edición, fix de editOrReply, correcciones de documentación
+
+### Completado
+- `replyOrEdit` ya no traga en silencio: loguea el motivo de cualquier fallo de edición real (solo el doble-tap se ignora); auditoría destapó además un bug en `editOrReply` (su fallback repetía el payload ya rechazado por Telegram, pudiendo tirar sin atrapar tras un write) — corregido degradando a texto plano en vez de propagar. Ambos verificados en botitio_testitoBot.
+- Corregido drift de documentación de deploy (`workflow.md`/`hard-walls.md`/`CLAUDE.md` referenciaban scripts npm inexistentes) y formalizado el checklist de sync de hooks entre worktrees en `hooks-error-log.md`.
+- Documentado en `workflow.md` el riesgo de correr el polling desde el worktree equivocado — causó una corrida de QA perdida en esta misma sesión.
+- QA cerrada en botitio_testitoBot validando ambos fixes end-to-end.
+
+### Pendiente
+- Merge a main (a cargo de Juan); post-merge `git pull` en el worktree de main — el hook llega solo, no hace falta copiarlo.
+- Tickets A-E de la auditoría pendientes de abrir (detalle en `memory-decisions.md`, entrada 2026-07-22).
+
+## 2026-07-16: Unificación de edits cosméticos bajo replyOrEdit + hook de enforcement — QA cerrada
 
 ### Completado
 - Los 88 edits cosméticos restantes migrados a `replyOrEdit` (15 archivos); regla de tres vías cerrada y documentada en `conventions.md` + `wizard-scenes.md §9`; nuevo hook `check-raw-edit-message.js` bloquea el edit pelado. Grep de aceptación en 0; build + lint limpios (baseline de warnings sin cambios).
 - QA completa en botitio_testitoBot confirmada por el usuario: doble-tap en Reportes → Balances sin error/stack trace; flujos servicio, tarjeta e impuesto validados end-to-end (incluidos doble-taps de navegación en cada uno).
-- Retrospectiva post-QA encontró que `workflow.md`/`hard-walls.md`/`CLAUDE.md` referenciaban scripts npm inexistentes (`deploy:test`, `deploy:prod`, `env:*`, `serve`); corregidos para reflejar el flujo real (`npm run go` / `scripts/switch-env.sh`). Formalizado un checklist de sincronización de hooks entre worktrees en `hooks-error-log.md`.
-
-### Pendiente
-- Un solo commit combinando todo el trabajo de la rama (decisión del usuario) y merge a main — a cargo de Juan
-- Post-merge: `git pull` en `kakebot-backend` (worktree de main) — el hook llega solo, no hace falta copiarlo
 
 ## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply) + eliminación de código muerto
 
