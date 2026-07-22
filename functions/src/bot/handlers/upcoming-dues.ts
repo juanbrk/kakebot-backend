@@ -4,6 +4,7 @@ import { getUpcomingDues } from "../../services/upcoming-dues.service";
 import { formatARS, formatUSD } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { UpcomingDueItem, UpcomingDuesBucket } from "../../types/upcoming-dues.types";
+import { replyOrEdit } from "../../helpers/telegram";
 
 /**
  * Registers the upcoming dues report handler.
@@ -68,7 +69,8 @@ async function handleUpcomingDues(ctx: Context): Promise<void> {
     text = breadcrumb + "*PRÓXIMOS VENCIMIENTOS*\n\n" + sections;
   }
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     text,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any }

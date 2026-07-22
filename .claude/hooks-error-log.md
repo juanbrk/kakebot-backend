@@ -4,6 +4,20 @@ Registro estructurado de pain points, bugs detectados por hooks, y estado de imp
 
 ---
 
+## 2026-07-16: check-raw-edit-message.js — prohibir .editMessageText pelado en handlers y scenes
+
+**Status:** ✅ Implementado
+
+Hook PreToolUse `Edit|Write` que bloquea cualquier Edit/Write que introduzca `.editMessageText(` en archivos `.ts` bajo `functions/src/bot/handlers/` o `functions/src/bot/scenes/`. Enforcea la regla de tres vías (ticket unify-cosmetic-edits-replyoredit): write-then-edit → `editOrReply`; edit cosmético en callback → `replyOrEdit`; `ctx.editMessageText` pelado → prohibido.
+
+**Fuera del guard (permitido):** `helpers/telegram.ts` (definiciones de los helpers) y `services/` (loop de categorización con `ctx.telegram.editMessageText` low-level por `chatId`/`messageId` — excepción documentada).
+
+**Testing:** verificado con violación en handler (exit 2), edit en `helpers/telegram.ts` (exit 0) y scene usando `replyOrEdit` (exit 0).
+
+**Sync entre worktrees:** igual que check-wizard-scene.js — el path en `settings.json` apunta al repo principal; al mergear, sincronizar la copia del hook.
+
+---
+
 ## 2026-05-28: check-wizard-scene.js — hook estructural para WizardScenes
 
 **Status:** ✅ Implementado

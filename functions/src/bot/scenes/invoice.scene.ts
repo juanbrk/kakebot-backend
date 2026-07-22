@@ -2,6 +2,7 @@ import { Scenes, Markup } from "telegraf";
 import { KakebotContext, InvoiceWizardState } from "../../types/telegraf-context.types";
 import { AttachFileParams } from "../../types/handlers.types";
 import { log } from "../../helpers/logger";
+import { replyOrEdit } from "../../helpers/telegram";
 import {
   getServicesByUser,
   getServiceById,
@@ -377,7 +378,8 @@ async function handlePickService(ctx: KakebotContext): Promise<void> {
     state.serviceName = service?.name ?? "";
 
     if (installment) {
-      await ctx.editMessageText(
+      await replyOrEdit(
+        ctx,
         `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(currentMonth, true)}...`,
       );
       await handleAttachFile({
@@ -392,7 +394,8 @@ async function handlePickService(ctx: KakebotContext): Promise<void> {
     }
 
     const keyboard = buildMonthKeyboard(serviceId);
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       `*¿A qué mes corresponde ${flowLabel(state.flow)}?*`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
@@ -415,7 +418,8 @@ async function handlePickService(ctx: KakebotContext): Promise<void> {
  */
 async function handleNewService(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*¿Cómo se llama el servicio?*\n_Ej: Expensas, Gas, Flow, Netflix_\n_Enviá \"cancelar\" para salir._",
     { parse_mode: "Markdown" },
   );
@@ -445,7 +449,8 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
     const installment = await getInstallment(serviceId, dueMonth);
 
     if (installment) {
-      await ctx.editMessageText(
+      await replyOrEdit(
+        ctx,
         `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(dueMonth, true)}...`,
       );
       await handleAttachFile({
@@ -460,7 +465,8 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
     }
 
     const maxDay = getDaysInMonth(dueMonth);
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       `*¿Qué día vence la cuota de ${getMonthLabel(dueMonth, true)}? (1-${maxDay})*\n_Enviá "cancelar" para salir._`,
       { parse_mode: "Markdown" },
     );

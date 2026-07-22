@@ -40,7 +40,8 @@ async function handleReportesMenu(ctx: Context): Promise<void> {
     [Markup.button.callback("Servicios", "rep_servicios")],
     [Markup.button.callback("← Volver al menú", "menu_back")],
   ]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes"]) +
       "*¿Qué querés ver?*\n\n" +
       "• *Balances*: resumenes mensuales de gastos e ingresos\n" +
@@ -63,7 +64,8 @@ async function handleBalancesMenu(ctx: Context): Promise<void> {
     [Markup.button.callback("Balances anteriores", "rep_history")],
     [Markup.button.callback("← Volver", "menu_reportes")],
   ]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Balances"]) +
       "*¿Qué querés ver?*\n\n" +
       "• *Ver Balance actual*: detalle de gastos e ingresos del mes en curso\n" +
@@ -84,7 +86,8 @@ async function handlePagosMenu(ctx: Context): Promise<void> {
     [Markup.button.callback("Próximos Vencimientos", "menu_upcoming")],
     [Markup.button.callback("← Volver", "menu_reportes")],
   ]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Pagos"]) +
       "*¿Qué querés ver?*\n\n" +
       "• *Próximos Vencimientos*: servicios e impuestos a vencer en los próximos 7 días",
@@ -104,7 +107,8 @@ async function handleServiciosMenu(ctx: Context): Promise<void> {
     [Markup.button.callback("Métodos de pago", "menu_payment_methods")],
     [Markup.button.callback("← Volver", "menu_reportes")],
   ]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Servicios"]) +
       "*¿Qué querés ver?*\n\n" +
       "• *Métodos de pago*: Listado de servicios agrupados por forma de pago",
@@ -148,7 +152,8 @@ async function handleRepHistory(ctx: Context): Promise<void> {
     const keyboard = Markup.inlineKeyboard([
       [Markup.button.callback("← Volver", "rep_balances")],
     ]);
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "No hay registros anteriores.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
@@ -167,7 +172,8 @@ async function handleRepHistory(ctx: Context): Promise<void> {
 
   const rows = years.map((year) => [Markup.button.callback(year, `rep_year:${year}`)]);
   rows.push([Markup.button.callback("← Volver", "rep_balances")]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "Seleccioná el año",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
@@ -224,7 +230,8 @@ async function showMonthSelector({
   }
   rows.push([Markup.button.callback("← Volver", backCallback)]);
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", year]) + "Seleccioná el mes",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
@@ -251,7 +258,8 @@ async function handleRepMonth(ctx: Context): Promise<void> {
     ],
     [Markup.button.callback("← Volver", `rep_year:${year}`)],
   ]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Selecciona una opción",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
@@ -292,7 +300,8 @@ async function handleRepExp(ctx: KakebotContext): Promise<void> {
   const [year, month] = yearMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando gasto",
     { parse_mode: "Markdown" },
   );
@@ -312,7 +321,8 @@ async function handleRepInc(ctx: KakebotContext): Promise<void> {
   const [year, month] = yearMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando ingreso",
     { parse_mode: "Markdown" },
   );

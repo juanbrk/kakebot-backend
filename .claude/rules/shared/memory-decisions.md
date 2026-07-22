@@ -1,5 +1,14 @@
 # Decisions Log
 
+## 2026-07-16: Regla de tres vías para ediciones de mensaje — `ctx.editMessageText` pelado prohibido en handlers y scenes
+
+- **Decisión**: los 88 edits cosméticos restantes (15 archivos en `bot/handlers/` y `bot/scenes/`) migrados a `replyOrEdit`; regla de tres vías cerrada: write-then-edit → `editOrReply`; edit cosmético en callback → `replyOrEdit`; `ctx.editMessageText` pelado → prohibido. Exploración previa confirmó 88/88 cosméticos (cero write-then-edit pendientes).
+- **Enforcement**: nuevo hook PreToolUse `check-raw-edit-message.js` bloquea `.editMessageText(` en `bot/handlers/` y `bot/scenes/`. Registrado en `settings.json` + `settings.example.json` + `hooks-error-log.md`.
+- **Docs**: `wizard-scenes.md §9` reescrito (tabla de tres vías; §9.2 ya no prescribe el edit pelado; §9.3 documenta la semántica traga-todo de `replyOrEdit`; checklist §16 y tabla §12 actualizados); `conventions.md` (tabla de helpers, regla de tres vías, ejemplo Breadcrumb).
+- **Excepción única**: loop de categorización (`services/category.service.ts`, `ctx.telegram.editMessageText` low-level por `chatId`/`messageId`, corre sin callback) — fuera de los paths guardeados.
+- **Cambio de comportamiento deliberado** en `invoice.scene.ts`: un edit de progreso fallido ya no aborta el upload (antes el throw caía al catch del handler antes de subir el archivo).
+- **Fuera de scope (candidato /techdebt)**: 3 paths write→`replyOrEdit` vía helpers de render compartidos con callers read-only (`service.ts` `showInstallmentDetail`/`showServiceActionView`, `tax.ts` `showTaxActionView`).
+
 ## 2026-07-15: Helper `editOrReply` (write-then-edit) + eliminación del subsistema de "cuota duplicada" (código inalcanzable)
 
 - **Decisión**: nuevo helper `editOrReply` (superset resiliente de `replyOrEdit`, intacto) aplicado a los 16 sitios donde un write se confirma editando un mensaje, para que un fallo de edición no aborte el flujo tras persistir el dato. Los ~91 edits cosméticos restantes no se migran (sin write previo, ya cubierto por `wizard-scenes.md §9.4`).

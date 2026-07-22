@@ -109,7 +109,8 @@ async function handlePickCard(ctx: Context): Promise<void> {
 
 async function handleAddCard(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Vas a registrar una nueva tarjeta de crédito*\n" +
       "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
@@ -130,7 +131,8 @@ async function handleStartStatement(ctx: KakebotContext): Promise<void> {
 
   const cardLabel = buildCardLabel(card);
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
       "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
@@ -318,7 +320,8 @@ async function handleAttachStatementPdfFromHistory(
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${cardLabel}*\n` +
       "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },
@@ -376,7 +379,8 @@ async function handleEditArs(ctx: Context): Promise<void> {
   const card = await getCardById(statement.cardId);
   const cardLabel = card ? buildCardLabel(card) : "";
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a modificar el monto en pesos para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
     { parse_mode: "Markdown" },
   );
@@ -403,7 +407,8 @@ async function handleEditUsd(ctx: Context): Promise<void> {
   const card = await getCardById(statement.cardId);
   const cardLabel = card ? buildCardLabel(card) : "";
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a modificar el monto en dólares para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
     { parse_mode: "Markdown" },
   );
@@ -431,7 +436,8 @@ async function handleEditDay(ctx: Context): Promise<void> {
   const card = await getCardById(statement.cardId);
   const cardLabel = card ? buildCardLabel(card) : "";
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a modificar el vencimiento para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
     { parse_mode: "Markdown" },
   );
@@ -576,7 +582,8 @@ async function handleStmtReceiptsMenu(ctx: Context): Promise<void> {
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
   const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes", monthLabel, "Comprobantes"]);
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `${breadcrumb}*¿Qué querés hacer?*`,
     {
       parse_mode: "Markdown",
@@ -615,7 +622,8 @@ async function handleStmtReceiptsAttachARS(ctx: KakebotContext): Promise<void> {
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `_${monthLabel} · ${cardLabel} — adjuntando comprobante ARS_`,
     { parse_mode: "Markdown" },
   );
@@ -651,7 +659,8 @@ async function handleAttachReceiptUSD(ctx: KakebotContext): Promise<void> {
   const [year, month] = statement.month.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `_${monthLabel} · ${cardLabel} — adjuntando comprobante USD_`,
     { parse_mode: "Markdown" },
   );
@@ -763,7 +772,8 @@ async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
   const availableMonths = upcomingMonths.filter((m) => !existingMonths.includes(m));
 
   if (availableMonths.length === 0) {
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       `*Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.*`,
       {
         parse_mode: "Markdown",
@@ -776,7 +786,8 @@ async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
     "_Enviá la palabra cancelar para salir._",
     { parse_mode: "Markdown" },

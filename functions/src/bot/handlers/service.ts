@@ -150,7 +150,8 @@ async function openServicesMenu(ctx: Context): Promise<void> {
 
 async function handleAddService(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Vas a crear un nuevo servicio*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
@@ -370,7 +371,8 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a agregar una nueva cuota para ${service.name}*\n` +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
@@ -444,7 +446,8 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a agregar una nueva cuota para ${serviceName}*\n` +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
@@ -521,7 +524,7 @@ async function handleMarkAsPaid(ctx: Context): Promise<void> {
 
   const installment = await getInstallmentById(installmentId);
   if (!installment) {
-    await ctx.editMessageText("Cuota no encontrada.");
+    await replyOrEdit(ctx, "Cuota no encontrada.");
     return;
   }
 
@@ -566,7 +569,7 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
 
   const installment = await getInstallment(serviceId, dueMonth);
   if (!installment) {
-    await ctx.editMessageText("No hay cuota registrada para este mes.");
+    await replyOrEdit(ctx, "No hay cuota registrada para este mes.");
     return;
   }
 
@@ -589,7 +592,8 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Adjuntar comprobante*\n_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
@@ -601,7 +605,8 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "Podes adjuntar el comprobante luego desde /servicios.",
   );
 }
@@ -610,7 +615,8 @@ async function handleAttachInvoice(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Adjuntar factura*\n_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
   );
@@ -622,7 +628,8 @@ async function handleAttachInvoice(ctx: Context): Promise<void> {
 
 async function handleSkipInvoice(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "Podes adjuntar la factura luego desde /servicios.",
   );
 }
@@ -634,7 +641,8 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
   const service = await getServiceById(serviceId);
   const serviceName = service?.name || null;
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a cambiar el nombre de ${serviceName || "el servicio"}*\n` +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
@@ -655,13 +663,14 @@ async function handleDeleteService(ctx: Context): Promise<void> {
   const service = await getServiceById(serviceId);
   const serviceName = service?.name || null;
   if (!serviceName) {
-    await ctx.editMessageText("Servicio no encontrado.");
+    await replyOrEdit(ctx, "Servicio no encontrado.");
     return;
   }
 
   const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Eliminar"]);
   const keyboard = buildDeleteConfirmKeyboard(serviceId);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     breadcrumb + `*¿Eliminar ${serviceName}?*\nSe borrarán todas sus cuotas.`,
     { parse_mode: "Markdown", ...keyboard },
   );
@@ -685,7 +694,8 @@ async function handleEditInstallmentAmount(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Modificar monto*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
@@ -703,7 +713,8 @@ async function handleEditInstallmentDay(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const installment = await getInstallmentById(installmentId);
   const selectedMonth = installment?.dueMonth || "";
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Cambiar vencimiento*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },
@@ -727,7 +738,7 @@ async function handlePagination(ctx: Context): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Servicios", "Selección"]);
   const keyboard = buildServiceListKeyboard(services, page, "svc_view_pick");
 
-  await ctx.editMessageText(breadcrumb + "*Seleccioná un servicio:*", {
+  await replyOrEdit(ctx, breadcrumb + "*Seleccioná un servicio:*", {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -776,7 +787,7 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
   const serviceName = service?.name || null;
 
   if (installments.length === 0) {
-    await ctx.editMessageText("No hay cuotas registradas para este servicio.");
+    await replyOrEdit(ctx, "No hay cuotas registradas para este servicio.");
     return;
   }
 
@@ -835,7 +846,7 @@ async function renderInstallmentsList({
     serviceName,
   });
 
-  await ctx.editMessageText(breadcrumb + text, {
+  await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -849,7 +860,7 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
 
   const installment = await getInstallmentById(installmentId);
   if (!installment) {
-    await ctx.editMessageText("Cuota no encontrada.");
+    await replyOrEdit(ctx, "Cuota no encontrada.");
     return;
   }
 
@@ -872,7 +883,7 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     backLabel: "\u2190 Volver al historial",
   });
 
-  await ctx.editMessageText(breadcrumb + text, {
+  await replyOrEdit(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,

@@ -1,6 +1,7 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, DocRouterWizardState, InvoiceWizardState } from "../../types/telegraf-context.types";
 import { buildDocTypeKeyboard } from "../keyboards/invoice";
+import { replyOrEdit } from "../../helpers/telegram";
 import { INVOICE_SCENE_ID } from "./invoice.scene";
 
 export const DOC_ROUTER_SCENE_ID = "doc-router-wizard";
@@ -44,7 +45,7 @@ async function stepGuardType(ctx: KakebotContext): Promise<void> {
 async function handleDocTypeInvoice(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
-  await ctx.editMessageText("Factura");
+  await replyOrEdit(ctx, "Factura");
   await ctx.scene.enter(INVOICE_SCENE_ID, { flow: "invoice", pendingFileId, pendingFileType } as InvoiceWizardState);
 }
 
@@ -56,7 +57,7 @@ async function handleDocTypeInvoice(ctx: KakebotContext): Promise<void> {
 async function handleDocTypeReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
-  await ctx.editMessageText("Comprobante");
+  await replyOrEdit(ctx, "Comprobante");
   await ctx.scene.enter(INVOICE_SCENE_ID, { flow: "receipt", pendingFileId, pendingFileType } as InvoiceWizardState);
 }
 

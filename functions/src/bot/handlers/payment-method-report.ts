@@ -2,6 +2,7 @@ import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { generatePaymentMethodReport } from "../../services/payment-method-report.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
+import { replyOrEdit } from "../../helpers/telegram";
 
 /**
  * Registers the payment methods report handler.
@@ -29,7 +30,8 @@ async function handlePaymentMethodsReport(ctx: Context): Promise<void> {
   const header = buildBreadcrumb(["Reportes", "Servicios", "Métodos de Pago"]);
 
   if (!report) {
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       header + "No tenés servicios registrados.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { parse_mode: "Markdown", reply_markup: backKeyboard.reply_markup as any },
@@ -37,7 +39,8 @@ async function handlePaymentMethodsReport(ctx: Context): Promise<void> {
     return;
   }
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     header + report,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: backKeyboard.reply_markup as any },

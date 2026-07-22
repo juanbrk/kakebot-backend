@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-07-16/22: Unificación de edits cosméticos bajo replyOrEdit + hook de enforcement — QA cerrada
+
+### Completado
+- Los 88 edits cosméticos restantes migrados a `replyOrEdit` (15 archivos); regla de tres vías cerrada y documentada en `conventions.md` + `wizard-scenes.md §9`; nuevo hook `check-raw-edit-message.js` bloquea el edit pelado. Grep de aceptación en 0; build + lint limpios (baseline de warnings sin cambios).
+- QA completa en botitio_testitoBot confirmada por el usuario: doble-tap en Reportes → Balances sin error/stack trace; flujos servicio, tarjeta e impuesto validados end-to-end (incluidos doble-taps de navegación en cada uno). Ticket cerrado — solo faltan los 5 commits por fase (a cargo del usuario).
+
+### Pendiente
+- Commits por fase y merge a main (a cargo del usuario)
+- Post-merge: sincronizar `check-raw-edit-message.js` al repo principal si este worktree es descartable
+
 ## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply) + eliminación de código muerto
 
 ### Completado
