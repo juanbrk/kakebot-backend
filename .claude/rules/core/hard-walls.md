@@ -10,12 +10,13 @@ Constraints that must never be violated.
 
 ## Deployment
 - NEVER deploy directly to kakebot production without testing on botitio_testitoBot first
+- **Testing does NOT require a real deploy**: `npm run go` (desde `functions/`) → Test (botitio_testitoBot) → "Set polling" corre el bot real contra el token de test por long-polling, con logs en vivo en la terminal. Usar esto para QA — reservar un deploy real solo para validar específicamente el transporte webhook. Ver `shared/workflow.md`.
 - NEVER force push to main
 - ALWAYS run `npm run build` + `npm run lint` before deploy
 - ALWAYS check which environment is active before suggesting deploy:
-  - Run `npm run env:status` to verify
+  - Run `bash scripts/switch-env.sh status` to verify — **not** an npm script (`npm run env:status` does not exist)
   - Explicitly tell the user: "Vas a deployar a TEST/PROD, confirmar?"
-  - Use `npm run deploy:test` for testing, `npm run deploy:prod` for production
+  - No existen `npm run deploy:test`/`npm run deploy:prod`. Deploy real de producción: `npm run go` → Prod (kakebot) → "Deploy functions" (bloqueado fuera de `main`, pide confirmación `[s/N]`) — equivalente manual al deploy automático de GitHub Actions en push a `main`.
 - **ALWAYS verify Firestore composite indexes exist BEFORE deploying to production**
   - Check logs for "The query requires an index" errors
   - All Firestore queries with multiple field filters need composite indexes

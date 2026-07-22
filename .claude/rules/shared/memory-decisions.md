@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-07-22: Corregir drift de documentación de deploy + formalizar sync de hooks
+
+- **Decisión**: `workflow.md`, `hard-walls.md` y `CLAUDE.md` describían un flujo de deploy con scripts npm (`deploy:test`, `deploy:prod`, `env:status`, `env:test`, `env:prod`, `serve`) que nunca existieron en `package.json` — el único punto de entrada real es `npm run go` (`scripts/go.sh`) + `bash scripts/switch-env.sh [test|prod|status]`. Los tres archivos se reescribieron para reflejar el árbol real de `go.sh` (Test: Set polling/emuladores/webhook local, sin deploy; Prod: deploy manual gated a `main` + confirmación, o automático vía GitHub Actions).
+- **Motivo**: detectado en una retrospectiva (`/retrospective`) tras una sesión donde esa documentación desactualizada llevó a sugerir un deploy real innecesario para QA — "Set polling" ya corre el bot real contra el token de test por long-polling con logs en vivo, sin deploy.
+- **Decisión**: se formalizó un checklist de sincronización de hooks entre worktree y repo principal en `hooks-error-log.md` (antes era una nota de una línea repetida sin procedimiento, ya había recurrido 2 veces: `check-wizard-scene.js` y `check-raw-edit-message.js`).
+
 ## 2026-07-16: Regla de tres vías para ediciones de mensaje — `ctx.editMessageText` pelado prohibido en handlers y scenes
 
 - **Decisión**: los 88 edits cosméticos restantes (15 archivos en `bot/handlers/` y `bot/scenes/`) migrados a `replyOrEdit`; regla de tres vías cerrada: write-then-edit → `editOrReply`; edit cosmético en callback → `replyOrEdit`; `ctx.editMessageText` pelado → prohibido. Exploración previa confirmó 88/88 cosméticos (cero write-then-edit pendientes).

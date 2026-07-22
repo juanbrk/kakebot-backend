@@ -4,11 +4,12 @@
 
 ### Completado
 - Los 88 edits cosméticos restantes migrados a `replyOrEdit` (15 archivos); regla de tres vías cerrada y documentada en `conventions.md` + `wizard-scenes.md §9`; nuevo hook `check-raw-edit-message.js` bloquea el edit pelado. Grep de aceptación en 0; build + lint limpios (baseline de warnings sin cambios).
-- QA completa en botitio_testitoBot confirmada por el usuario: doble-tap en Reportes → Balances sin error/stack trace; flujos servicio, tarjeta e impuesto validados end-to-end (incluidos doble-taps de navegación en cada uno). Ticket cerrado — solo faltan los 5 commits por fase (a cargo del usuario).
+- QA completa en botitio_testitoBot confirmada por el usuario: doble-tap en Reportes → Balances sin error/stack trace; flujos servicio, tarjeta e impuesto validados end-to-end (incluidos doble-taps de navegación en cada uno).
+- Retrospectiva post-QA encontró que `workflow.md`/`hard-walls.md`/`CLAUDE.md` referenciaban scripts npm inexistentes (`deploy:test`, `deploy:prod`, `env:*`, `serve`); corregidos para reflejar el flujo real (`npm run go` / `scripts/switch-env.sh`). Formalizado un checklist de sincronización de hooks entre worktrees en `hooks-error-log.md`.
 
 ### Pendiente
-- Commits por fase y merge a main (a cargo del usuario)
-- Post-merge: sincronizar `check-raw-edit-message.js` al repo principal si este worktree es descartable
+- Un solo commit combinando todo el trabajo de la rama (decisión del usuario) y merge a main — a cargo de Juan
+- Post-merge: sincronizar `check-raw-edit-message.js` al repo principal siguiendo el checklist de `hooks-error-log.md`
 
 ## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply) + eliminación de código muerto
 
