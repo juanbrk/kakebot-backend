@@ -9,7 +9,7 @@
 
 ### Pendiente
 - Un solo commit combinando todo el trabajo de la rama (decisión del usuario) y merge a main — a cargo de Juan
-- Post-merge: sincronizar `check-raw-edit-message.js` al repo principal siguiendo el checklist de `hooks-error-log.md`
+- Post-merge: `git pull` en `kakebot-backend` (worktree de main) — el hook llega solo, no hace falta copiarlo
 
 ## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply) + eliminación de código muerto
 

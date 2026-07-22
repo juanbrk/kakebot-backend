@@ -4,17 +4,16 @@ Registro estructurado de pain points, bugs detectados por hooks, y estado de imp
 
 ---
 
-## Checklist: sincronizar un hook nuevo creado en un worktree
+## Checklist: hook nuevo creado en un worktree
 
-Cuando se crea un hook dentro de un worktree (no en el clone principal `kakebot-backend`), `settings.json` sigue apuntando por path absoluto al repo principal — el hook no se activa ahí hasta sincronizarlo a mano. Pasos, en orden:
+`kakebot-backend` (main) y cada worktree (`git worktree list` lo confirma) comparten el mismo repositorio — no son clones separados. Un hook creado y committeado en un worktree **llega solo** a `main` al mergear la branch; no hace falta copiar el archivo a mano. Pasos, en orden:
 
-1. Verificar que el hook está registrado en `.claude/settings.json` (path absoluto al repo principal) **y** en `.claude/settings.example.json` (placeholder `$PWD`) del worktree.
-2. Al mergear la branch a `main`: copiar el archivo del hook (`.claude/hooks/<nombre>.js`) al repo principal (`kakebot-backend/.claude/hooks/`).
-3. Confirmar que `kakebot-backend/.claude/settings.json` tiene la entrada del hook (llega vía merge si el archivo está trackeado — revisar igual por posibles conflictos de merge en `settings.json`).
-4. Correr un caso de prueba trivial (una edición que debería bloquear, una que debería pasar) en el repo principal para confirmar que el hook está activo ahí.
-5. Registrar la sincronización en la entrada correspondiente de este log (`Sync entre worktrees: ✅ sincronizado el YYYY-MM-DD`).
+1. Verificar que el hook está registrado en `.claude/settings.json` (path absoluto a `kakebot-backend`, para que corra desde cualquier worktree) **y** en `.claude/settings.example.json` (placeholder `$PWD`) — ambos archivos están trackeados en git, viajan con el commit.
+2. Mergear la branch a `main` (PR o merge local) — esto ya incluye el hook y los cambios de `settings.json`.
+3. En la carpeta `kakebot-backend` (la que tiene `main` abierto): `git pull`.
+4. Correr un caso de prueba trivial (una edición que debería bloquear, una que debería pasar) ahí para confirmar que el hook está activo.
 
-Aplica a cualquier hook `PreToolUse`/`PostToolUse` nuevo creado desde un worktree. `check-wizard-scene.js` (2026-05-28) y `check-raw-edit-message.js` (2026-07-16) atravesaron este mismo paso manual sin un checklist formal hasta ahora.
+Aplica a cualquier hook `PreToolUse`/`PostToolUse` nuevo creado desde un worktree. `check-wizard-scene.js` (2026-05-28) y `check-raw-edit-message.js` (2026-07-16) quedaron documentados con un paso de "sincronización manual" que en realidad no hace falta — corregido el 2026-07-22 tras verificar con `git worktree list` que comparten historial.
 
 ---
 
@@ -28,7 +27,7 @@ Hook PreToolUse `Edit|Write` que bloquea cualquier Edit/Write que introduzca `.e
 
 **Testing:** verificado con violación en handler (exit 2), edit en `helpers/telegram.ts` (exit 0) y scene usando `replyOrEdit` (exit 0).
 
-**Sync entre worktrees:** ⏳ pendiente — seguir el checklist al inicio de este archivo.
+**Llega a main:** automático al mergear + `git pull` en `kakebot-backend` (ver checklist al inicio de este archivo) — no hace falta copiar el archivo a mano.
 
 ---
 
@@ -55,7 +54,7 @@ Chequeos:
 
 **Testing:** verificado contra `tax.scene.ts` (pasa), `income.scene.ts` (falla por `promptAmount` — deuda técnica conocida, será corregida en refactor Fase 3a), y dummy file vacío (falla 8 chequeos).
 
-**Sync entre worktrees:** seguir el checklist al inicio de este archivo. Los paths en `settings.json` apuntan al repo principal (`kakebot-backend/.claude/hooks/...`) por consistencia con los demás hooks.
+**Llega a main:** automático al mergear + `git pull` en `kakebot-backend` (ver checklist al inicio de este archivo). Los paths en `settings.json` apuntan al repo principal (`kakebot-backend/.claude/hooks/...`) por consistencia con los demás hooks.
 
 ---
 
