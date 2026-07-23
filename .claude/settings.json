@@ -24,6 +24,10 @@
           {
             "type": "command",
             "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-wizard-scene.js"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-raw-edit-message.js"
           }
         ]
       }

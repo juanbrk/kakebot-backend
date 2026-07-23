@@ -1,5 +1,26 @@
 # Session Log
 
+## 2026-07-23: Auditoría post-QA — fixes de edición, docs corregidas, y dos follow-ups menores resueltos
+
+### Completado
+- Los fallos reales de edición ya no pasan desapercibidos, y un bug relacionado quedó corregido; ambos validados en botitio_testitoBot.
+- Corregida documentación de deploy desactualizada y formalizado un checklist de sincronización de hooks entre worktrees.
+- De los 5 follow-ups que había dejado la auditoría, se resolvieron los dos de menor riesgo: un patrón de confirmación inconsistente en dos pantallas compartidas, y una suposición no documentada sobre cómo se entra a ciertos flujos. Build, lint y QA en botitio_testitoBot cerrados (10/10).
+
+### Pendiente
+- Commit (a cargo del usuario).
+- Los otros 3 follow-ups siguen abiertos: uno espera datos de uso real antes de decidir el fix; los otros dos quedan fuera de esta rama.
+
+### Pendiente
+- Merge a main (a cargo de Juan); post-merge `git pull` en el worktree de main — el hook llega solo, no hace falta copiarlo.
+- Tickets A-E de la auditoría pendientes de abrir (detalle en `memory-decisions.md`, entrada 2026-07-22).
+
+## 2026-07-16: Unificación de edits cosméticos bajo replyOrEdit + hook de enforcement — QA cerrada
+
+### Completado
+- Los 88 edits cosméticos restantes migrados a `replyOrEdit` (15 archivos); regla de tres vías cerrada y documentada en `conventions.md` + `wizard-scenes.md §9`; nuevo hook `check-raw-edit-message.js` bloquea el edit pelado. Grep de aceptación en 0; build + lint limpios (baseline de warnings sin cambios).
+- QA completa en botitio_testitoBot confirmada por el usuario: doble-tap en Reportes → Balances sin error/stack trace; flujos servicio, tarjeta e impuesto validados end-to-end (incluidos doble-taps de navegación en cada uno).
+
 ## 2026-07-15: Resiliencia en confirmaciones write-then-edit (editOrReply) + eliminación de código muerto
 
 ### Completado

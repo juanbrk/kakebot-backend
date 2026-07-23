@@ -347,13 +347,14 @@ Implementación canónica: `doc-router.scene.ts:63-85` (`handlePhotoWhileWaiting
 
 **Prohibidos dentro de los steps del wizard.** Una vez que el usuario entra al scene ya se comprometió al flujo; la única salida es escribir `cancelar`. Mostrar `Impuestos / Monotributo / Nueva cuota` en cada paso es ruido visual sin valor de navegación. Los breadcrumbs son para árboles de decisión jerárquicos **antes** de un commit a un flujo, no dentro de uno.
 
-**Excepción permitida — mensaje de entrada al scene.** El handler externo que invoca `ctx.scene.enter(...)` puede usar `ctx.editMessageText` con breadcrumb + contexto justo antes de entrar:
+**Excepción permitida — mensaje de entrada al scene.** El handler externo que invoca `ctx.scene.enter(...)` puede usar `replyOrEdit` con breadcrumb + contexto justo antes de entrar:
 
 ```typescript
 // bot/handlers/tax.ts
 async function handleRegisterInstallment(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"])
       + `Vas a registrar una nueva cuota para ${taxName}`,
     { parse_mode: "Markdown" },
@@ -388,7 +389,17 @@ En cada fila de keyboard con cancelar/volver y confirmar/siguiente:
 
 ---
 
-## 9. `editMessageText` vs `reply`
+## 9. Ediciones de mensaje — regla de tres vías
+
+Una sola opción por caso; `ctx.editMessageText` pelado está **prohibido** en `bot/handlers/` y `bot/scenes/` (enforceado por el hook `check-raw-edit-message.js`):
+
+| Caso | Usar | Semántica ante fallo de edición |
+|---|---|---|
+| Edición cosmética en un action handler (navegar/re-mostrar pantalla, consumir el botón; **sin** write previo) | `replyOrEdit(ctx, text, extra?)` | En contexto callback edita y traga *cualquier* error, pero solo el doble-tap "message is not modified" es silencioso: cualquier otro motivo queda como `log.warn`. Sin callback, responde con mensaje nuevo |
+| Confirmación **después** de una escritura (Firestore/GCS) | `editOrReply(ctx, text, extra?)` | Edita; traga solo "not modified"; ante cualquier otro fallo loguea warning y cae a `ctx.reply` — la confirmación nunca se pierde (§9.4) |
+| `ctx.editMessageText` pelado | **Prohibido** | Tira ante cualquier fallo, incluido el no-op del doble-tap — ese era el bug-pattern que motivó la regla |
+
+Excepción única: el loop de categorización (`services/category.service.ts`) usa el low-level `ctx.telegram.editMessageText` apuntando por `chatId`/`messageId` guardados y corre también en contextos sin callback — no es migrable y vive fuera de los paths guardeados por el hook.
 
 ### 9.1 Dentro de un step (handler que procesa input del usuario)
 
@@ -398,14 +409,14 @@ Usar siempre `ctx.reply()`. El usuario acaba de escribir; estás respondiendo co
 
 Patrón canónico edit-then-reply:
 
-1. `ctx.editMessageText(...)` — edita el mensaje que contenía el botón presionado (lo "consume" visualmente).
+1. `replyOrEdit(ctx, ...)` — edita el mensaje que contenía el botón presionado (lo "consume" visualmente); un fallo de esa edición cosmética no aborta el flujo.
 2. `ctx.reply(...)` — envía el siguiente prompt o teclado.
 
 ```typescript
 async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // ...extraer match, setear state.
-  await ctx.editMessageText(`*Vas a registrar la cuota para ${monthLabel}*`, {
+  await replyOrEdit(ctx, `*Vas a registrar la cuota para ${monthLabel}*`, {
     parse_mode: "Markdown",
   });
   await ctx.reply(`*¿Cuál es el monto?*`, { parse_mode: "Markdown" });
@@ -413,11 +424,13 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
 }
 ```
 
-Referencia: `tax.scene.ts:358-383`.
+Referencia: `tax.scene.ts` (`handleMonthSelected`).
 
-### 9.3 Excepción
+### 9.3 Semántica de `replyOrEdit` — qué cubre y qué no
 
-`replyOrEdit` (de `helpers/telegram.ts`) se usa cuando el handler puede ser invocado desde un callback (entonces edita) o desde un mensaje normal (entonces responde). Útil en `handleConfirm`/`handleCancel` cuando el confirm puede llegar también por texto. En la mayoría de los casos elegir explícitamente entre `editMessageText` y `reply`.
+`replyOrEdit` (de `helpers/telegram.ts`) también cubre el caso dual-context: si el handler llega desde un callback edita, y si llega desde un mensaje de texto responde (útil en `handleConfirm`/`handleCancel` que aceptan ambas vías). Tener presente que en callback **traga cualquier error de edición**, no solo "not modified" — por eso solo es apto para ediciones cosméticas: si el mensaje editado confirma un dato ya persistido, corresponde `editOrReply` (§9.4), cuyo fallback a `reply` garantiza que la confirmación llegue.
+
+Tragar no significa perder el rastro: desde 2026-07-22 `replyOrEdit` distingue el motivo igual que `editOrReply`. Solo `"message is not modified"` (el doble-tap) se ignora en silencio; cualquier otro fallo — Markdown roto por un nombre interpolado, mensaje demasiado viejo para editar, 429 — sale como `log.warn` con `module: "helpers/telegram"`, `userId` y `reason`. La diferencia con `editOrReply` sigue siendo el **fallback**, no el logging: `replyOrEdit` no reintenta con `ctx.reply`, así que la pantalla puede no actualizarse nunca. Consecuencia a tener presente al escribir un action handler: si después del `replyOrEdit` se mueve el cursor (`ctx.wizard.selectStep`/`next`), un edit fallido deja el wizard esperando un callback de un teclado que nunca se entregó — el `log.warn` es hoy la única señal de que eso pasó.
 
 ### 9.4 Confirmación después de una escritura — usar `editOrReply`
 
@@ -435,7 +448,15 @@ async function handleConfirmDelete(ctx: KakebotContext): Promise<void> {
 }
 ```
 
-Regla: **write-then-edit → `editOrReply`**. Edición cosmética sin write previo → `editMessageText` directo (o `replyOrEdit` si el handler es dual-context). Referencias: `tax.ts` (`handleMarkAsPaid`), `service.ts` (`handleConfirmDelete`), `card-stmt.scene.ts` (`stepInit` case `pay`).
+Regla: **write-then-edit → `editOrReply`**. Edición cosmética sin write previo → `replyOrEdit`. `ctx.editMessageText` pelado → prohibido (ver tabla al inicio de §9). Referencias: `tax.ts` (`handleMarkAsPaid`), `service.ts` (`handleConfirmDelete`), `card-stmt.scene.ts` (`stepInit` case `pay`).
+
+### 9.5 Premisa asumida por `stepInit`: la entrada al scene siempre llega por callback
+
+Varios `stepInit` (ej. `card-stmt.scene.ts` case `pay`) llaman `replyOrEdit`/`editOrReply` para editar el mensaje que disparó el `ctx.scene.enter(...)`. Esto solo edita en el sentido esperado — el mensaje con el botón que el usuario tocó — porque **hoy toda entrada a `CARD_STMT_SCENE_ID`, `SERVICE_SCENE_ID` y `TAX_SCENE_ID` ocurre desde un `bot.action(...)` (callback)**, nunca desde `bot.on("text", ...)`. Verificado: `bot/handlers/text.ts` solo entra a `BULK_SCENE_ID` y `EXPENSE_SCENE_ID`; ningún camino de texto llama `ctx.scene.enter` para las otras tres escenas.
+
+Esta premisa no está impuesta por ningún tipo, test ni hook — es un invariante de hecho, no de diseño. Si una ruta futura entrara a una de esas escenas desde un handler de texto, el mismo `ctx` no tendría `ctx.callbackQuery`, y `replyOrEdit`/`editOrReply` caerían a su rama `ctx.reply(...)` (mensaje nuevo) en lugar de editar. Consecuencia: el mensaje anterior (con su teclado) queda activo en Telegram **además** del mensaje nuevo — dos teclados simultáneos, justo lo que la decisión del 2026-07-03 ("nunca dos mensajes con botones activos") prohíbe.
+
+**Al agregar una nueva ruta de entrada a estas escenas**: si entra desde `bot.on("text", ...)` o cualquier handler sin `callbackQuery`, no asumir que `replyOrEdit`/`editOrReply` en `stepInit` van a editar algo — van a mandar un mensaje nuevo. Si el paso previo dejó un teclado activo, hay que neutralizarlo explícitamente (editarlo aparte, o rediseñar el entry point) antes de mostrar el prompt del scene.
 
 ---
 
@@ -559,7 +580,8 @@ Importar de los módulos canónicos. No redefinir versiones locales.
 | `getDaysInMonth("YYYY-MM")` | `helpers/format.ts` | Validar día contra el mes seleccionado. |
 | `buildBackdatedTimestamp("YYYY-MM")` | `helpers/format.ts` | Crear Firestore Timestamp para registro retroactivo. |
 | `buildBreadcrumb([...])` | `helpers/breadcrumb.ts` | **Solo en handlers externos al scene** (sección 8.1). Nunca dentro del scene. |
-| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Cuando el handler puede correr desde callback o desde texto. |
+| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Toda edición cosmética en action handlers (§9); también cubre handlers dual-context (callback o texto). |
+| `editOrReply(ctx, text, extra?)` | `helpers/telegram.ts` | Confirmación después de una escritura — write-then-edit (§9.4). |
 | `buildPaymentMethodKeyboard({callbackPrefix})` | `helpers/payment-method.ts` | Teclado de método de pago con prefijo de callback variable. |
 | `log.info`, `log.warn`, `log.error` | `helpers/logger.ts` | Logging estructurado. |
 
@@ -660,9 +682,11 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] Botones: cancelar izquierda, confirmar derecha.
 - [ ] Emojis solo en `✅`/`❌`.
 
-### `editMessageText` vs `reply`
+### Ediciones de mensaje (regla de tres vías, §9)
 - [ ] Steps usan `ctx.reply()`.
-- [ ] Action handlers que consumen un botón usan `ctx.editMessageText()` + `ctx.reply()` para el siguiente paso.
+- [ ] Action handlers que consumen un botón usan `replyOrEdit(ctx, ...)` + `ctx.reply()` para el siguiente paso.
+- [ ] Confirmaciones post-write usan `editOrReply` (§9.4).
+- [ ] **Cero llamadas a `ctx.editMessageText` pelado** (hook `check-raw-edit-message.js` lo bloquea).
 
 ### `scene.leave()`
 - [ ] En salidas normales: mensaje final **antes** del `leave()`.

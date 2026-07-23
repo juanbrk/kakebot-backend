@@ -108,7 +108,8 @@ async function handleMisImpuestos(ctx: Context): Promise<void> {
 
 async function handleAddTax(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Impuestos", "Registrar impuesto"])
       + "*Vas a registrar un nuevo impuesto.*\n_Escribí cancelar para salir._",
     { parse_mode: "Markdown" },
@@ -189,7 +190,8 @@ async function handleRegisterInstallment(ctx: KakebotContext): Promise<void> {
   const tax = await getTaxById(taxId);
   const taxName = tax?.name || "";
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"])
       + `*Vas a registrar una nueva cuota para ${taxName}.*\n_Escribí cancelar para salir._`,
     { parse_mode: "Markdown" },
@@ -212,7 +214,8 @@ async function handlePaidNo(ctx: Context): Promise<void> {
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
   const contextText = `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     contextText + "\n\n" + buildTaxInstallmentDetailText(installment),
     { parse_mode: "Markdown" },
   );
@@ -280,7 +283,7 @@ async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
-  await ctx.editMessageText("*Enviá la foto o PDF del comprobante de pago.*", {
+  await replyOrEdit(ctx, "*Enviá la foto o PDF del comprobante de pago.*", {
     parse_mode: "Markdown",
   });
   await ctx.scene.enter(TAX_SCENE_ID, { installmentId } as TaxWizardState);
@@ -288,7 +291,8 @@ async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
 
 async function handleSkipReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "Listo. Podés adjuntar el comprobante luego desde el menú Impuestos.",
   );
 }
@@ -491,8 +495,15 @@ async function handleBackToTaxHistory(ctx: Context): Promise<void> {
  *
  * @param {Context} ctx - Telegraf context
  * @param {string} taxId - Tax document ID
+ * @param {boolean} isWriteConfirmation - True when this render confirms a write that
+ *   just happened (e.g. updating the payment method); uses `editOrReply` so a failed
+ *   edit falls back to a new message instead of leaving the confirmation unseen.
  */
-async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
+async function showTaxActionView(
+  ctx: Context,
+  taxId: string,
+  isWriteConfirmation = false,
+): Promise<void> {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -546,7 +557,8 @@ async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
     installment && !installment.isPaid ? installment.id : undefined;
   const keyboard = buildTaxActionKeyboard({ taxId, payableInstallmentId });
 
-  await replyOrEdit(ctx, text, {
+  const render = isWriteConfirmation ? editOrReply : replyOrEdit;
+  await render(ctx, text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -567,7 +579,8 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
   const taxName = tax?.name || "";
 
   const keyboard = buildTaxEditOptionsKeyboard(taxId);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Impuestos", taxName, "Modificar"]) +
       "*¿Qué querés modificar?*",
     {
@@ -598,7 +611,8 @@ async function handleChangePaymentMethod(ctx: Context): Promise<void> {
     "Método de pago",
   ]);
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     breadcrumb +
       `*Vas a modificar el método de pago para ${taxName}*\n_Escribí "cancelar" o "salir" para anular._`,
     { parse_mode: "Markdown" },
@@ -629,7 +643,7 @@ async function handleUpdatePaymentMethod(
 ): Promise<void> {
   await ctx.answerCbQuery();
   await updateTaxPaymentMethod({ taxId, paymentMethod });
-  await showTaxActionView(ctx, taxId);
+  await showTaxActionView(ctx, taxId, true);
 }
 
 /**
@@ -653,7 +667,8 @@ async function handleEditInstallmentDueDay(ctx: KakebotContext): Promise<void> {
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
   const maxDay = getDaysInMonth(installment.dueMonth);
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     buildBreadcrumb(["Impuestos", taxName, "Historial", monthLabel]) +
       `*Vas a modificar el vencimiento de la cuota de ${monthLabel}*\n_Escribí "cancelar" para anular._`,
     { parse_mode: "Markdown" },

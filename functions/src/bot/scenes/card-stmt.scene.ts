@@ -5,7 +5,7 @@ import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
 import { log } from "../../helpers/logger";
-import { editOrReply } from "../../helpers/telegram";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import {
   buildCardStmtMonthKeyboard,
   buildCardCurrencyKeyboard,
@@ -102,6 +102,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     break;
 
   case "pay": {
+    // Los renders de abajo asumen entrada por callback (ctx.callbackQuery presente) —
+    // ver wizard-scenes.md §9.5 antes de agregar una ruta de entrada por texto.
     const statementId = state.statementId || "";
     const monthLabel = monthLabelOf(state.statementMonth || "");
     const cardLabel = state.cardLabel || "";
@@ -126,7 +128,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       );
       ctx.wizard.selectStep(PAY_ARS_STEP);
     } else {
-      await ctx.editMessageText(
+      await replyOrEdit(
+        ctx,
         `Estás por marcar como pagado el resumen\n_${monthLabel} · ${cardLabel}_`,
         { parse_mode: "Markdown" },
       );
@@ -833,7 +836,7 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   state.statementMonth = match[2];
 
-  await ctx.editMessageText(`*Seleccionaste ${monthLabelOf(match[2])}*`, { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, `*Seleccionaste ${monthLabelOf(match[2])}*`, { parse_mode: "Markdown" });
   await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
     parse_mode: "Markdown",
     ...buildCardCurrencyKeyboard(),
@@ -856,12 +859,12 @@ async function handleCurrencySelected(ctx: KakebotContext): Promise<void> {
 
   if (currency === "usd") {
     state.amountARS = 0;
-    await ctx.editMessageText("*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
+    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
     ctx.wizard.selectStep(USD_INPUT_STEP);
     return;
   }
 
-  await ctx.editMessageText("*Ingresá el monto de los consumos en pesos*", { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, "*Ingresá el monto de los consumos en pesos*", { parse_mode: "Markdown" });
   ctx.wizard.selectStep(ARS_INPUT_STEP);
 }
 
@@ -922,7 +925,7 @@ async function handleCancel(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   const state = ctx.wizard.state as CardStmtWizardState;
   const cardId = state.cardId || "";
-  await ctx.editMessageText("*Cancelaste la subida del resumen.*", { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, "*Cancelaste la subida del resumen.*", { parse_mode: "Markdown" });
   await ctx.scene.leave();
   // Post-leave re-engagement: show the card's statement list as next navigation point.
   if (cardId) {
@@ -942,7 +945,7 @@ async function handleCancel(ctx: KakebotContext): Promise<void> {
  */
 async function handleAttachPdf(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("*Enviá la foto o PDF del resumen.*", { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, "*Enviá la foto o PDF del resumen.*", { parse_mode: "Markdown" });
 }
 
 /**
@@ -955,7 +958,7 @@ async function handleSkipPdf(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   const state = ctx.wizard.state as CardStmtWizardState;
   const cardId = state.cardId || "";
-  await ctx.editMessageText("Podés adjuntar el resumen luego desde el detalle del resumen.");
+  await replyOrEdit(ctx, "Podés adjuntar el resumen luego desde el detalle del resumen.");
   await ctx.scene.leave();
   // Post-leave re-engagement: show the card's statement list as next navigation point.
   if (cardId) {
@@ -1006,7 +1009,8 @@ async function handlePayCurrencyUSD(ctx: KakebotContext): Promise<void> {
  */
 async function handlePayCurrencyARS(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Ingresá el tipo de cambio al que pagaste los dólares*",
     { parse_mode: "Markdown" },
   );
@@ -1021,7 +1025,7 @@ async function handlePayCurrencyARS(ctx: KakebotContext): Promise<void> {
  */
 async function handlePayAttachARS(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Vas a adjuntar el comprobante de pago en ARS.");
+  await replyOrEdit(ctx, "Vas a adjuntar el comprobante de pago en ARS.");
   await ctx.reply("Enviá la foto o PDF del comprobante de pago en ARS.");
   ctx.wizard.selectStep(PAY_ARS_UPLOAD_STEP);
 }
@@ -1038,7 +1042,7 @@ async function handlePaySkipARS(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
 
-  await ctx.editMessageText("Omitiste cargar el comprobante de pago en ARS.");
+  await replyOrEdit(ctx, "Omitiste cargar el comprobante de pago en ARS.");
 
   if ((state.statementAmountUSD ?? 0) > 0) {
     await ctx.reply(
@@ -1068,7 +1072,7 @@ async function handlePaySkipARS(ctx: KakebotContext): Promise<void> {
  */
 async function handlePayAttachUSD(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Vas a adjuntar el comprobante de pago en USD.");
+  await replyOrEdit(ctx, "Vas a adjuntar el comprobante de pago en USD.");
   await ctx.reply("Enviá la foto o PDF del comprobante de pago en USD.");
   ctx.wizard.selectStep(PAY_USD_UPLOAD_STEP);
 }
@@ -1085,7 +1089,7 @@ async function handlePaySkipUSD(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const statementId = ((ctx as any).match as string[])[1];
 
-  await ctx.editMessageText("Omitiste cargar el comprobante de pago en USD.");
+  await replyOrEdit(ctx, "Omitiste cargar el comprobante de pago en USD.");
 
   try {
     const statement = await getStatementById(statementId);
@@ -1112,7 +1116,8 @@ async function handleEditUsdCurrencyUSD(ctx: KakebotContext): Promise<void> {
   state.usdPaymentCurrency = "usd";
 
   const pendingUSD = state.pendingEditUSD || 0;
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a cambiar el monto en dólares a ${formatUSD(pendingUSD)}. ¿Confirmás?*`,
     {
       parse_mode: "Markdown",
@@ -1138,7 +1143,8 @@ async function handleEditUsdCurrencyARS(ctx: KakebotContext): Promise<void> {
   state.usdPaymentCurrency = "ars";
 
   const pendingUSD = state.pendingEditUSD || 0;
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Monto en USD*: ${formatUSD(pendingUSD)}\n*Ingresá el tipo de cambio al que pagaste los dólares*`,
     { parse_mode: "Markdown" },
   );

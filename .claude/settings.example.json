@@ -26,6 +26,10 @@
           {
             "type": "command",
             "command": "node $PWD/.claude/hooks/check-wizard-scene.js"
+          },
+          {
+            "type": "command",
+            "command": "node $PWD/.claude/hooks/check-raw-edit-message.js"
           }
         ]
       }

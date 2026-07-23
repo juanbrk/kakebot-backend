@@ -5,7 +5,7 @@ import { ServicePaymentMethod } from "../../types/service.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { log } from "../../helpers/logger";
-import { editOrReply } from "../../helpers/telegram";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { buildPaymentMethodKeyboard } from "../../helpers/payment-method";
 import {
   buildFilteredTaxMonthKeyboard,
@@ -424,7 +424,8 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const [year, month] = dueMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Vas a registrar la cuota para ${monthLabel}*`,
     { parse_mode: "Markdown" },
   );
@@ -474,7 +475,8 @@ async function handlePaidNo(ctx: KakebotContext): Promise<void> {
   if (installment) {
     const [year, month] = installment.dueMonth.split("-");
     const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}\n\n`
         + buildTaxInstallmentDetailText(installment),
       { parse_mode: "Markdown" },
@@ -492,7 +494,7 @@ async function handlePaidNo(ctx: KakebotContext): Promise<void> {
  */
 async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("*Enviá la foto o PDF del comprobante de pago.*", {
+  await replyOrEdit(ctx, "*Enviá la foto o PDF del comprobante de pago.*", {
     parse_mode: "Markdown",
   });
 }
@@ -504,7 +506,8 @@ async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
  */
 async function handleSkipReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "Listo. Podés adjuntar el comprobante luego desde el menú Impuestos.",
   );
   await ctx.scene.leave();

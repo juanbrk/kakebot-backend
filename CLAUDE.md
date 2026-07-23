@@ -17,9 +17,10 @@ Household finance management via Telegram bot, powered by Firebase Functions.
 cd functions
 npm run build          # Compile TypeScript
 npm run lint           # ESLint check
-npm run serve          # Build + emulators (functions + firestore)
-firebase deploy --only functions  # Deploy to production
+npm run go             # Menú interactivo: Test (polling/emuladores) o Prod (deploy) — ver shared/workflow.md
 ```
+
+`npm run deploy:test`, `npm run deploy:prod`, `npm run env:*` y `npm run serve` no existen — todo pasa por `npm run go` (`scripts/go.sh`).
 
 ## Rules (auto-loaded from .claude/rules/)
 

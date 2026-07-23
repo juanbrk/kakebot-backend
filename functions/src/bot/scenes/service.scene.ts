@@ -448,7 +448,8 @@ async function handleSkipInstallment(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   const state = ctx.wizard.state as ServiceWizardState;
   const serviceName = state.serviceName || "el servicio";
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `✅ Servicio '${serviceName}' creado sin cuota. Podés agregarla luego desde /servicios.`,
   );
   await ctx.scene.leave();
@@ -491,7 +492,8 @@ async function handleConfirmAddInstallment(ctx: KakebotContext): Promise<void> {
   }
 
   if (availableMonths.length === 0) {
-    await ctx.editMessageText(
+    await replyOrEdit(
+      ctx,
       "No hay meses disponibles para crear cuotas.\n" +
       "Ya tenés cuotas registradas para los próximos 3 meses.",
     );
@@ -501,7 +503,8 @@ async function handleConfirmAddInstallment(ctx: KakebotContext): Promise<void> {
 
   state.availableMonths = availableMonths;
   const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Seleccioná el mes de la nueva cuota.*\n" +
     "Podés crear cuotas solo para meses que aún no tengan una.",
     { parse_mode: "Markdown" },
@@ -528,7 +531,8 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as ServiceWizardState;
   state.selectedMonth = dueMonth;
   const maxDay = getDaysInMonth(dueMonth);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Mes seleccionado:* ${getMonthLabel(dueMonth)}`,
     { parse_mode: "Markdown" },
   );
@@ -771,13 +775,13 @@ serviceScene.hears(CANCEL_REGEX, handleCancelWord);
 
 serviceScene.action("svc_scene_skip_receipt", async (ctx) => {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Podés adjuntar el comprobante luego desde /servicios.");
+  await replyOrEdit(ctx, "Podés adjuntar el comprobante luego desde /servicios.");
   await ctx.scene.leave();
 });
 
 serviceScene.action("svc_scene_skip_invoice", async (ctx) => {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Podés adjuntar la factura luego desde /servicios.");
+  await replyOrEdit(ctx, "Podés adjuntar la factura luego desde /servicios.");
   await ctx.scene.leave();
 });
 

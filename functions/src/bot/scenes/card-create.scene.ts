@@ -2,7 +2,7 @@ import { Scenes } from "telegraf";
 import { KakebotContext, CardCreateWizardState } from "../../types/telegraf-context.types";
 import { CreditCardProcessor } from "../../types/index";
 import { log } from "../../helpers/logger";
-import { editOrReply } from "../../helpers/telegram";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { getMessageText } from "../../helpers/wizard";
 import {
   buildCardProcessorKeyboard,
@@ -149,7 +149,7 @@ async function handleProcessorSelected(ctx: KakebotContext): Promise<void> {
   (ctx.wizard.state as CardCreateWizardState).processor = processor;
 
   const processorLabel = processor === "VISA" ? "Visa" : "MasterCard";
-  await ctx.editMessageText(`*Procesador seleccionado: ${processorLabel}*`, {
+  await replyOrEdit(ctx, `*Procesador seleccionado: ${processorLabel}*`, {
     parse_mode: "Markdown",
   });
   await ctx.reply(
@@ -215,7 +215,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
  */
 async function handleCancel(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText("Operación cancelada.");
+  await replyOrEdit(ctx, "Operación cancelada.");
   await ctx.scene.leave();
 }
 

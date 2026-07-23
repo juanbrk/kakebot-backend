@@ -197,7 +197,7 @@ functions/src/
 │   ├── parse-amount.ts             # Argentine amount parsing + expense message parsing
 │   ├── format.ts                   # formatARS, MONTH_NAMES, buildBackdatedTimestamp
 │   ├── breadcrumb.ts               # buildBreadcrumb — navigation path display
-│   ├── telegram.ts                 # replyOrEdit — helper for ctx.editMessageText/ctx.reply
+│   ├── telegram.ts                 # replyOrEdit + editOrReply — ONLY allowed message-edit helpers
 │   └── bulk-parse.ts               # Bulk message parsing + text builders
 ├── types/index.ts                  # TypeScript interfaces
 ├── middleware/auth.ts               # Express auth middleware (unused by bot)
@@ -248,12 +248,23 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `buildDueDate(year, month, day)` | `helpers/format.ts` | Due-date `Date` anchored at 12:00 UTC — use for any persisted dueDate (service/tax/card installments) to survive process-timezone differences between production (UTC) and local emulator (ART) |
 | `parseArgentineAmount(input)` | `helpers/parse-amount.ts` | Argentine-format string → number |
 | `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` |
-| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message when triggered from a callback, else reply. Ignores "not modified". Use for plain dual-context edits (no preceding write). |
+| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message when triggered from a callback, else reply. Swallows every edit error, but only the double-tap "not modified" is silent — any other reason is logged as `log.warn`. Use for EVERY cosmetic edit (no preceding write): menu navigation, re-rendering screens, consuming a button. |
 | `editOrReply(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message; on any edit failure other than "not modified", fall back to a fresh reply. Use at write-then-edit sites so a failed edit never abandons a flow after data was persisted. |
+
+**Three-way rule for message edits** (enforced by the `check-raw-edit-message.js` PreToolUse hook):
+
+| Case | Use |
+|---|---|
+| Cosmetic edit in a callback handler (no preceding write) | `replyOrEdit` |
+| Confirmation after a write (Firestore/GCS) | `editOrReply` |
+| Bare `ctx.editMessageText` in `bot/handlers/` or `bot/scenes/` | **Forbidden** |
+
+Sole exception: the categorization loop (`services/category.service.ts`) uses low-level `ctx.telegram.editMessageText` targeting a stored `chatId`/`messageId` — not migratable, lives outside the guarded paths. See `wizard-scenes.md §9` for the full semantics.
 
 **Breadcrumb pattern** — every screen that uses `buildBreadcrumb` MUST use `parse_mode: "Markdown"`:
 ```typescript
-await ctx.editMessageText(
+await replyOrEdit(
+  ctx,
   buildBreadcrumb(["Section", "Subsection"]) + "Prompt text",
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },

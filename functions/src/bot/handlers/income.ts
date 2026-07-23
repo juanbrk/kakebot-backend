@@ -1,6 +1,7 @@
 import { Telegraf } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { INCOME_SCENE_ID } from "../scenes/income.scene";
+import { replyOrEdit } from "../../helpers/telegram";
 
 /**
  * Registers the income flow entry points.
@@ -29,7 +30,8 @@ async function handleIncomeCommand(ctx: KakebotContext): Promise<void> {
  */
 async function handleIncomeFromMenu(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     "*Estás registrando un nuevo ingreso*\n" +
       "_Escribí cancelar en cualquier momento para salir._",
     { parse_mode: "Markdown" },

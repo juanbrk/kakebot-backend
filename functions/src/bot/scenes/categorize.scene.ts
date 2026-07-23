@@ -3,6 +3,7 @@ import { KakebotContext, CategorizeWizardState } from "../../types/telegraf-cont
 import { PendingDescEntry } from "../../types/index";
 import { Expense } from "../../types/expense.types";
 import { getDb } from "../../services/db";
+import { replyOrEdit } from "../../helpers/telegram";
 import {
   fetchExpenseCategories,
   assignCategoryToDesc,
@@ -269,7 +270,8 @@ async function handleCatNew(ctx: KakebotContext): Promise<void> {
   const promptKeyboard = Markup.inlineKeyboard([
     [Markup.button.callback("← Volver al listado", "cat_back_to_list")],
   ]);
-  await ctx.editMessageText(
+  await replyOrEdit(
+    ctx,
     `*Nueva categoría para "${state.currentDisplayName}"*:\n\n` +
     "Escribí el nombre de la nueva categoría.\n" +
     "_Escribí \"cancelar\" para salir._",
@@ -358,7 +360,7 @@ async function handleCatBackToList(ctx: KakebotContext): Promise<void> {
     total,
   });
 
-  await ctx.editMessageText(messageText, {
+  await replyOrEdit(ctx, messageText, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
