@@ -528,10 +528,11 @@ async function handleListAllCards(ctx: Context): Promise<void> {
 }
 
 /**
- * Marks a statement as paid. If the statement has a USD component, prompts for the TCV
- * (exchange rate) first via session state; otherwise marks paid immediately and prompts for ARS receipt.
+ * Starts the statement payment flow by entering the card-statement wizard with flow "pay".
+ * The scene handles the TCV (exchange rate) prompt when the statement has a USD component,
+ * otherwise marks it paid and prompts for the ARS receipt.
  *
- * @param {Context} ctx
+ * @param {KakebotContext} ctx
  */
 async function handleMarkStatementAsPaid(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();

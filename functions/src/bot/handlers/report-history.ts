@@ -288,10 +288,10 @@ async function handleRepView(ctx: Context): Promise<void> {
 }
 
 /**
- * Initiates retroactive expense registration for a past month.
- * Sets session state and shows context message + prompt.
+ * Initiates retroactive expense registration for a past month by entering the
+ * expense wizard with the target month preset.
  *
- * @param {Context} ctx - Telegraf context
+ * @param {KakebotContext} ctx - Telegraf context
  */
 async function handleRepExp(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();

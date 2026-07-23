@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-07-23: Cierre del ticket session-state-handler-guard (obsoleto) + limpieza de docs
+
+### Completado
+- Investigación confirmó que el ticket (hook para validar handlers de `SessionState` en `text.ts`) quedó sin objeto: la migración a WizardScene eliminó el union `SessionState` y el despacho global por estado; el hook era inconstruible e innecesario. Cerrado sin implementación.
+- Limpiados dos comentarios JSDoc reliquia que aún describían el difunto "session state"; ahora reflejan la entrada a la scene. Build + lint OK.
+
+### Pendiente
+- Commit (a cargo del usuario).
+
 ## 2026-07-23: Auditoría post-QA — fixes de edición, docs corregidas, y dos follow-ups menores resueltos
 
 ### Completado
