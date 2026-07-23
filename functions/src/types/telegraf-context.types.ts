@@ -32,6 +32,9 @@ export interface TaxWizardState {
   installmentId?: string;
   /** True when entering the scene to edit an existing installment's due day. */
   editDueDay?: boolean;
+  /** True when entering the scene to decide whether to keep or delete an existing
+   * receipt after unmarking an installment as paid. */
+  unpayDecision?: boolean;
 }
 
 /**
