@@ -495,8 +495,15 @@ async function handleBackToTaxHistory(ctx: Context): Promise<void> {
  *
  * @param {Context} ctx - Telegraf context
  * @param {string} taxId - Tax document ID
+ * @param {boolean} isWriteConfirmation - True when this render confirms a write that
+ *   just happened (e.g. updating the payment method); uses `editOrReply` so a failed
+ *   edit falls back to a new message instead of leaving the confirmation unseen.
  */
-async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
+async function showTaxActionView(
+  ctx: Context,
+  taxId: string,
+  isWriteConfirmation = false,
+): Promise<void> {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -550,7 +557,8 @@ async function showTaxActionView(ctx: Context, taxId: string): Promise<void> {
     installment && !installment.isPaid ? installment.id : undefined;
   const keyboard = buildTaxActionKeyboard({ taxId, payableInstallmentId });
 
-  await replyOrEdit(ctx, text, {
+  const render = isWriteConfirmation ? editOrReply : replyOrEdit;
+  await render(ctx, text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -635,7 +643,7 @@ async function handleUpdatePaymentMethod(
 ): Promise<void> {
   await ctx.answerCbQuery();
   await updateTaxPaymentMethod({ taxId, paymentMethod });
-  await showTaxActionView(ctx, taxId);
+  await showTaxActionView(ctx, taxId, true);
 }
 
 /**

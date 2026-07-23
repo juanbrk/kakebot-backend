@@ -450,6 +450,14 @@ async function handleConfirmDelete(ctx: KakebotContext): Promise<void> {
 
 Regla: **write-then-edit → `editOrReply`**. Edición cosmética sin write previo → `replyOrEdit`. `ctx.editMessageText` pelado → prohibido (ver tabla al inicio de §9). Referencias: `tax.ts` (`handleMarkAsPaid`), `service.ts` (`handleConfirmDelete`), `card-stmt.scene.ts` (`stepInit` case `pay`).
 
+### 9.5 Premisa asumida por `stepInit`: la entrada al scene siempre llega por callback
+
+Varios `stepInit` (ej. `card-stmt.scene.ts` case `pay`) llaman `replyOrEdit`/`editOrReply` para editar el mensaje que disparó el `ctx.scene.enter(...)`. Esto solo edita en el sentido esperado — el mensaje con el botón que el usuario tocó — porque **hoy toda entrada a `CARD_STMT_SCENE_ID`, `SERVICE_SCENE_ID` y `TAX_SCENE_ID` ocurre desde un `bot.action(...)` (callback)**, nunca desde `bot.on("text", ...)`. Verificado: `bot/handlers/text.ts` solo entra a `BULK_SCENE_ID` y `EXPENSE_SCENE_ID`; ningún camino de texto llama `ctx.scene.enter` para las otras tres escenas.
+
+Esta premisa no está impuesta por ningún tipo, test ni hook — es un invariante de hecho, no de diseño. Si una ruta futura entrara a una de esas escenas desde un handler de texto, el mismo `ctx` no tendría `ctx.callbackQuery`, y `replyOrEdit`/`editOrReply` caerían a su rama `ctx.reply(...)` (mensaje nuevo) en lugar de editar. Consecuencia: el mensaje anterior (con su teclado) queda activo en Telegram **además** del mensaje nuevo — dos teclados simultáneos, justo lo que la decisión del 2026-07-03 ("nunca dos mensajes con botones activos") prohíbe.
+
+**Al agregar una nueva ruta de entrada a estas escenas**: si entra desde `bot.on("text", ...)` o cualquier handler sin `callbackQuery`, no asumir que `replyOrEdit`/`editOrReply` en `stepInit` van a editar algo — van a mandar un mensaje nuevo. Si el paso previo dejó un teclado activo, hay que neutralizarlo explícitamente (editarlo aparte, o rediseñar el entry point) antes de mostrar el prompt del scene.
+
 ---
 
 ## 10. `ctx.scene.leave()` ordering

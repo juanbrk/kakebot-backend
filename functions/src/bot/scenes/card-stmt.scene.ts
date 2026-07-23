@@ -102,6 +102,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     break;
 
   case "pay": {
+    // Los renders de abajo asumen entrada por callback (ctx.callbackQuery presente) —
+    // ver wizard-scenes.md §9.5 antes de agregar una ruta de entrada por texto.
     const statementId = state.statementId || "";
     const monthLabel = monthLabelOf(state.statementMonth || "");
     const cardLabel = state.cardLabel || "";

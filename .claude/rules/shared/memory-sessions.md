@@ -1,12 +1,15 @@
 # Session Log
 
-## 2026-07-22: Auditoría post-QA — logging de fallos de edición, fix de editOrReply, correcciones de documentación
+## 2026-07-23: Auditoría post-QA — fixes de edición, docs corregidas, y dos follow-ups menores resueltos
 
 ### Completado
-- `replyOrEdit` ya no traga en silencio: loguea el motivo de cualquier fallo de edición real (solo el doble-tap se ignora); auditoría destapó además un bug en `editOrReply` (su fallback repetía el payload ya rechazado por Telegram, pudiendo tirar sin atrapar tras un write) — corregido degradando a texto plano en vez de propagar. Ambos verificados en botitio_testitoBot.
-- Corregido drift de documentación de deploy (`workflow.md`/`hard-walls.md`/`CLAUDE.md` referenciaban scripts npm inexistentes) y formalizado el checklist de sync de hooks entre worktrees en `hooks-error-log.md`.
-- Documentado en `workflow.md` el riesgo de correr el polling desde el worktree equivocado — causó una corrida de QA perdida en esta misma sesión.
-- QA cerrada en botitio_testitoBot validando ambos fixes end-to-end.
+- Los fallos reales de edición ya no pasan desapercibidos, y un bug relacionado quedó corregido; ambos validados en botitio_testitoBot.
+- Corregida documentación de deploy desactualizada y formalizado un checklist de sincronización de hooks entre worktrees.
+- De los 5 follow-ups que había dejado la auditoría, se resolvieron los dos de menor riesgo: un patrón de confirmación inconsistente en dos pantallas compartidas, y una suposición no documentada sobre cómo se entra a ciertos flujos. Build, lint y QA en botitio_testitoBot cerrados (10/10).
+
+### Pendiente
+- Commit (a cargo del usuario).
+- Los otros 3 follow-ups siguen abiertos: uno espera datos de uso real antes de decidir el fix; los otros dos quedan fuera de esta rama.
 
 ### Pendiente
 - Merge a main (a cargo de Juan); post-merge `git pull` en el worktree de main — el hook llega solo, no hace falta copiarlo.

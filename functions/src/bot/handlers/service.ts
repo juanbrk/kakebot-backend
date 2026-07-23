@@ -41,10 +41,14 @@ import { buildBreadcrumb } from "../../helpers/breadcrumb";
  *
  * @param {Context} ctx - Telegraf context
  * @param {string} serviceId - Service document ID
+ * @param {boolean} isWriteConfirmation - True when this render confirms a write that
+ *   just happened (e.g. marking an installment as paid); uses `editOrReply` so a failed
+ *   edit falls back to a new message instead of leaving the confirmation unseen.
  */
 async function showServiceActionView(
   ctx: Context,
   serviceId: string,
+  isWriteConfirmation = false,
 ): Promise<void> {
   const now = new Date();
   const monthStr = String(now.getMonth() + 1).padStart(2, "0");
@@ -83,7 +87,8 @@ async function showServiceActionView(
     isPaid,
   );
 
-  await replyOrEdit(ctx, breadcrumb + title, {
+  const render = isWriteConfirmation ? editOrReply : replyOrEdit;
+  await render(ctx, breadcrumb + title, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -577,7 +582,7 @@ async function handleMarkAsPaidFromService(ctx: Context): Promise<void> {
 
   const hasStoredReceipt = !!installment.receiptUrl;
   if (hasStoredReceipt) {
-    await showServiceActionView(ctx, serviceId);
+    await showServiceActionView(ctx, serviceId, true);
     return;
   }
 
@@ -745,6 +750,14 @@ async function handlePagination(ctx: Context): Promise<void> {
   });
 }
 
+/**
+ * Renders the installment detail view (amount, status, actions). Its sole caller
+ * (`handleMarkAsPaid`) uses this render as the confirmation of a just-persisted write,
+ * so it always edits via `editOrReply` — a failed edit falls back to a new message
+ * instead of leaving the "marked as paid" state unconfirmed.
+ *
+ * @param {ShowInstallmentDetailParams} params - Context, installment ID, and breadcrumb/back-label overrides.
+ */
 export async function showInstallmentDetail({
   ctx,
   installmentId,
@@ -767,7 +780,7 @@ export async function showInstallmentDetail({
     backCallback: `svc_cuotas:${installment.serviceId}`,
     backLabel,
   });
-  await replyOrEdit(ctx, breadcrumb + text, {
+  await editOrReply(ctx, breadcrumb + text, {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -939,7 +952,7 @@ async function handleUpdatePaymentMethod(ctx: Context): Promise<void> {
 
   await updateServicePaymentMethod(serviceId, method);
   await ctx.answerCbQuery("✅ Método de pago actualizado.");
-  await showServiceActionView(ctx, serviceId);
+  await showServiceActionView(ctx, serviceId, true);
 }
 
 /**
