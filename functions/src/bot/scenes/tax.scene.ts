@@ -2,6 +2,7 @@ import { Scenes } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { getMessageText } from "../../helpers/wizard";
 import { ServicePaymentMethod } from "../../types/service.types";
+import { TaxInstallment } from "../../types/tax.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { log } from "../../helpers/logger";
@@ -546,6 +547,35 @@ async function handleSkipReceipt(ctx: KakebotContext): Promise<void> {
 }
 
 /**
+ * Confirms the unmark (mentioning what happened to the receipt) and re-renders the
+ * installment detail, then leaves the scene. Shared tail of both receipt-decision
+ * outcomes (Conservar/Borrar) — the only thing that differs between them is the
+ * already-resolved receipt note.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ * @param {TaxInstallment} installment - The installment being unmarked
+ * @param {string} receiptNote - Sentence describing what happened to the receipt
+ */
+async function resolveUnpayDecision(
+  ctx: KakebotContext,
+  installment: TaxInstallment,
+  receiptNote: string,
+): Promise<void> {
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  await editOrReply(
+    ctx,
+    `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada. `
+    + receiptNote,
+    { parse_mode: "Markdown" },
+  );
+
+  const { text, extra } = buildTaxInstallmentDetailPayload(installment);
+  await ctx.reply(text, extra);
+  await ctx.scene.leave();
+}
+
+/**
  * Keeps the receipt after unmarking, confirms, and re-renders the installment detail.
  *
  * @param {KakebotContext} ctx - Telegraf context
@@ -562,18 +592,7 @@ async function handleUnpayKeepReceipt(ctx: KakebotContext): Promise<void> {
     return;
   }
 
-  const [year, month] = installment.dueMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-  await editOrReply(
-    ctx,
-    `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada. `
-    + "Conservaste el comprobante existente.",
-    { parse_mode: "Markdown" },
-  );
-
-  const { text, extra } = buildTaxInstallmentDetailPayload(installment);
-  await ctx.reply(text, extra);
-  await ctx.scene.leave();
+  await resolveUnpayDecision(ctx, installment, "Conservaste el comprobante existente.");
 }
 
 /**
@@ -611,21 +630,10 @@ async function handleUnpayDeleteReceipt(ctx: KakebotContext): Promise<void> {
     }
   }
 
-  const [year, month] = installment.dueMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
   const receiptNote = receiptDeleted
     ? "Borraste el comprobante existente."
     : "Conservaste el comprobante existente.";
-  await editOrReply(
-    ctx,
-    `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada. `
-    + receiptNote,
-    { parse_mode: "Markdown" },
-  );
-
-  const { text, extra } = buildTaxInstallmentDetailPayload(installment);
-  await ctx.reply(text, extra);
-  await ctx.scene.leave();
+  await resolveUnpayDecision(ctx, installment, receiptNote);
 }
 
 /**
