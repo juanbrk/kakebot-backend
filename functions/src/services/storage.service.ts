@@ -126,3 +126,18 @@ export async function downloadFromUrl(
   const [fileBuffer] = await getBucket().file(filePath).download();
   return { buffer: fileBuffer, extension };
 }
+
+/**
+ * Deletes a stored file from GCS by extracting its object path from the Firebase Storage URL.
+ * Symmetric to downloadFromUrl — parses the same URL structure and removes the object.
+ *
+ * @param {string} url - Firebase Storage URL as stored in Firestore (receiptUrl, etc.)
+ * @return {Promise<void>}
+ */
+export async function deleteFromUrl(url: string): Promise<void> {
+  const parsedUrl = new URL(url);
+  const encodedPath = parsedUrl.pathname.split("/o/")[1];
+  const filePath = decodeURIComponent(encodedPath);
+
+  await getBucket().file(filePath).delete();
+}

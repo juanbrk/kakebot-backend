@@ -199,6 +199,24 @@ export async function markTaxInstallmentAsPaid(
 }
 
 /**
+ * Reverts a tax installment to pending, clearing the payment timestamp.
+ *
+ * @param {string} installmentId - Installment document ID
+ * @return {void}
+ */
+export async function unmarkTaxInstallmentAsPaid(
+  installmentId: string
+): Promise<void> {
+  await getDb()
+    .collection("tax_installments")
+    .doc(installmentId)
+    .update({
+      isPaid: false,
+      paidAt: admin.firestore.FieldValue.delete(),
+    });
+}
+
+/**
  * Saves the GCS receipt URL on a tax installment document.
  *
  * @param {string} installmentId - Installment document ID
@@ -213,6 +231,21 @@ export async function saveTaxReceiptUrl(
     .collection("tax_installments")
     .doc(installmentId)
     .update({ receiptUrl });
+}
+
+/**
+ * Removes the receipt URL from a tax installment document.
+ *
+ * @param {string} installmentId - Installment document ID
+ * @return {void}
+ */
+export async function clearTaxReceiptUrl(
+  installmentId: string
+): Promise<void> {
+  await getDb()
+    .collection("tax_installments")
+    .doc(installmentId)
+    .update({ receiptUrl: admin.firestore.FieldValue.delete() });
 }
 
 /**

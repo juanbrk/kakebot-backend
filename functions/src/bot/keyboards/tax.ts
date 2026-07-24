@@ -1,6 +1,7 @@
 import { Markup } from "telegraf";
 import { Tax, TaxInstallment, BuildTaxInstallmentDetailKeyboardParams, BuildTaxActionKeyboardParams } from "../../types/tax.types";
 import { formatARS, formatDueDateDayMonth, MONTH_NAMES } from "../../helpers/format";
+import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 const TAXES_PER_PAGE = 6;
 
@@ -300,11 +301,29 @@ export function buildTaxInstallmentDetailKeyboard({
   if (isPaid && hasReceipt) {
     rows.push([Markup.button.callback("Descargar comprobante", `tax_dl_rec:${installmentId}`)]);
   }
+  if (isPaid) {
+    rows.push([Markup.button.callback("Marcar como no pagada", `tax_unpay:${installmentId}`)]);
+  }
   rows.push([Markup.button.callback("Cambiar vencimiento", `tax_edit_due:${installmentId}`)]);
 
   rows.push([Markup.button.callback("\u2190 Volver al historial", `tax_back_hist:${taxId}`)]);
 
   return Markup.inlineKeyboard(rows);
+}
+
+/**
+ * Builds the keyboard prompting what to do with the receipt after unmarking an installment.
+ *
+ * @param {string} installmentId - Installment document ID
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildUnpayReceiptDecisionKeyboard(installmentId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Borrar", `tax_unpay_del:${installmentId}`),
+      Markup.button.callback("Conservar", `tax_unpay_keep:${installmentId}`),
+    ],
+  ]);
 }
 
 /**
@@ -326,4 +345,40 @@ export function buildTaxInstallmentDetailText(
     + `*Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}\n`
     + statusLine
   );
+}
+
+/**
+ * Builds the full detail-screen payload (breadcrumb + text + keyboard) for a single
+ * tax installment. For callers that need to send it as a brand-new message — e.g.
+ * after an unrelated edit has already consumed the "edit slot" of the triggering
+ * message — rather than through replyOrEdit/editOrReply.
+ *
+ * @param {TaxInstallment} installment - The installment to display
+ * @return {{ text: string, extra: Record<string, unknown> }} Message text and extra params
+ */
+export function buildTaxInstallmentDetailPayload(
+  installment: TaxInstallment,
+): { text: string; extra: Record<string, unknown> } {
+  const installmentId = installment.id ?? "";
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  const text =
+    buildBreadcrumb(["Impuestos", installment.taxName, "Historial", monthLabel])
+    + buildTaxInstallmentDetailText(installment);
+  const keyboard = buildTaxInstallmentDetailKeyboard({
+    installmentId,
+    isPaid: installment.isPaid,
+    hasReceipt: !!installment.receiptUrl,
+    taxId: installment.taxId,
+  });
+
+  return {
+    text,
+    extra: {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    },
+  };
 }

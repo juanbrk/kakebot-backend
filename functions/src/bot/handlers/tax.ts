@@ -1,6 +1,7 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
+import { TaxInstallment } from "../../types/tax.types";
 import { formatARS, formatDueDateDayMonth, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -17,6 +18,7 @@ import {
   getTaxInstallmentById,
   getTaxInstallmentsByTaxId,
   markTaxInstallmentAsPaid,
+  unmarkTaxInstallmentAsPaid,
   updateTaxPaymentMethod,
 } from "../../services/tax.service";
 import { downloadFromUrl } from "../../services/storage.service";
@@ -29,8 +31,9 @@ import {
   buildTaxEditOptionsKeyboard,
   buildTaxReceiptPromptKeyboard,
   buildTaxInstallmentHistoryKeyboard,
-  buildTaxInstallmentDetailKeyboard,
   buildTaxInstallmentDetailText,
+  buildTaxInstallmentDetailPayload,
+  buildUnpayReceiptDecisionKeyboard,
 } from "../keyboards/tax";
 
 /**
@@ -49,6 +52,7 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^tax_pick:(.+)$/, handlePickTaxForAction);
   bot.action(/^tax_reg:(.+)$/, handleRegisterInstallment);
   bot.action(/^tax_pay:(.+)$/, handleMarkAsPaid);
+  bot.action(/^tax_unpay:(.+)$/, handleUnmarkAsPaid);
   bot.action(/^tax_paid_no:(.+)$/, handlePaidNo);
   bot.action(/^tax_paid_yes:(.+)$/, handlePaidYes);
   bot.action(/^tax_attach:(.+)$/, handleAttachReceipt);
@@ -251,7 +255,9 @@ async function handlePaidYes(ctx: Context): Promise<void> {
 }
 
 /**
- * Marks a tax installment as paid and prompts for a receipt.
+ * Marks a tax installment as paid and prompts for a receipt, unless the installment
+ * already carries a receipt from a previous pay→unmark→keep cycle, in which case the
+ * prompt is skipped entirely.
  * Enters the tax scene at the receipt guard step so stray text/photos are
  * validated instead of falling through to the global expense parser.
  *
@@ -262,7 +268,22 @@ async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
+  const installment = await getTaxInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("Cuota no encontrada.");
+    return;
+  }
+
   await markTaxInstallmentAsPaid(installmentId);
+
+  if (installment.receiptUrl) {
+    await editOrReply(
+      ctx,
+      "✅ Cuota marcada como pagada. Ya tenías un comprobante cargado para esta cuota.",
+      { parse_mode: "Markdown" },
+    );
+    return;
+  }
 
   await editOrReply(ctx, "✅ Cuota marcada como pagada.", {
     parse_mode: "Markdown",
@@ -383,6 +404,22 @@ async function handleTaxHistoryPagination(ctx: Context): Promise<void> {
 }
 
 /**
+ * Renders the single-installment detail screen (breadcrumb, status, and actions).
+ * Used for plain navigation into the detail view (no preceding write).
+ *
+ * @param {Context} ctx - Telegraf context
+ * @param {TaxInstallment} installment - The installment to display
+ * @return {void}
+ */
+async function renderTaxInstallmentDetail(
+  ctx: Context,
+  installment: TaxInstallment,
+): Promise<void> {
+  const { text, extra } = buildTaxInstallmentDetailPayload(installment);
+  await replyOrEdit(ctx, text, extra);
+}
+
+/**
  * Shows the detail view for a single tax installment from the history.
  *
  * @param {Context} ctx - Telegraf context
@@ -398,24 +435,61 @@ async function handleTaxInstallmentDetail(ctx: Context): Promise<void> {
     return;
   }
 
-  const taxName = installment.taxName;
+  await renderTaxInstallmentDetail(ctx, installment);
+}
+
+/**
+ * Reverts a paid installment to pending. If it had a receipt, shows context about the
+ * invalidated payment and enters the tax scene to decide whether to keep or delete the
+ * receipt (guarding stray text/photos against the global expense parser); otherwise
+ * confirms and re-renders the detail immediately.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleUnmarkAsPaid(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+
+  await unmarkTaxInstallmentAsPaid(installmentId);
+
+  const installment = await getTaxInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("Cuota no encontrada.");
+    return;
+  }
+
   const [year, month] = installment.dueMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  const text =
-    buildBreadcrumb(["Impuestos", taxName, "Historial", monthLabel]) +
-    buildTaxInstallmentDetailText(installment);
-  const keyboard = buildTaxInstallmentDetailKeyboard({
-    installmentId,
-    isPaid: installment.isPaid,
-    hasReceipt: !!installment.receiptUrl,
-    taxId: installment.taxId,
-  });
-  await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
+  if (!installment.receiptUrl) {
+    await editOrReply(
+      ctx,
+      `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada`,
+      { parse_mode: "Markdown" },
+    );
+    const { text, extra } = buildTaxInstallmentDetailPayload(installment);
+    await ctx.reply(text, extra);
+    return;
+  }
+
+  await editOrReply(
+    ctx,
+    `Estás por invalidar el pago de la cuota del mes ${monthLabel} de ${installment.taxName}`,
+    { parse_mode: "Markdown" },
+  );
+
+  const keyboard = buildUnpayReceiptDecisionKeyboard(installmentId);
+  await ctx.reply(
+    "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    },
+  );
+
+  await ctx.scene.enter(TAX_SCENE_ID, { installmentId, unpayDecision: true } as TaxWizardState);
 }
 
 /**

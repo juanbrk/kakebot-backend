@@ -2,6 +2,7 @@ import { Scenes } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { getMessageText } from "../../helpers/wizard";
 import { ServicePaymentMethod } from "../../types/service.types";
+import { TaxInstallment } from "../../types/tax.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { log } from "../../helpers/logger";
@@ -12,6 +13,8 @@ import {
   buildTaxPaidPromptKeyboard,
   buildTaxReceiptPromptKeyboard,
   buildTaxInstallmentDetailText,
+  buildTaxInstallmentDetailPayload,
+  buildUnpayReceiptDecisionKeyboard,
 } from "../keyboards/tax";
 import {
   createTax,
@@ -21,8 +24,9 @@ import {
   markTaxInstallmentAsPaid,
   saveTaxReceiptUrl,
   updateTaxInstallmentDueDay,
+  clearTaxReceiptUrl,
 } from "../../services/tax.service";
-import { uploadTaxReceipt } from "../../services/storage.service";
+import { uploadTaxReceipt, deleteFromUrl } from "../../services/storage.service";
 import { downloadFile } from "../handlers/photo";
 
 export const TAX_SCENE_ID = "tax-wizard";
@@ -33,6 +37,7 @@ const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
 const AMOUNT_STEP = 4;
 const RECEIPT_GUARD_STEP = 7;
 const EDIT_DUE_DAY_STEP = 8;
+const UNPAY_DECISION_STEP = 9;
 
 
 /**
@@ -71,6 +76,13 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     // Edit-installment-due-day entry from the installment detail view.
     // The prompt is sent by handleEditInstallmentDueDay before entering; just park at the edit step.
     ctx.wizard.selectStep(EDIT_DUE_DAY_STEP);
+    return;
+  }
+
+  if (state.unpayDecision && state.installmentId) {
+    // Receipt keep/delete decision entry from handleUnmarkAsPaid — the Conservar/Borrar
+    // keyboard was already shown by the handler before entering; just park here.
+    ctx.wizard.selectStep(UNPAY_DECISION_STEP);
     return;
   }
 
@@ -353,6 +365,27 @@ async function stepHandleEditInstallmentDueDay(ctx: KakebotContext): Promise<voi
   }
 }
 
+/**
+ * Step 9: cursor guard — fires when user sends text while the receipt keep/delete
+ * keyboard is showing.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function stepGuardUnpayDecision(ctx: KakebotContext): Promise<void> {
+  const state = ctx.wizard.state as TaxWizardState;
+  const installmentId = state.installmentId ?? "";
+  await ctx.reply("Usá los botones para indicar qué hacer con el comprobante.");
+  const keyboard = buildUnpayReceiptDecisionKeyboard(installmentId);
+  await ctx.reply(
+    "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+    {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: keyboard.reply_markup as any,
+    },
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Action handlers (independent of step cursor)
 // ---------------------------------------------------------------------------
@@ -514,6 +547,96 @@ async function handleSkipReceipt(ctx: KakebotContext): Promise<void> {
 }
 
 /**
+ * Confirms the unmark (mentioning what happened to the receipt) and re-renders the
+ * installment detail, then leaves the scene. Shared tail of both receipt-decision
+ * outcomes (Conservar/Borrar) — the only thing that differs between them is the
+ * already-resolved receipt note.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ * @param {TaxInstallment} installment - The installment being unmarked
+ * @param {string} receiptNote - Sentence describing what happened to the receipt
+ */
+async function resolveUnpayDecision(
+  ctx: KakebotContext,
+  installment: TaxInstallment,
+  receiptNote: string,
+): Promise<void> {
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  await editOrReply(
+    ctx,
+    `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada. `
+    + receiptNote,
+    { parse_mode: "Markdown" },
+  );
+
+  const { text, extra } = buildTaxInstallmentDetailPayload(installment);
+  await ctx.reply(text, extra);
+  await ctx.scene.leave();
+}
+
+/**
+ * Keeps the receipt after unmarking, confirms, and re-renders the installment detail.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleUnpayKeepReceipt(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+
+  const installment = await getTaxInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("Cuota no encontrada.");
+    await ctx.scene.leave();
+    return;
+  }
+
+  await resolveUnpayDecision(ctx, installment, "Conservaste el comprobante existente.");
+}
+
+/**
+ * Deletes the receipt (GCS object + Firestore field) after unmarking, confirms, and
+ * re-renders the installment detail. On failure the receipt is kept and the user is
+ * notified, but the flow still confirms and re-renders.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleUnpayDeleteReceipt(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+
+  const installment = await getTaxInstallmentById(installmentId);
+  if (!installment) {
+    await ctx.reply("Cuota no encontrada.");
+    await ctx.scene.leave();
+    return;
+  }
+
+  let receiptDeleted = false;
+  if (installment.receiptUrl) {
+    try {
+      await deleteFromUrl(installment.receiptUrl);
+      await clearTaxReceiptUrl(installmentId);
+      installment.receiptUrl = undefined;
+      receiptDeleted = true;
+    } catch (error) {
+      log.error("Error deleting tax receipt", error, {
+        module: "tax.scene",
+        userId: ctx.from?.id.toString() ?? "",
+      });
+      await ctx.reply("❌ No se pudo borrar el comprobante. Intentá de nuevo.");
+    }
+  }
+
+  const receiptNote = receiptDeleted
+    ? "Borraste el comprobante existente."
+    : "Conservaste el comprobante existente.";
+  await resolveUnpayDecision(ctx, installment, receiptNote);
+}
+
+/**
  * Re-presents the prompt for the current wizard step when an unexpected file is received.
  *
  * @param {KakebotContext} ctx - Telegraf context
@@ -524,7 +647,17 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
 
   switch (ctx.wizard.cursor) {
   case 0: {
-    if (state.taxId && !state.selectedMonth) {
+    if (state.unpayDecision && state.installmentId) {
+      const keyboard = buildUnpayReceiptDecisionKeyboard(state.installmentId);
+      await ctx.reply(
+        "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+        {
+          parse_mode: "Markdown",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          reply_markup: keyboard.reply_markup as any,
+        },
+      );
+    } else if (state.taxId && !state.selectedMonth) {
       const availableMonths = await getAvailableMonthsForTax(state.taxId);
       const monthKeyboard = buildFilteredTaxMonthKeyboard(availableMonths, state.taxId);
       await ctx.reply(
@@ -595,6 +728,19 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     );
     break;
   }
+  case UNPAY_DECISION_STEP: {
+    const installmentId = state.installmentId ?? "";
+    const keyboard = buildUnpayReceiptDecisionKeyboard(installmentId);
+    await ctx.reply(
+      "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+      {
+        parse_mode: "Markdown",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reply_markup: keyboard.reply_markup as any,
+      },
+    );
+    break;
+  }
   default:
     break;
   }
@@ -612,7 +758,7 @@ async function handleReceiptPhoto(ctx: KakebotContext): Promise<void> {
   // Accept photo at RECEIPT_GUARD_STEP (normal post-paid flow) OR on receipt-only entry
   // (Flujo 3: installmentId pre-set, no taxId/selectedMonth — cursor stays at 0
   // because selectStep(RECEIPT_GUARD_STEP) in stepInit doesn't persist across updates reliably).
-  const isReceiptOnlyEntry = !!installmentId && !state.taxId && !state.selectedMonth;
+  const isReceiptOnlyEntry = !!installmentId && !state.taxId && !state.selectedMonth && !state.unpayDecision;
   if (ctx.wizard.cursor !== RECEIPT_GUARD_STEP && !isReceiptOnlyEntry) {
     await repromptCurrentStep(ctx);
     return;
@@ -658,7 +804,7 @@ async function handleReceiptDocument(ctx: KakebotContext): Promise<void> {
   const installmentId = state.installmentId ?? "";
 
   // Same receipt-only entry check as handleReceiptPhoto.
-  const isReceiptOnlyEntry = !!installmentId && !state.taxId && !state.selectedMonth;
+  const isReceiptOnlyEntry = !!installmentId && !state.taxId && !state.selectedMonth && !state.unpayDecision;
   if (ctx.wizard.cursor !== RECEIPT_GUARD_STEP && !isReceiptOnlyEntry) {
     await repromptCurrentStep(ctx);
     return;
@@ -717,6 +863,7 @@ export const taxScene = new Scenes.WizardScene<KakebotContext>(
   stepGuardPaidDecision,
   stepGuardReceipt,
   stepHandleEditInstallmentDueDay,
+  stepGuardUnpayDecision,
 );
 
 taxScene.hears(CANCEL_REGEX, handleCancelWord);
@@ -730,5 +877,7 @@ taxScene.action(/^tax_paid_yes:(.+)$/, handlePaidYes);
 taxScene.action(/^tax_paid_no:(.+)$/, handlePaidNo);
 taxScene.action(/^tax_attach:(.+)$/, handleAttachReceipt);
 taxScene.action("tax_skip_receipt", handleSkipReceipt);
+taxScene.action(/^tax_unpay_keep:(.+)$/, handleUnpayKeepReceipt);
+taxScene.action(/^tax_unpay_del:(.+)$/, handleUnpayDeleteReceipt);
 taxScene.on("photo", handleReceiptPhoto);
 taxScene.on("document", handleReceiptDocument);

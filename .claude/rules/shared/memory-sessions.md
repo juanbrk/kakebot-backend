@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-07-23: Desmarcar cuota de impuesto pagada, con sub-flujo de comprobante
+
+### Completado
+- Nuevo botón "Marcar como no pagada" en el detalle de cuota de impuesto (Historial): revierte a Pendiente. Si tenía comprobante, sub-flujo Conservar/Borrar (borrado también en GCS), migrado a WizardScene tras QA para que no caiga al parser de gastos ni deje botones clickeables indefinidamente.
+- Introduce el patrón "unmark" y el primer borrado en GCS del proyecto; "Marcar como pagado" saltea el prompt de comprobante si ya había uno.
+- Dos rondas de QA (10+4 casos) cerradas: textos de contexto ajustados, QA #8 confirmado como comportamiento esperado (no bug); dos observaciones de una QA de seguimiento (botones Conservar/Borrar desaparecen tras resolverse, comprobante oculto mientras la cuota no está pagada) confirmadas como comportamiento esperado, no bugs.
+- Duplicación entre las dos ramas de la decisión Conservar/Borrar extraída a un helper compartido (`resolveUnpayDecision`); de paso se corrigió que el primer commit de la rama había quedado incompleto (dos funciones de `tax.service.ts` referenciadas por el handler y la escena pero nunca exportadas — el build no compilaba desde ese commit en soledad).
+- Build + lint OK en todo momento.
+
+### Pendiente
+- Ninguno — a la espera del commit final de Juan.
+
 ## 2026-07-23: Cierre del ticket session-state-handler-guard (obsoleto) + limpieza de docs
 
 ### Completado
