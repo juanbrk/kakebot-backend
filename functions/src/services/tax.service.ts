@@ -272,6 +272,32 @@ export async function getTaxInstallmentsByTaxId(
 }
 
 /**
+ * Returns every unpaid tax installment for a user, across all taxes.
+ * Feeds the receipt-attachment pickers: the installment document already carries `taxName`,
+ * so a single query supplies both the tax selector and the installment selector.
+ *
+ * @param {string} telegramUserId - User's Telegram ID
+ * @return {TaxInstallment[]} Unpaid installments sorted by taxName, then dueMonth ascending
+ */
+export async function getUnpaidTaxInstallmentsByUser(
+  telegramUserId: string
+): Promise<TaxInstallment[]> {
+  const snapshot = await getDb()
+    .collection("tax_installments")
+    .where("telegramUserId", "==", telegramUserId)
+    .where("isPaid", "==", false)
+    .get();
+
+  const installments = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Omit<TaxInstallment, "id">),
+  }));
+
+  return installments.sort((a, b) =>
+    a.taxName.localeCompare(b.taxName) || a.dueMonth.localeCompare(b.dueMonth));
+}
+
+/**
  * Returns unpaid tax installments for a user due within the next N days, ordered by dueDate ascending.
  *
  * @param {string} telegramUserId - User's Telegram ID

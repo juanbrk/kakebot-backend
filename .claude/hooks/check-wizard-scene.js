@@ -6,7 +6,7 @@
  * Activates on Edit|Write of files matching functions/src/bot/scenes/*.scene.ts.
  *
  * Checks (all must pass; first failure blocks the operation):
- *  1. Imports getMessageText from helpers/wizard
+ *  1. Imports getMessageText from helpers/wizard (only if the scene reads message text)
  *  2. CANCEL_REGEX declared with canonical literal
  *  3. Exports [DOMAIN]_SCENE_ID with "-wizard" suffix
  *  4. Registers scene.hears(CANCEL_REGEX, ...)
@@ -91,9 +91,14 @@ function findViolations(content, filePath) {
   const violations = [];
   const stripped = stripStringsAndComments(content);
 
-  // 1. Import getMessageText from helpers/wizard
+  // 1. Import getMessageText from helpers/wizard — only for scenes that read incoming text.
+  // Keyboard-only scenes (doc-router, bulk, tax-receipt) never touch message text, so requiring
+  // the import there would only add a dead import. The rule's intent is to stop scenes from
+  // hand-rolling text extraction, so it applies exactly when the scene reads text.
+  const readsMessageText =
+    /getMessageText\s*\(/.test(stripped) || /ctx\.message[^\n]*\.text/.test(stripped);
   const importsGetMessageText = /import\s*\{[^}]*\bgetMessageText\b[^}]*\}\s*from\s*['"][^'"]*helpers\/wizard['"]/.test(content);
-  if (!importsGetMessageText) {
+  if (readsMessageText && !importsGetMessageText) {
     violations.push(
       "[import] Missing import: `getMessageText` must be imported from `helpers/wizard` " +
       "(reglamento §12). Add: import { getMessageText } from \"../../helpers/wizard\";"

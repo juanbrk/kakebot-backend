@@ -17,6 +17,28 @@ Aplica a cualquier hook `PreToolUse`/`PostToolUse` nuevo creado desde un worktre
 
 ---
 
+## 2026-07-27: check-wizard-scene.js — el chequeo #1 pasa a ser condicional
+
+**Status:** ✅ Implementado
+
+El chequeo #1 exigía el import de `getMessageText` en **toda** `*.scene.ts`, incluso en las que nunca leen texto entrante. Consecuencia: `doc-router.scene.ts` y `bulk.scene.ts` (100% teclado, sin steps de texto) quedaban imposibles de editar — el hook las bloqueaba por no importar un helper que no tienen dónde usar. La única salida era agregar un import muerto, que además dispara un warning de `@typescript-eslint/no-unused-vars`.
+
+**Ajuste:** el chequeo ahora exige el import solo cuando la escena efectivamente lee texto del mensaje:
+
+```js
+const readsMessageText =
+  /getMessageText\s*\(/.test(stripped) || /ctx\.message[^\n]*\.text/.test(stripped);
+if (readsMessageText && !importsGetMessageText) { /* violación */ }
+```
+
+Preserva la intención real de `wizard-scenes.md §12` — que ninguna escena redefina ni puentee el helper para extraer texto — sin imponer ceremonia a las escenas que solo manejan teclados y archivos.
+
+**Testing:** exit 0 contra `doc-router.scene.ts`, `bulk.scene.ts`, `tax.scene.ts` e `invoice.scene.ts` tal como están hoy; exit 2 contra `tax.scene.ts` con el import removido (sigue leyendo texto vía `getMessageText`).
+
+**Detectado en:** rama `improv/recibo-incluir-comprobantes-impuestos-al-flujo`, al necesitar agregar un paso al `doc-router.scene.ts`.
+
+---
+
 ## 2026-07-16: check-raw-edit-message.js — prohibir .editMessageText pelado en handlers y scenes
 
 **Status:** ✅ Implementado
@@ -38,7 +60,7 @@ Hook PreToolUse `Edit|Write` que bloquea cualquier Edit/Write que introduzca `.e
 Hook PreToolUse `Edit|Write` que valida la estructura mínima de archivos `functions/src/bot/scenes/*.scene.ts` contra el reglamento `shared/wizard-scenes.md`.
 
 Chequeos:
-1. Importa `getMessageText` desde `helpers/wizard`
+1. Importa `getMessageText` desde `helpers/wizard` — **solo si la escena lee texto entrante** (ver ajuste 2026-07-27)
 2. Define `CANCEL_REGEX` con literal canónico (`/^\s*(salir|cancelar|terminar|stop)\s*$/i`)
 3. Exporta `[DOMAIN]_SCENE_ID` con sufijo `-wizard`
 4. Registra `scene.hears(CANCEL_REGEX, ...)`

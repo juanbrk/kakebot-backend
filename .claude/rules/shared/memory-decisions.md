@@ -1,5 +1,13 @@
 # Decisions Log
 
+## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo — paso de entidad en el doc-router + escena dedicada
+
+- **Diseño**: al elegir "Comprobante" en el doc-router se agrega un paso nuevo — ¿a qué entidad pertenece? (Servicios/Impuestos) — en vez del tercer botón que pedía el ticket original; Impuestos entra a una escena nueva (`tax-receipt.scene.ts`) porque las dos escenas existentes eran service-céntrica o ya tenían un heurístico frágil que hubiera chocado. Los selectores muestran solo impuestos con cuotas pendientes y cuotas no pagadas, confirmando siempre ambos pasos aunque haya un solo candidato; una sola query cubre los dos selectores sin índice nuevo.
+- **De paso** se corrigieron dos problemas de tooling (el hook de escenas bloqueaba editar flujos 100% teclado; los hooks de Claude Code solo corrían en el checkout de main, no en otros worktrees) y un bug heredado de formato de fecha.
+- **QA cerrada**: dos hallazgos menores aceptados sin fix por ser bajo riesgo con un único usuario (UI obsoleta que podría re-marcar una cuota; falta de escaping de Markdown rompiendo un nombre de impuesto con `_`); una variante más severa del segundo (crash sin capturar, en un archivo fuera de esta rama) se derivó a un ticket propio en Trello.
+- **Hallazgo de arquitectura** documentado en `wizard-scenes.md §7.3`: `scene.enter()` corre el composer de la escena antes que el step runner sobre el mismo update — causó un bug intermedio (aviso de reemplazo de archivo disparando también en la entrada) ya corregido.
+- Build + lint limpios (125 warnings = baseline). QA cerrada.
+
 ## 2026-07-23: Desmarcar cuota de impuesto pagada — patrón "unmark", borrado en GCS, y decisión Conservar/Borrar en WizardScene
 
 - **Feature**: botón "Marcar como no pagada" (renombrado de "Desmarcar como pagado" por QA) en el detalle de cuota de impuesto revierte `isPaid`/`paidAt`, acción inmediata sin confirmación (convención: yes/no solo para borrados irreversibles). Si la cuota tenía comprobante, sub-flujo Conservar/Borrar (borra también en GCS); "Marcar como pagado" saltea el prompt de adjuntar si la cuota ya tiene `receiptUrl` (espeja `service.ts`).

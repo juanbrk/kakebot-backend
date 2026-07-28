@@ -62,14 +62,14 @@ export function buildDueDate(year: number, month: number, day: number): Date {
  *
  * @param {string} dueMonth - Month in "YYYY-MM" format
  * @param {boolean} monthNameOnly - If true, returns only the month name (e.g. "Abril");
- *   otherwise appends the year (e.g. "Abril2026")
+ *   otherwise appends the year (e.g. "Abril 2026")
  * @return {string} Formatted month label
  */
 export function getMonthLabel(dueMonth: string, monthNameOnly = false): string {
   const [year, month] = dueMonth.split("-");
   const monthIndex = parseInt(month, 10) - 1;
   const monthName = MONTH_NAMES[monthIndex];
-  return monthNameOnly ? monthName : `${monthName}${year}`;
+  return monthNameOnly ? monthName : `${monthName} ${year}`;
 }
 
 /**

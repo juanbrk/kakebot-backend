@@ -74,6 +74,18 @@ export interface InvoiceWizardState {
 }
 
 /**
+ * Persistent state for the tax-receipt wizard, held in `ctx.wizard.state`.
+ * Always entered from the doc-router scene with `pendingFileId` and `pendingFileType` pre-set;
+ * `taxId`/`taxName` are filled once the user picks a tax from the first selector.
+ */
+export interface TaxReceiptWizardState {
+  pendingFileId: string;
+  pendingFileType: PendingFileType;
+  taxId?: string;
+  taxName?: string;
+}
+
+/**
  * Persistent state for the categorize wizard, held in `ctx.wizard.state`.
  * All loop state (pending descriptions, session expenses, message context)
  * is stored here and persisted via the Telegraf session middleware.

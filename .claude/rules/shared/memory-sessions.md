@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo
+
+### Completado
+- Enviar una foto/PDF y elegir "Comprobante" ahora pregunta si es de Servicios o de Impuestos; Impuestos es el flujo nuevo (elegir impuesto → cuota pendiente → queda adjunto y la cuota pagada), Servicios sigue igual.
+- QA cerrada por completo, incluidos dos casos borde aceptados sin fix (bajo riesgo con un único usuario) y uno derivado a un ticket aparte fuera de esta rama.
+- De paso se corrigieron dos bugs de tooling y uno de UX encontrados en el camino.
+- Build + lint OK.
+
+### Pendiente
+- Los commits, a cargo de Juan.
+
 ## 2026-07-23: Desmarcar cuota de impuesto pagada, con sub-flujo de comprobante
 
 ### Completado
