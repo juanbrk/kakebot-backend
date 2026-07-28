@@ -86,6 +86,17 @@ export function formatDueDateDayMonth(dueDate: admin.firestore.Timestamp): strin
 }
 
 /**
+ * Builds a bullet list of entity names, used as the body of a section submenu
+ * message so the user can tell at a glance which entities already exist.
+ *
+ * @param {string[]} names - Entity names, in the order they should be displayed
+ * @return {string} One "• name" line per entry, newline-separated
+ */
+export function buildNameListText(names: string[]): string {
+  return names.map((name) => `• ${name}`).join("\n");
+}
+
+/**
  * Formats a number as USD currency string using Argentine locale conventions.
  *
  * @param {number} amount - Dollar amount to format

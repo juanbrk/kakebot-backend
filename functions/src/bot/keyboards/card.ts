@@ -314,7 +314,7 @@ export function buildCardConfirmText(params: CardConfirmTextParams): string {
 export function buildCardsHubKeyboard() {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback("Mis tarjetas", "card_select"),
+      Markup.button.callback("Seleccionar tarjeta", "card_select"),
       Markup.button.callback("Ver como listado", "card_list_view"),
     ],
     [Markup.button.callback("Añadir tarjeta", "card_add")],

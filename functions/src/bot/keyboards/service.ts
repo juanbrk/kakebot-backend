@@ -23,21 +23,22 @@ export function buildServicesSubmenuKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Añadir servicio", "svc_add")],
     [Markup.button.callback("Seleccionar servicio", "svc_view")],
-    [Markup.button.callback("Mis servicios", "svc_my_services")],
+    [Markup.button.callback("Próximos vencimientos", "svc_upcoming")],
     [Markup.button.callback("\u2190 Volver al menú", "menu_back")],
   ]);
 }
 
 /**
- * Builds the "Mis servicios" submenu keyboard with list and upcoming options.
+ * Builds the services section submenu keyboard for the empty state
+ * (user has no services registered): omits every option that needs an
+ * existing service to be useful.
  *
  * @return {Markup} Inline keyboard markup
  */
-export function buildMyServicesSubmenuKeyboard() {
+export function buildServicesEmptyStateKeyboard() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback("Listar servicios", "svc_list")],
-    [Markup.button.callback("Próximos vencimientos", "svc_upcoming")],
-    [Markup.button.callback("\u2190 Volver a servicios", "menu_servicios")],
+    [Markup.button.callback("Añadir servicio", "svc_add")],
+    [Markup.button.callback("\u2190 Volver al menú", "menu_back")],
   ]);
 }
 
@@ -221,118 +222,6 @@ export function buildDeleteConfirmKeyboard(serviceId: string) {
       Markup.button.callback("Eliminar", `svc_delete_yes:${serviceId}`),
     ],
   ]);
-}
-
-/**
- * Builds the "Mis servicios" text grouped into 4 sections:
- * Próximos a vencer, Pagados, Pendientes, Sin cuota.
- * Empty sections are omitted. Within each section items are sorted by dueDate ascending.
- *
- * @param {Service[]} services - All services for the user
- * @param {Record<string, ServiceInstallment | null>} installmentsByServiceId - Current-month installment per service
- * @param {Date} today - Reference date to compute the 7-day upcoming threshold
- * @return {string} Formatted Markdown text with section headers
- */
-export function buildServiceViewText(
-  services: Service[],
-  installmentsByServiceId: Record<string, ServiceInstallment | null>,
-  today: Date,
-): string {
-  if (services.length === 0) {
-    return "No hay servicios registrados.\nUsa /servicios para crear uno.";
-  }
-
-  const UPCOMING_DAYS = 7;
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-  const threshold = new Date(today);
-  threshold.setDate(threshold.getDate() + UPCOMING_DAYS);
-  threshold.setHours(23, 59, 59, 999);
-
-  type Entry = { service: Service; installment: ServiceInstallment };
-
-  const overdueEntries: Entry[] = [];
-  const upcomingEntries: Entry[] = [];
-  const paidEntries: Entry[] = [];
-  const pendingEntries: Entry[] = [];
-  const noInstallmentNames: string[] = [];
-
-  services.forEach((service) => {
-    const installment = installmentsByServiceId[service.id || ""];
-    if (!installment) {
-      noInstallmentNames.push(service.name);
-      return;
-    }
-    if (installment.isPaid) {
-      paidEntries.push({ service, installment });
-    } else if (installment.dueDate.toDate() < todayStart) {
-      overdueEntries.push({ service, installment });
-    } else if (installment.dueDate.toDate() <= threshold) {
-      upcomingEntries.push({ service, installment });
-    } else {
-      pendingEntries.push({ service, installment });
-    }
-  });
-
-  const byDueDate = (a: Entry, b: Entry) =>
-    a.installment.dueDate.toDate().getTime() -
-    b.installment.dueDate.toDate().getTime();
-
-  overdueEntries.sort(byDueDate);
-  upcomingEntries.sort(byDueDate);
-  paidEntries.sort(byDueDate);
-  pendingEntries.sort(byDueDate);
-
-  const formatLine = (
-    service: Service,
-    installment: ServiceInstallment,
-  ): string => {
-    const dueDate = installment.dueDate.toDate();
-    const day = String(dueDate.getDate()).padStart(2, "0");
-    const month = String(dueDate.getMonth() + 1).padStart(2, "0");
-    return installment.isPaid
-      ? `• ${service.name}  ${formatARS(installment.amount)} ✅`
-      : `• ${service.name}  ${formatARS(installment.amount)} (venció ${day}/${month})`;
-  };
-
-  const sections: string[] = [];
-
-  if (overdueEntries.length > 0) {
-    sections.push("*Vencidos*");
-    overdueEntries.forEach(({ service, installment }) =>
-      sections.push(formatLine(service, installment)),
-    );
-  }
-  if (upcomingEntries.length > 0) {
-    if (sections.length > 0) sections.push("");
-    sections.push("*Próximos a vencer*");
-    upcomingEntries.forEach(({ service, installment }) =>
-      sections.push(formatLine(service, installment)),
-    );
-  }
-  if (paidEntries.length > 0) {
-    if (sections.length > 0) sections.push("");
-    sections.push("*Pagados*");
-    paidEntries.forEach(({ service, installment }) =>
-      sections.push(formatLine(service, installment)),
-    );
-  }
-  if (pendingEntries.length > 0) {
-    if (sections.length > 0) sections.push("");
-    sections.push("*Pendientes*");
-    pendingEntries.forEach(({ service, installment }) =>
-      sections.push(formatLine(service, installment)),
-    );
-  }
-  if (noInstallmentNames.length > 0) {
-    if (sections.length > 0) sections.push("");
-    sections.push("*Sin cuota*");
-    noInstallmentNames.forEach((name) =>
-      sections.push(`• ${name}  Sin cuota este mes`),
-    );
-  }
-
-  return sections.join("\n");
 }
 
 export function buildInstallmentDetailText(

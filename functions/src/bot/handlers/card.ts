@@ -5,7 +5,7 @@ import { CARD_STMT_SCENE_ID } from "../scenes/card-stmt.scene";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
+import { buildNameListText, formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
 import {
   getCardsByUser,
   getCardById,
@@ -34,9 +34,24 @@ async function handleCardsHub(ctx: Context): Promise<void> {
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery();
   }
+  const telegramUserId = String(ctx.from!.id);
+  const cards = await getCardsByUser(telegramUserId);
   const breadcrumb = buildBreadcrumb(["Tarjetas"]);
 
-  await replyOrEdit(ctx, `${breadcrumb}¿Qué querés hacer con tus tarjetas?`, {
+  if (cards.length === 0) {
+    await replyOrEdit(
+      ctx,
+      `${breadcrumb}No tenés ninguna tarjeta registrada.\n\n*¿Qué querés hacer?*`,
+      {
+        parse_mode: "Markdown",
+        ...buildCardEmptyStateKeyboard(),
+      },
+    );
+    return;
+  }
+
+  const cardList = buildNameListText(cards.map((card) => buildCardLabel(card)));
+  await replyOrEdit(ctx, `${breadcrumb}${cardList}\n\n*¿Qué querés hacer?*`, {
     parse_mode: "Markdown",
     ...buildCardsHubKeyboard(),
   });
@@ -48,7 +63,7 @@ async function handleOpenCards(ctx: Context): Promise<void> {
   }
   const telegramUserId = String(ctx.from!.id);
   const cards = await getCardsByUser(telegramUserId);
-  const breadcrumb = buildBreadcrumb(["Tarjetas", "Listado"]);
+  const breadcrumb = buildBreadcrumb(["Tarjetas", "Seleccionar"]);
 
   if (cards.length === 0) {
     await replyOrEdit(ctx, `${breadcrumb}No tenés tarjetas registradas.`, {
