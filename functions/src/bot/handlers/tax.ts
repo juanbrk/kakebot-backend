@@ -1,8 +1,14 @@
-import { Telegraf, Markup, Context } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxInstallment } from "../../types/tax.types";
-import { formatARS, formatDueDateDayMonth, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import {
+  buildNameListText,
+  formatARS,
+  formatDueDateDayMonth,
+  getDaysInMonth,
+  MONTH_NAMES,
+} from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
@@ -25,7 +31,6 @@ import { downloadFromUrl } from "../../services/storage.service";
 import {
   buildTaxesSubmenuKeyboard,
   buildTaxesEmptyStateKeyboard,
-  buildTaxMisImpuestosKeyboard,
   buildTaxListKeyboard,
   buildTaxActionKeyboard,
   buildTaxEditOptionsKeyboard,
@@ -45,10 +50,8 @@ import {
 export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.command("impuestos", openTaxesMenu);
   bot.action("menu_impuestos", openTaxesMenu);
-  bot.action("menu_mis_impuestos", handleMisImpuestos);
   bot.action("tax_add", handleAddTax);
   bot.action("tax_view", handleViewTaxes);
-  bot.action("tax_list", handleListTaxes);
   bot.action(/^tax_pick:(.+)$/, handlePickTaxForAction);
   bot.action(/^tax_reg:(.+)$/, handleRegisterInstallment);
   bot.action(/^tax_pay:(.+)$/, handleMarkAsPaid);
@@ -78,7 +81,7 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
 
 
 async function openTaxesMenu(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery?.();
+  if (ctx.callbackQuery) await ctx.answerCbQuery();
   const telegramUserId = ctx.from?.id.toString() || "";
   const taxes = await getTaxesByUser(telegramUserId);
   const breadcrumb = buildBreadcrumb(["Impuestos"]);
@@ -92,21 +95,11 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
     return;
   }
 
-  await replyOrEdit(ctx, breadcrumb + "*¿Qué querés hacer?*", {
+  const taxList = buildNameListText(taxes.map((tax) => tax.name));
+  await replyOrEdit(ctx, breadcrumb + taxList + "\n\n*¿Qué querés hacer?*", {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildTaxesSubmenuKeyboard().reply_markup as any,
-  });
-}
-
-async function handleMisImpuestos(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery?.();
-  const text =
-    buildBreadcrumb(["Impuestos", "Mis impuestos"]) + "*¿Qué querés hacer?*";
-  await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: buildTaxMisImpuestosKeyboard().reply_markup as any,
   });
 }
 
@@ -121,35 +114,6 @@ async function handleAddTax(ctx: KakebotContext): Promise<void> {
   await ctx.scene.enter(TAX_SCENE_ID);
 }
 
-async function handleListTaxes(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() || "";
-  const taxes = await getTaxesByUser(telegramUserId);
-
-  let body: string;
-  if (taxes.length === 0) {
-    body = "No tenés impuestos registrados.";
-  } else {
-    const lines = taxes.map((tax) => `• ${tax.name}`);
-    body = "*Tus impuestos:*\n\n" + lines.join("\n");
-  }
-
-  const text = buildBreadcrumb(["Impuestos", "Mis impuestos", "Listar"]) + body;
-  const keyboard = Markup.inlineKeyboard([
-    [
-      Markup.button.callback(
-        "\u2190 Volver a Mis impuestos",
-        "menu_mis_impuestos",
-      ),
-    ],
-  ]);
-  await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-}
-
 async function handleViewTaxes(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const telegramUserId = ctx.from?.id.toString() || "";
@@ -158,19 +122,19 @@ async function handleViewTaxes(ctx: Context): Promise<void> {
   if (taxes.length === 0) {
     await replyOrEdit(
       ctx,
-      buildBreadcrumb(["Impuestos", "Mis impuestos", "Seleccionar"]) +
+      buildBreadcrumb(["Impuestos", "Seleccionar"]) +
         "*No tenés impuestos registrados. Usá 'Registrar impuesto' para crear uno.*",
       {
         parse_mode: "Markdown",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        reply_markup: buildTaxMisImpuestosKeyboard().reply_markup as any,
+        reply_markup: buildTaxesEmptyStateKeyboard().reply_markup as any,
       },
     );
     return;
   }
 
   const text =
-    buildBreadcrumb(["Impuestos", "Mis impuestos", "Seleccionar"]) +
+    buildBreadcrumb(["Impuestos", "Seleccionar"]) +
     "*Seleccioná un impuesto*:";
   const keyboard = buildTaxListKeyboard(taxes, 0, "tax_pick");
   await replyOrEdit(ctx, text, {
@@ -326,7 +290,7 @@ async function handlePagination(ctx: Context): Promise<void> {
 
   const taxes = await getTaxesByUser(telegramUserId);
   const text =
-    buildBreadcrumb(["Impuestos", "Mis impuestos", "Seleccionar"]) +
+    buildBreadcrumb(["Impuestos", "Seleccionar"]) +
     "*Seleccioná un impuesto*:";
   const keyboard = buildTaxListKeyboard(taxes, page, "tax_pick");
   await replyOrEdit(ctx, text, {

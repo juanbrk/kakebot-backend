@@ -85,6 +85,28 @@ export function formatDueDateDayMonth(dueDate: admin.firestore.Timestamp): strin
   return `${day}/${month}`;
 }
 
+const MAX_LISTED_NAMES = 15;
+
+/**
+ * Builds a bullet list of entity names, used as the body of a section submenu
+ * message so the user can tell at a glance which entities already exist.
+ * Truncates past MAX_LISTED_NAMES to keep the submenu message readable.
+ *
+ * @param {string[]} names - Entity names, in the order they should be displayed
+ * @return {string} One "• name" line per entry (up to the cap), newline-separated
+ */
+export function buildNameListText(names: string[]): string {
+  const visibleNames = names.slice(0, MAX_LISTED_NAMES);
+  const lines = visibleNames.map((name) => `• ${name}`);
+
+  const hiddenCount = names.length - visibleNames.length;
+  if (hiddenCount > 0) {
+    lines.push(`_y ${hiddenCount} más_`);
+  }
+
+  return lines.join("\n");
+}
+
 /**
  * Formats a number as USD currency string using Argentine locale conventions.
  *

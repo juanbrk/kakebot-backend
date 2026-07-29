@@ -1,5 +1,25 @@
 # Session Log
 
+## 2026-07-29: "Estado de servicios" — reporte nuevo, migración de "Listar servicios" removido
+
+### Completado
+- Nuevo reporte `Reportes → Servicios → Estado de servicios` recupera el listado agrupado por estado de pago (Vencidos/Próximos a vencer/Pagados/Pendientes/Sin cuota) que se había eliminado el día anterior junto con "Mis servicios"; solo lectura, sin click-through, por decisión explícita.
+- Bug encontrado y corregido durante el QA: crash al ordenar la sección "Sin cuota" (sin `dueDate`) junto con las demás. También se corrigió un wording heredado del original ("venció" usado también para cuotas no vencidas).
+- QA validado en botitio_testitoBot por el usuario. Build + lint limpios en todo momento.
+- Auditoría de PR (`/audit-pr`) sobre la rama completa: 0 bloqueantes, 1 hallazgo mayor (función con 4 parámetros posicionales) corregido a parámetro objeto; QA re-confirmada sin cambio de comportamiento.
+
+### Pendiente
+- Commit (a cargo de Juan).
+
+## 2026-07-29: Listado de entidades en Impuestos/Servicios/Tarjetas — cerrada
+
+### Completado
+- Los submenús de Impuestos, Servicios y Tarjetas muestran ahora los nombres de las entidades registradas, eliminando las pantallas intermedias "Mis impuestos"/"Mis servicios". QA cerrada 12/12.
+- Auditoría técnica post-QA corrigió dos problemas menores (mensaje sin tope, crash preexistente con un comando de texto); re-QA confirmada.
+
+### Pendiente
+- Commit (a cargo de Juan). Ticket aparte pendiente para el escaping de Markdown en nombres de entidad.
+
 ## 2026-07-23: Desmarcar cuota de impuesto pagada, con sub-flujo de comprobante
 
 ### Completado
