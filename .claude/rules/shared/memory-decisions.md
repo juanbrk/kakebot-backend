@@ -1,5 +1,15 @@
 # Decisions Log
 
+## 2026-07-29: "Listar servicios" migrado a Reportes → Servicios → "Estado de servicios"
+
+- **Decisión**: el listado agrupado por estado de pago (Vencidos / Próximos a vencer / Pagados / Pendientes / Sin cuota), eliminado el día anterior junto con el submenú "Mis servicios" (ver entrada de decisión inmediatamente debajo), se recupera como reporte nuevo en `Reportes → Servicios → Estado de servicios` (`menu_service_status`), mirroreando el patrón standalone de "Métodos de pago" (`service-status-report.service.ts` + `.ts` handler, registro en `telegram.ts`).
+- **Interactividad**: se mantiene de solo lectura (sin click-through a detalle por servicio), confirmado explícitamente por el usuario — coherente con que el detalle vive en la pantalla de cada servicio.
+- **Bullet del submenú**: el nuevo bullet iguala el formato del bullet existente de "Métodos de pago" (negrita + `:`) en vez del formato documentado en `reports-menu.md` (`• Nombre — descripción`, texto plano) — decisión explícita del usuario para mantener las dos líneas del submenú visualmente iguales; el drift respecto a la convención documentada queda así, sin resolver.
+- **Fix de wording durante la migración**: el texto original usaba "venció dd/mm" tanto para cuotas vencidas como para "Próximos a vencer"/"Pendientes"; se corrigió a "vence dd/mm" para las no vencidas — no es un cambio de comportamiento pedido, sino una corrección de claridad menor hecha al reconstruir la función desde cero.
+- **Bug encontrado en QA**: `buildSection` ordenaba todas las secciones por `dueDate` incluso "Sin cuota" (`currentInstallment: null`), causando `TypeError: Cannot read properties of null`. Corregido con un parámetro `sortByDueDate` opt-in por sección.
+- **Aplicado en**: `services/service-status-report.service.ts` (nuevo), `bot/handlers/service-status-report.ts` (nuevo), `bot/telegram.ts`, `bot/handlers/report-history.ts` (bullet + botón del submenú Servicios, y bullet del menú padre Reportes actualizado de "método de pago" a "estado y método de pago"), `reports-menu.md`. Build + lint limpios en todo momento; QA validado en botitio_testitoBot.
+- **Auditoría post-implementación (`/audit-pr`)**: único hallazgo mayor — `buildSection` tomaba 4 parámetros posicionales, violando la convención de parámetros-objeto para funciones con más de 3 — corregido con `BuildSectionParams` local al archivo (mismo patrón que la interfaz local ya usada en `payment-method-report.service.ts`). Sin cambio de comportamiento; QA re-confirmada.
+
 ## 2026-07-29: Listado de entidades en el submenú raíz de Impuestos, Servicios y Tarjetas
 
 - **Decisión**: cada submenú raíz muestra ahora, en un helper compartido (`buildNameListText`, con tope de 15 nombres), los nombres de las entidades registradas; se eliminan las pantallas intermedias "Mis impuestos"/"Mis servicios" y sus acciones útiles suben al raíz — el índice responde "¿existe?", el detalle vive en la pantalla de cada entidad.

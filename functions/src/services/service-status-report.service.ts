@@ -9,6 +9,13 @@ interface ServiceWithInstallment {
   currentInstallment: ServiceInstallment | null;
 }
 
+interface BuildSectionParams {
+  label: string;
+  items: ServiceWithInstallment[];
+  formatLine: (item: ServiceWithInstallment) => string;
+  sortByDueDate: boolean;
+}
+
 /**
  * Returns the current month in "YYYY-MM" format.
  *
@@ -94,18 +101,10 @@ function sortByDueDateAscending(items: ServiceWithInstallment[]): ServiceWithIns
  * so the caller can filter it out. Entries without a current installment (e.g. the
  * "Sin cuota" section) have no due date to sort by, so sorting must stay opt-in.
  *
- * @param {string} label - Section header label
- * @param {ServiceWithInstallment[]} items - Entries in this section
- * @param {Function} formatLine - Line formatter for this section
- * @param {boolean} sortByDueDate - Whether to sort entries ascending by due date
+ * @param {BuildSectionParams} params - Section label, entries, line formatter, and sort flag
  * @return {string} Formatted section text or empty string
  */
-function buildSection(
-  label: string,
-  items: ServiceWithInstallment[],
-  formatLine: (item: ServiceWithInstallment) => string,
-  sortByDueDate: boolean
-): string {
+function buildSection({ label, items, formatLine, sortByDueDate }: BuildSectionParams): string {
   if (items.length === 0) {
     return "";
   }
@@ -169,11 +168,16 @@ export async function generateServiceStatusReport(telegramUserId: string): Promi
   }
 
   const sections = [
-    buildSection("Vencidos", overdue, formatOverdueLine, true),
-    buildSection("Próximos a vencer", upcoming, formatUpcomingLine, true),
-    buildSection("Pagados", paid, formatPaidLine, true),
-    buildSection("Pendientes", pending, formatUpcomingLine, true),
-    buildSection("Sin cuota", withoutInstallment, formatNoInstallmentLine, false),
+    buildSection({ label: "Vencidos", items: overdue, formatLine: formatOverdueLine, sortByDueDate: true }),
+    buildSection({ label: "Próximos a vencer", items: upcoming, formatLine: formatUpcomingLine, sortByDueDate: true }),
+    buildSection({ label: "Pagados", items: paid, formatLine: formatPaidLine, sortByDueDate: true }),
+    buildSection({ label: "Pendientes", items: pending, formatLine: formatUpcomingLine, sortByDueDate: true }),
+    buildSection({
+      label: "Sin cuota",
+      items: withoutInstallment,
+      formatLine: formatNoInstallmentLine,
+      sortByDueDate: false,
+    }),
   ].filter((section) => section.length > 0);
 
   if (sections.length === 0) {
