@@ -1,5 +1,12 @@
 # Decisions Log
 
+## 2026-07-29: Listado de entidades en el submenú raíz de Impuestos, Servicios y Tarjetas
+
+- **Decisión**: cada submenú raíz muestra ahora, en un helper compartido (`buildNameListText`, con tope de 15 nombres), los nombres de las entidades registradas; se eliminan las pantallas intermedias "Mis impuestos"/"Mis servicios" y sus acciones útiles suben al raíz — el índice responde "¿existe?", el detalle vive en la pantalla de cada entidad.
+- **Excepción**: "Ver como listado" de Tarjetas se conserva por decisión explícita del usuario, contra el criterio de aceptación original del ticket.
+- **Auditoría técnica post-QA**: corrigió el tope de nombres recién mencionado y un crash preexistente (no introducido por esta feature) al invocar `/impuestos` como comando de texto; dejó deliberadamente afuera el escaping de Markdown en nombres de entidad (problema transversal al bot, candidato a ticket propio).
+- **Aplicado en**: helpers, keyboards y handlers de impuestos/servicios/tarjetas. Build + lint limpios en todo momento.
+
 ## 2026-07-23: Desmarcar cuota de impuesto pagada — patrón "unmark", borrado en GCS, y decisión Conservar/Borrar en WizardScene
 
 - **Feature**: botón "Marcar como no pagada" (renombrado de "Desmarcar como pagado" por QA) en el detalle de cuota de impuesto revierte `isPaid`/`paidAt`, acción inmediata sin confirmación (convención: yes/no solo para borrados irreversibles). Si la cuota tenía comprobante, sub-flujo Conservar/Borrar (borra también en GCS); "Marcar como pagado" saltea el prompt de adjuntar si la cuota ya tiene `receiptUrl` (espeja `service.ts`).

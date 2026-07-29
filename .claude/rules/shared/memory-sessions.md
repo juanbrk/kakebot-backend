@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-07-29: Listado de entidades en Impuestos/Servicios/Tarjetas — cerrada
+
+### Completado
+- Los submenús de Impuestos, Servicios y Tarjetas muestran ahora los nombres de las entidades registradas, eliminando las pantallas intermedias "Mis impuestos"/"Mis servicios". QA cerrada 12/12.
+- Auditoría técnica post-QA corrigió dos problemas menores (mensaje sin tope, crash preexistente con un comando de texto); re-QA confirmada.
+
+### Pendiente
+- Commit (a cargo de Juan). Ticket aparte pendiente para el escaping de Markdown en nombres de entidad.
+
 ## 2026-07-23: Desmarcar cuota de impuesto pagada, con sub-flujo de comprobante
 
 ### Completado

@@ -81,7 +81,7 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
 
 
 async function openTaxesMenu(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery?.();
+  if (ctx.callbackQuery) await ctx.answerCbQuery();
   const telegramUserId = ctx.from?.id.toString() || "";
   const taxes = await getTaxesByUser(telegramUserId);
   const breadcrumb = buildBreadcrumb(["Impuestos"]);
