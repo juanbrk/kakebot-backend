@@ -94,7 +94,40 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
 | Empty-state builder | Handler | File |
 |---|---|---|
 | `buildTaxesEmptyStateKeyboard` | `openTaxesMenu` | `keyboards/tax.ts`, `handlers/tax.ts` |
-| `buildCardEmptyStateKeyboard` | `handleOpenCards` | `keyboards/card.ts`, `handlers/card.ts` |
+| `buildServicesEmptyStateKeyboard` | `openServicesMenu`, `handleViewServices` | `keyboards/service.ts`, `handlers/service.ts` |
+| `buildCardEmptyStateKeyboard` | `handleCardsHub`, `handleOpenCards` | `keyboards/card.ts`, `handlers/card.ts` |
+
+## Listado de entidades en el submenú raíz
+
+El submenú raíz de cada dominio de entidad (`[Impuestos]`, `[Servicios]`, `[Tarjetas]`) muestra en
+su propio mensaje los nombres de las entidades registradas, entre el breadcrumb y el prompt de
+acción. Sirve como indicador de qué existe: el usuario decide desde una sola pantalla si entra a
+"Seleccionar …" o si crea una nueva, sin tener que entrar a mirar y volver.
+
+Reglas:
+
+1. **Solo nombres**, con bullet `•`. Sin montos, vencimientos ni estado de pago — ese detalle vive
+   en la pantalla de cada entidad, no en el índice.
+2. Se compone con el helper compartido **`buildNameListText(names)`** (`helpers/format.ts`). No
+   duplicar la lógica de bullets por dominio.
+3. El listado va **antes** del prompt en negrita, separado por una línea en blanco.
+4. En estado vacío **no se muestra listado** — se aplica el patrón de empty state de la sección
+   anterior.
+
+```typescript
+const taxList = buildNameListText(taxes.map((tax) => tax.name));
+await replyOrEdit(ctx, breadcrumb + taxList + "\n\n*¿Qué querés hacer?*", {
+  parse_mode: "Markdown",
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reply_markup: buildTaxesSubmenuKeyboard().reply_markup as any,
+});
+```
+
+| Submenú | Handler | Nombre mostrado |
+|---|---|---|
+| `[Impuestos]` | `openTaxesMenu` | `tax.name` |
+| `[Servicios]` | `openServicesMenu` | `service.name` |
+| `[Tarjetas]` | `handleCardsHub` | `buildCardLabel(card)` — el label largo, no `buildCardButtonLabel` |
 
 ## Button Order (see also user-preferences.md)
 

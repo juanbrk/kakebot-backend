@@ -46,7 +46,7 @@ async function handleReportesMenu(ctx: Context): Promise<void> {
       "*¿Qué querés ver?*\n\n" +
       "• *Balances*: resumenes mensuales de gastos e ingresos\n" +
       "• *Pagos*: Pagos de servicios, impuestos y tarjetas\n" +
-      "• *Servicios*: método de pago de tus servicios",
+      "• *Servicios*: estado y método de pago de tus servicios",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
   );
@@ -97,7 +97,7 @@ async function handlePagosMenu(ctx: Context): Promise<void> {
 }
 
 /**
- * Shows the Servicios submenu: payment methods report.
+ * Shows the Servicios submenu: payment methods report and service status report.
  *
  * @param {Context} ctx - Telegraf context
  */
@@ -105,13 +105,15 @@ async function handleServiciosMenu(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback("Métodos de pago", "menu_payment_methods")],
+    [Markup.button.callback("Estado de servicios", "menu_service_status")],
     [Markup.button.callback("← Volver", "menu_reportes")],
   ]);
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Servicios"]) +
       "*¿Qué querés ver?*\n\n" +
-      "• *Métodos de pago*: Listado de servicios agrupados por forma de pago",
+      "• *Métodos de pago*: Listado de servicios agrupados por forma de pago\n" +
+      "• *Estado de servicios*: Servicios agrupados por vencimiento y estado de pago",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
   );

@@ -67,7 +67,7 @@ function buildPaginatedKeyboardRows<T>({
 export function buildTaxesSubmenuKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Registrar impuesto", "tax_add")],
-    [Markup.button.callback("Mis impuestos", "menu_mis_impuestos")],
+    [Markup.button.callback("Seleccionar impuesto", "tax_view")],
     [Markup.button.callback("\u2190 Volver al menú", "menu_back")],
   ]);
 }
@@ -82,19 +82,6 @@ export function buildTaxesEmptyStateKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("Registrar impuesto", "tax_add")],
     [Markup.button.callback("← Volver al menú", "menu_back")],
-  ]);
-}
-
-/**
- * Builds the "Mis impuestos" submenu keyboard.
- *
- * @return {Markup.Markup} Inline keyboard markup
- */
-export function buildTaxMisImpuestosKeyboard() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback("Seleccionar impuesto", "tax_view")],
-    [Markup.button.callback("Listar impuestos", "tax_list")],
-    [Markup.button.callback("\u2190 Volver a impuestos", "menu_impuestos")],
   ]);
 }
 

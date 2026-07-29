@@ -8,7 +8,6 @@ import {
   getInstallment,
   getInstallmentById,
   getInstallmentsByService,
-  getInstallmentsForMonth,
   deleteService,
   markInstallmentAsPaid,
   getUpcomingUnpaidInstallments,
@@ -17,12 +16,11 @@ import {
 import { SERVICE_SCENE_ID } from "../scenes/service.scene";
 import {
   buildServicesSubmenuKeyboard,
-  buildMyServicesSubmenuKeyboard,
+  buildServicesEmptyStateKeyboard,
   buildServiceListKeyboard,
   buildServiceActionKeyboard,
   buildServiceEditKeyboard,
   buildDeleteConfirmKeyboard,
-  buildServiceViewText,
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
   buildInstallmentListKeyboard,
@@ -30,7 +28,7 @@ import {
   PAYMENT_METHOD_LABELS,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { buildNameListText, formatARS, MONTH_NAMES } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -102,8 +100,6 @@ export function registerServiceHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("svc_add", handleAddService);
   bot.action("svc_installment", handleRegisterInstallment);
   bot.action("svc_view", handleViewServices);
-  bot.action("svc_my_services", handleMyServices);
-  bot.action("svc_list", handleListServices);
   bot.action("svc_upcoming", handleShowUpcoming);
   bot.action("svc_back", handleBackToMenu);
 
@@ -145,8 +141,21 @@ export function registerServiceHandler(bot: Telegraf<KakebotContext>): void {
 
 async function openServicesMenu(ctx: Context): Promise<void> {
   if (ctx.callbackQuery) await ctx.answerCbQuery();
+  const telegramUserId = ctx.from?.id.toString() || "";
+  const services = await getServicesByUser(telegramUserId);
   const breadcrumb = buildBreadcrumb(["Servicios"]);
-  await replyOrEdit(ctx, breadcrumb + "*Selecciona una opción*", {
+
+  if (services.length === 0) {
+    await replyOrEdit(ctx, breadcrumb + "No tenés ningún servicio registrado.\n\n*¿Qué querés hacer?*", {
+      parse_mode: "Markdown",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: buildServicesEmptyStateKeyboard().reply_markup as any,
+    });
+    return;
+  }
+
+  const serviceList = buildNameListText(services.map((service) => service.name));
+  await replyOrEdit(ctx, breadcrumb + serviceList + "\n\n*¿Qué querés hacer?*", {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildServicesSubmenuKeyboard().reply_markup as any,
@@ -189,67 +198,25 @@ async function handleViewServices(ctx: Context): Promise<void> {
   const services = await getServicesByUser(telegramUserId);
 
   if (services.length === 0) {
-    await replyOrEdit(ctx, "No hay servicios registrados.");
+    await replyOrEdit(
+      ctx,
+      buildBreadcrumb(["Servicios", "Seleccionar"])
+        + "No tenés ningún servicio registrado.\n\n*¿Qué querés hacer?*",
+      {
+        parse_mode: "Markdown",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reply_markup: buildServicesEmptyStateKeyboard().reply_markup as any,
+      },
+    );
     return;
   }
 
-  const breadcrumb = buildBreadcrumb(["Servicios", "Selección"]);
+  const breadcrumb = buildBreadcrumb(["Servicios", "Seleccionar"]);
   const keyboard = buildServiceListKeyboard(services, 0, "svc_view_pick");
   await replyOrEdit(ctx, breadcrumb + "*Seleccioná un servicio:*", {
     parse_mode: "Markdown",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
-  });
-}
-
-async function handleListServices(ctx: Context): Promise<void> {
-  const telegramUserId = ctx.from?.id.toString() || "";
-  await ctx.answerCbQuery();
-
-  const services = await getServicesByUser(telegramUserId);
-
-  if (services.length === 0) {
-    await replyOrEdit(ctx, "No hay servicios registrados.");
-    return;
-  }
-
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const dueMonth = `${now.getFullYear()}-${month}`;
-
-  const monthInstallments = await getInstallmentsForMonth(telegramUserId, dueMonth);
-  const installmentsByServiceId: Record<string, ServiceInstallment | null> = {};
-  for (const installment of monthInstallments) {
-    installmentsByServiceId[installment.serviceId] = installment;
-  }
-
-  const breadcrumb = buildBreadcrumb(["Servicios", "Listar servicios"]);
-
-  const backKeyboard = Markup.inlineKeyboard([
-    [Markup.button.callback("\u2190 Volver", "svc_my_services")],
-  ]);
-
-  const text =
-    breadcrumb + buildServiceViewText(services, installmentsByServiceId, now);
-  await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: backKeyboard.reply_markup as any,
-  });
-}
-
-/**
- * Shows  "Mis servicios" submenu with list and upcoming options.
- *
- * @param {Context} ctx - Telegraf context
- */
-async function handleMyServices(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
-  const breadcrumb = buildBreadcrumb(["Servicios", "Mis servicios"]);
-  await replyOrEdit(ctx, breadcrumb + "*Selecciona una opción*", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: buildMyServicesSubmenuKeyboard().reply_markup as any,
   });
 }
 
@@ -267,7 +234,7 @@ async function handleShowUpcoming(ctx: Context): Promise<void> {
 
   const breadcrumb = buildBreadcrumb(["Servicios", "Próximos vencimientos"]);
   const backKeyboard = Markup.inlineKeyboard([
-    [Markup.button.callback("\u2190 Volver", "svc_my_services")],
+    [Markup.button.callback("\u2190 Volver", "menu_servicios")],
   ]);
 
   if (installments.length === 0) {
