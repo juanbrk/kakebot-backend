@@ -10,7 +10,8 @@ menu_reportes (Reportes)
 ├── rep_pagos (Pagos)
 │   └── menu_upcoming → Próximos Vencimientos (handler separado: upcoming-dues.ts)
 └── rep_servicios (Servicios)
-    └── menu_payment_methods → Métodos de pago (handler separado: payment-method-report.ts)
+    ├── menu_payment_methods → Métodos de pago (handler separado: payment-method-report.ts)
+    └── menu_service_status → Estado de servicios (handler separado: service-status-report.ts)
 ```
 
 ## Archivo principal
@@ -18,6 +19,7 @@ menu_reportes (Reportes)
 `bot/handlers/report-history.ts` — contiene todos los handlers del menú de Reportes excepto:
 - `menu_upcoming` → `bot/handlers/upcoming-dues.ts`
 - `menu_payment_methods` → `bot/handlers/payment-method-report.ts`
+- `menu_service_status` → `bot/handlers/service-status-report.ts`
 
 Los handlers externos se registran en `bot/telegram.ts` y sus acciones de back-navigation
 usan callbacks de este menú (`menu_reportes`, `rep_pagos`, `rep_servicios`).
@@ -58,6 +60,7 @@ Reglas:
 |-----------------|----------------------|
 | `menu_upcoming` | `rep_pagos` |
 | `menu_payment_methods` | `rep_servicios` |
+| `menu_service_status` | `rep_servicios` |
 | `rep_history` (no data) | `rep_balances` |
 | `rep_history` (año único) | `rep_balances` |
 | `rep_history` (multi-año) | `rep_balances` |
@@ -100,3 +103,4 @@ Si el handler nuevo necesita navegar de vuelta a un submenú desde `report-histo
 | Balances anteriores | `rep_history` | Reportes de meses pasados y registro retroactivo |
 | Próximos Vencimientos | `menu_upcoming` | Servicios e impuestos a vencer en los próximos 7 días |
 | Métodos de pago | `menu_payment_methods` | Servicios agrupados por forma de pago, con cuota del mes actual |
+| Estado de servicios | `menu_service_status` | Servicios agrupados por vencimiento y estado de pago de la cuota del mes actual (Vencidos / Próximos a vencer / Pagados / Pendientes / Sin cuota) |
