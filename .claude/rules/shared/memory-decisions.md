@@ -1,14 +1,5 @@
 # Decisions Log
 
-## 2026-07-29: Scripts de seed/cleanup para QA — prefijo de tag, reuso de service functions, emulador-only
-
-- **Decisión**: los nuevos `qa-seed.ts`/`qa-seed-cleanup.ts` (`functions/src/`) taggean cada entidad creada con el prefijo `[QA-SEED]` en el nombre; el cleanup filtra por ese prefijo (scoped también por `telegramUserId`) en vez de usar un campo booleano dedicado o un `telegramUserId` ficticio — así el cleanup es preciso sin tocar datos reales, y los datos de prueba son visibles con la misma identidad real del usuario en Telegram (necesario para poder hacer click-through QA en el bot).
-- **Decisión**: reusan las funciones de servicio existentes (`createTax`, `saveTaxInstallment`, `createService`, `saveInstallment`, `deleteService`) en vez de escribir documentos crudos en Firestore, para no duplicar lógica de creación/borrado ya validada por la app. Única excepción: el borrado de impuestos es batch manual en el script porque no existe un `deleteTax` en `tax.service.ts` — no se agregó solo para esto, sería scope creep sin uso en la app real.
-- **Decisión**: ambos scripts fuerzan conexión al emulador (`FIRESTORE_EMULATOR_HOST`/`initializeApp` hardcodeado a `localhost:8080`) en vez de respetar el `.env` activo — nunca pueden escribir a producción por accidente, sin importar qué environment esté seteado. `AUTHORIZED_USER_ID` sigue viniendo de `process.env` (nunca hardcodeado, por `hard-walls.md`), con guard que aborta si falta.
-- **Contexto**: reemplazan un script equivalente que existía antes de esta rama — nunca commiteado a git, se perdió junto con un worktree borrado (sin rastro en `git log --all` de ninguna rama/remoto).
-- **Integrados** en `npm run go` → Test → "Seed datos QA"/"Limpiar datos QA" (`scripts/go.sh`), no como comando npm standalone.
-- Validado end-to-end contra el emulador real de la sesión activa del usuario: conteos exactos, cleanup quirúrgico (0 servicios reales afectados).
-
 ## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo — paso de entidad en el doc-router + escena dedicada
 
 - **Diseño**: al elegir "Comprobante" en el doc-router se agrega un paso nuevo — ¿a qué entidad pertenece? (Servicios/Impuestos) — en vez del tercer botón que pedía el ticket original; Impuestos entra a una escena nueva (`tax-receipt.scene.ts`) porque las dos escenas existentes eran service-céntrica o ya tenían un heurístico frágil que hubiera chocado. Los selectores muestran solo impuestos con cuotas pendientes y cuotas no pagadas, confirmando siempre ambos pasos aunque haya un solo candidato; una sola query cubre los dos selectores sin índice nuevo.

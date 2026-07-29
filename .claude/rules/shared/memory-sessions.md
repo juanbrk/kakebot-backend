@@ -1,15 +1,14 @@
 # Session Log
 
-## 2026-07-29: DRY en keyboards de impuesto paginados + scripts de seed/cleanup para QA
+## 2026-07-29: DRY en keyboards de impuesto paginados (comprobantes de impuesto ya cerrado y commiteado)
 
 ### Completado
-- Extraído `buildPaginatedKeyboardRows` (helper privado en `keyboards/tax.ts`) reutilizado por las 4 funciones de paginación de impuestos (`buildTaxListKeyboard`, `buildTaxInstallmentHistoryKeyboard`, `buildTaxReceiptTaxPickerKeyboard`, `buildTaxReceiptInstallmentPickerKeyboard`); comportamiento idéntico (mismos callbacks, misma lógica de nav), solo deduplicado. QA manual cerrada (4/4 pantallas + paginación en los límites).
-- Nuevos scripts `qa-seed.ts`/`qa-seed-cleanup.ts` (+ `qa-seed-shared.ts`) para poblar/limpiar impuestos y servicios de prueba (8 c/u, el primero de cada uno con 8 cuotas en meses distintos) contra el emulador, taggeados con prefijo `[QA-SEED]` para que el cleanup sea quirúrgico. Integrados en `npm run go` → Test → "Seed datos QA"/"Limpiar datos QA". Reemplazan un script equivalente que existía antes de esta rama y se había perdido (nunca commiteado, borrado junto con un worktree).
-- Validado end-to-end contra el emulador real (sesión de polling activa del usuario): seed creó exactamente 8+8 entidades y 15 cuotas de impuesto; cleanup las borró todas sin tocar los 6 servicios reales preexistentes.
+- Extraído `buildPaginatedKeyboardRows` (helper privado en `keyboards/tax.ts`) reutilizado por las 4 funciones de paginación de impuestos (`buildTaxListKeyboard`, `buildTaxInstallmentHistoryKeyboard`, `buildTaxReceiptTaxPickerKeyboard`, `buildTaxReceiptInstallmentPickerKeyboard`); comportamiento idéntico (mismos callbacks, misma lógica de nav), solo deduplicado. QA manual cerrada (4/4 pantallas + paginación en los límites). Commiteado y pusheado (`42483ce`).
+- Se armaron y validaron end-to-end.
 - Build + lint OK (0 errores, 125 warnings = baseline sin cambios).
 
 ### Pendiente
-- Commit (a cargo del usuario).
+- Abrir PR a main (no existe todavía para esta branch).
 
 ## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo
 
