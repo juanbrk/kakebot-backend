@@ -339,6 +339,8 @@ async function handlePhotoWhileWaiting(ctx: KakebotContext): Promise<void> {
 
 Implementación canónica: `doc-router.scene.ts:63-85` (`handlePhotoWhileWaiting`) y `doc-router.scene.ts:87-109` (`handleDocumentWhileWaiting`).
 
+**Por qué el rango de cursor válido debe incluir el cursor de entrada, no solo los de reemplazo.** `ctx.scene.enter(...)` corre el composer de la escena (`scene.on`/`scene.action`/`scene.hears`) sobre el **mismo update** que disparó la entrada, y ese composer se ejecuta **antes** que el step runner. Consecuencia concreta: cuando el archivo que dispara la entrada a la escena (`entryArgs` ya trae su `pendingFileId`) llega en el mismo update, es `scene.on("photo"/"document")` — no `stepInit` — quien lo atiende primero; `stepInit` recién corre si después llega un segundo update (texto) con el cursor en 0. Si el handler de archivo no distingue "es la entrada" de "es un reemplazo", termina emitiendo el aviso de reemplazo (o un error) ante el primer archivo, que nunca fue reemplazado. La corrección correcta es comparar contra el `pendingFileId` ya cargado en `entryArgs`/state: el aviso solo sale si el archivo entrante desplaza a uno **distinto** del que ya estaba.
+
 ---
 
 ## 8. UX
@@ -573,7 +575,7 @@ Importar de los módulos canónicos. No redefinir versiones locales.
 
 | Helper | Origen | Cuándo usar |
 |---|---|---|
-| `getMessageText(ctx)` | `helpers/wizard.ts` | Extraer el texto trimmed del mensaje entrante. Único método permitido. |
+| `getMessageText(ctx)` | `helpers/wizard.ts` | Extraer el texto trimmed del mensaje entrante. Único método permitido — pero solo aplica a escenas que **leen** texto. Una escena 100% teclado/archivo (`doc-router.scene.ts`, `bulk.scene.ts`, `tax-receipt.scene.ts`) no debe importarlo: la regla prohíbe extraer texto a mano, no impone un import ceremonial. |
 | `parseArgentineAmount(str)` | `helpers/parse-amount.ts` | Parsear montos de input del usuario. |
 | `formatARS(amount)` | `helpers/format.ts` | Mostrar montos al usuario. |
 | `MONTH_NAMES` | `helpers/format.ts` | Nombre de mes en castellano (índice 0-based). |
@@ -698,7 +700,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] El `catch` no llama `scene.leave()` — permite reintento.
 
 ### Helpers
-- [ ] `getMessageText` importado de `helpers/wizard.ts` (no redefinido).
+- [ ] Si la escena lee texto entrante: `getMessageText` importado de `helpers/wizard.ts` (no redefinido, no extraído a mano). Si es 100% teclado/archivo, no se importa.
 - [ ] Otros helpers (`formatARS`, `parseArgentineAmount`, etc.) desde sus módulos canónicos.
 
 ### Documentación
@@ -780,7 +782,9 @@ Referencia: `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` / `handl
 | `selectStep` en action handler | `tax.scene.ts:382` |
 | Try/catch + `log.error` estructurado | `tax.scene.ts:569-580` |
 | Photo/document handlers con cursor check | `tax.scene.ts:540-581` |
-| Archivo como input primario (photo/document handlers) | `doc-router.scene.ts:63-109` |
+| Archivo como input primario (photo/document handlers) | `doc-router.scene.ts` — `handlePhotoWhileWaiting` / `handleDocumentWhileWaiting` |
+| Escena de selección pura (sin steps de texto, dos selectores encadenados) | `tax-receipt.scene.ts` |
+| Ruteo a otra escena según elección del usuario | `doc-router.scene.ts` — `handleEntityService` / `handleEntityTax` |
 | Cancel word handler | `tax.scene.ts:636-639` |
 | Registro de event handlers | `tax.scene.ts:653-665` |
 | `WizardState` interface | `types/telegraf-context.types.ts` (buscar `[Domain]WizardState`) |

@@ -20,6 +20,29 @@
 ### Pendiente
 - Commit (a cargo de Juan). Ticket aparte pendiente para el escaping de Markdown en nombres de entidad.
 
+## 2026-07-29: DRY en keyboards de impuesto paginados + merge de main y QA post-merge
+
+### Completado
+- Extraído `buildPaginatedKeyboardRows` (helper privado en `keyboards/tax.ts`) reutilizado por las 4 funciones de paginación de impuestos; comportamiento idéntico, solo deduplicado. Commiteado y pusheado (`42483ce`).
+- Mergeado `main` (PR #72) a la rama (`6fd1c27`): solo conflictuaron los dos logs de memoria; el código auto-mergeó y se verificó a mano (callbacks huérfanos, `getMonthLabel`, escenas nuevas intactas). Build + lint limpios.
+- QA manual post-merge cerrada sobre matriz de 33 casos en 4 bloques: flujo de comprobante de impuesto, listados de entidades y reporte de estado de servicios que trajo main, y los puntos donde las dos ramas se tocan. Todo OK salvo una sección del reporte imposible de poblar por calendario (postergada por decisión).
+- Se usaron scripts de seed/restore contra el emulador, borrados al terminar — herramientas locales, no parte del entregable.
+
+### Pendiente
+- Abrir PR a main (no existe todavía para esta branch).
+- H-05 en `TICKET.md`: abrir `/techdebt` por código muerto (`buildTaxMonthKeyboard`).
+
+## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo
+
+### Completado
+- Enviar una foto/PDF y elegir "Comprobante" ahora pregunta si es de Servicios o de Impuestos; Impuestos es el flujo nuevo (elegir impuesto → cuota pendiente → queda adjunto y la cuota pagada), Servicios sigue igual.
+- QA cerrada por completo, incluidos dos casos borde aceptados sin fix (bajo riesgo con un único usuario) y uno derivado a un ticket aparte fuera de esta rama.
+- De paso se corrigieron dos bugs de tooling y uno de UX encontrados en el camino.
+- Build + lint OK.
+
+### Pendiente
+- Los commits, a cargo de Juan.
+
 ## 2026-07-23: Desmarcar cuota de impuesto pagada, con sub-flujo de comprobante
 
 ### Completado

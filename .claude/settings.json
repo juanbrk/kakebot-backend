@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/protect-sensitive-files.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.js"
           }
         ]
       },
@@ -15,19 +15,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-list-bullets.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-list-bullets.js"
           },
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-param-patterns.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-param-patterns.js"
           },
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-wizard-scene.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-wizard-scene.js"
           },
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-raw-edit-message.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-raw-edit-message.js"
           }
         ]
       }
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/commit-dream-check.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/commit-dream-check.js"
           }
         ]
       },
@@ -47,19 +47,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/track-modified-file.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/track-modified-file.js"
           },
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/env-change-guard.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/env-change-guard.js"
           },
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/typecheck-feedback.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/typecheck-feedback.js"
           },
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/lint-feedback.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/lint-feedback.js"
           }
         ]
       }
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/juan-freelance/Documents/proyectos/kakebot-backend/.claude/hooks/check-session-params.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-session-params.js"
           }
         ]
       }

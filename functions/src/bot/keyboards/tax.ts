@@ -1,9 +1,63 @@
 import { Markup } from "telegraf";
 import { Tax, TaxInstallment, BuildTaxInstallmentDetailKeyboardParams, BuildTaxActionKeyboardParams } from "../../types/tax.types";
-import { formatARS, formatDueDateDayMonth, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatDueDateDayMonth, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 const TAXES_PER_PAGE = 6;
+
+interface BuildPaginatedKeyboardRowsParams<T> {
+  items: T[];
+  page: number;
+  perPage: number;
+  buttonLabel: (item: T) => string;
+  buttonCallback: (item: T) => string;
+  navCallback: (navPage: number) => string;
+}
+
+/**
+ * Builds the 2-column item grid plus pagination nav row shared by every paginated
+ * tax keyboard. Callers append any trailing action/back-button rows themselves.
+ *
+ * @param {BuildPaginatedKeyboardRowsParams} params - Items, page, page size, and label/callback builders
+ * @return {Array} Keyboard rows, ready for Markup.inlineKeyboard (optionally with more rows appended)
+ */
+function buildPaginatedKeyboardRows<T>({
+  items,
+  page,
+  perPage,
+  buttonLabel,
+  buttonCallback,
+  navCallback,
+}: BuildPaginatedKeyboardRowsParams<T>) {
+  const start = page * perPage;
+  const end = start + perPage;
+  const pageItems = items.slice(start, end);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[][] = [];
+
+  for (let i = 0; i < pageItems.length; i += 2) {
+    const row = [Markup.button.callback(buttonLabel(pageItems[i]), buttonCallback(pageItems[i]))];
+    if (i + 1 < pageItems.length) {
+      row.push(Markup.button.callback(buttonLabel(pageItems[i + 1]), buttonCallback(pageItems[i + 1])));
+    }
+    rows.push(row);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const navRow: any[] = [];
+  if (page > 0) {
+    navRow.push(Markup.button.callback("← Página anterior", navCallback(page - 1)));
+  }
+  if (end < items.length) {
+    navRow.push(Markup.button.callback("Página siguiente →", navCallback(page + 1)));
+  }
+  if (navRow.length > 0) {
+    rows.push(navRow);
+  }
+
+  return rows;
+}
 
 /**
  * Builds the taxes section submenu keyboard.
@@ -44,41 +98,14 @@ export function buildTaxListKeyboard(
   page: number,
   callbackPrefix: string,
 ) {
-  const start = page * TAXES_PER_PAGE;
-  const end = start + TAXES_PER_PAGE;
-  const pageTaxes = taxes.slice(start, end);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[] = [];
-
-  for (let i = 0; i < pageTaxes.length; i += 2) {
-    const row = [];
-    const tax1 = pageTaxes[i];
-    row.push(Markup.button.callback(tax1.name, `${callbackPrefix}:${tax1.id}`));
-    if (i + 1 < pageTaxes.length) {
-      const tax2 = pageTaxes[i + 1];
-      row.push(
-        Markup.button.callback(tax2.name, `${callbackPrefix}:${tax2.id}`),
-      );
-    }
-    rows.push(row);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const navRow: any[] = [];
-  if (page > 0) {
-    navRow.push(
-      Markup.button.callback("← Página anterior", `tax_pg:${page - 1}`),
-    );
-  }
-  if (end < taxes.length) {
-    navRow.push(
-      Markup.button.callback("Página siguiente →", `tax_pg:${page + 1}`),
-    );
-  }
-  if (navRow.length > 0) {
-    rows.push(navRow);
-  }
+  const rows = buildPaginatedKeyboardRows({
+    items: taxes,
+    page,
+    perPage: TAXES_PER_PAGE,
+    buttonLabel: (tax) => tax.name,
+    buttonCallback: (tax) => `${callbackPrefix}:${tax.id}`,
+    navCallback: (navPage) => `tax_pg:${navPage}`,
+  });
 
   rows.push([
     Markup.button.callback("\u2190 Volver a impuestos", "menu_impuestos"),
@@ -167,11 +194,8 @@ export function buildFilteredTaxMonthKeyboard(
   availableMonths: string[],
   taxId: string,
 ) {
-  const rows = availableMonths.map((dueMonth) => {
-    const [year, month] = dueMonth.split("-");
-    const label = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-    return [Markup.button.callback(label, `tax_month:${taxId}:${dueMonth}`)];
-  });
+  const rows = availableMonths.map((dueMonth) =>
+    [Markup.button.callback(getMonthLabel(dueMonth), `tax_month:${taxId}:${dueMonth}`)]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -221,43 +245,14 @@ export function buildTaxInstallmentHistoryKeyboard(
   page: number,
   taxId: string,
 ) {
-  const start = page * TAX_INSTALLMENTS_PER_PAGE;
-  const end = start + TAX_INSTALLMENTS_PER_PAGE;
-  const pageInstallments = installments.slice(start, end);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[] = [];
-
-  for (let i = 0; i < pageInstallments.length; i += 2) {
-    const row = [];
-    const inst1 = pageInstallments[i];
-    const [y1, m1] = inst1.dueMonth.split("-");
-    const label1 = `${MONTH_NAMES[parseInt(m1, 10) - 1]} ${y1}`;
-    row.push(Markup.button.callback(label1, `tax_inst:${inst1.id}`));
-    if (i + 1 < pageInstallments.length) {
-      const inst2 = pageInstallments[i + 1];
-      const [y2, m2] = inst2.dueMonth.split("-");
-      const label2 = `${MONTH_NAMES[parseInt(m2, 10) - 1]} ${y2}`;
-      row.push(Markup.button.callback(label2, `tax_inst:${inst2.id}`));
-    }
-    rows.push(row);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const navRow: any[] = [];
-  if (page > 0) {
-    navRow.push(
-      Markup.button.callback("← Página anterior", `tax_hist_pg:${taxId}:${page - 1}`),
-    );
-  }
-  if (end < installments.length) {
-    navRow.push(
-      Markup.button.callback("Página siguiente →", `tax_hist_pg:${taxId}:${page + 1}`),
-    );
-  }
-  if (navRow.length > 0) {
-    rows.push(navRow);
-  }
+  const rows = buildPaginatedKeyboardRows({
+    items: installments,
+    page,
+    perPage: TAX_INSTALLMENTS_PER_PAGE,
+    buttonLabel: (installment) => getMonthLabel(installment.dueMonth),
+    buttonCallback: (installment) => `tax_inst:${installment.id}`,
+    navCallback: (navPage) => `tax_hist_pg:${taxId}:${navPage}`,
+  });
 
   rows.push([Markup.button.callback("\u2190 Volver al impuesto", `tax_back_tax:${taxId}`)]);
 
@@ -294,6 +289,57 @@ export function buildTaxInstallmentDetailKeyboard({
   rows.push([Markup.button.callback("Cambiar vencimiento", `tax_edit_due:${installmentId}`)]);
 
   rows.push([Markup.button.callback("\u2190 Volver al historial", `tax_back_hist:${taxId}`)]);
+
+  return Markup.inlineKeyboard(rows);
+}
+
+/**
+ * Builds the tax selector shown by the tax-receipt scene, listing only taxes that have
+ * at least one unpaid installment.
+ *
+ * Deliberately not `buildTaxListKeyboard`: that one emits `tax_pick:` callbacks handled by the
+ * global tax handler and appends a "Volver a impuestos" row, both of which would pull the user
+ * out of the scene mid-flow. Inside the scene the only exit is typing "cancelar".
+ *
+ * @param {Tax[]} taxes - Taxes with pending installments (all pages)
+ * @param {number} page - Zero-based page index
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildTaxReceiptTaxPickerKeyboard(taxes: Tax[], page: number) {
+  const rows = buildPaginatedKeyboardRows({
+    items: taxes,
+    page,
+    perPage: TAXES_PER_PAGE,
+    buttonLabel: (tax) => tax.name,
+    buttonCallback: (tax) => `taxr_pick:${tax.id}`,
+    navCallback: (navPage) => `taxr_pg:${navPage}`,
+  });
+
+  return Markup.inlineKeyboard(rows);
+}
+
+/**
+ * Builds the installment selector shown by the tax-receipt scene, listing the unpaid
+ * installments of the chosen tax in ascending chronological order.
+ *
+ * @param {TaxInstallment[]} installments - Unpaid installments of one tax, sorted ascending by dueMonth
+ * @param {number} page - Zero-based page index
+ * @param {string} taxId - Tax document ID, embedded in the pagination callbacks
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildTaxReceiptInstallmentPickerKeyboard(
+  installments: TaxInstallment[],
+  page: number,
+  taxId: string,
+) {
+  const rows = buildPaginatedKeyboardRows({
+    items: installments,
+    page,
+    perPage: TAX_INSTALLMENTS_PER_PAGE,
+    buttonLabel: (installment) => getMonthLabel(installment.dueMonth),
+    buttonCallback: (installment) => `taxr_inst:${installment.id}`,
+    navCallback: (navPage) => `taxr_inst_pg:${taxId}:${navPage}`,
+  });
 
   return Markup.inlineKeyboard(rows);
 }
@@ -347,8 +393,7 @@ export function buildTaxInstallmentDetailPayload(
   installment: TaxInstallment,
 ): { text: string; extra: Record<string, unknown> } {
   const installmentId = installment.id ?? "";
-  const [year, month] = installment.dueMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const monthLabel = getMonthLabel(installment.dueMonth);
 
   const text =
     buildBreadcrumb(["Impuestos", installment.taxName, "Historial", monthLabel])

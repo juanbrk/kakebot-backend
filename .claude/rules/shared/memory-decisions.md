@@ -1,5 +1,14 @@
 # Decisions Log
 
+## 2026-07-29: Merge de `main` a la rama de comprobantes de impuesto — criterio de resolución y QA post-merge
+
+- **Conflictos**: solo `memory-decisions.md` y `memory-sessions.md`, ambos por "los dos lados agregaron entradas al principio". Criterio: **conservar todo**, bloque de main arriba (su entrada de "Estado de servicios" referencia a la de "Listado de entidades" como "el día anterior", así que ese orden relativo es obligatorio) y las de la rama abajo. Ningún archivo de código conflictuó.
+- **Verificación semántica más allá del build**: main refactorizó `handlers/tax.ts` y `keyboards/tax.ts` a fondo (eliminó "Mis impuestos"), así que se cruzaron los callbacks estáticos de `keyboards/tax.ts` contra los handlers registrados — todos resuelven; `menu_mis_impuestos`/`tax_list` no quedaron referenciados. Los 8 callbacks `taxr_*` de la escena nueva intactos.
+- **Punto de contacto real** entre las dos ramas: el fix de `getMonthLabel` de esta rama (`"Abril2026"` → `"Abril 2026"`) afecta 4 pantallas de impuestos, dos de ellas en el archivo que main refactorizó. Se verificaron las 4 en QA (ancho de botones en desktop y celular), no solo el compilado.
+- **QA post-merge cerrada**: matriz de 33 casos en 4 bloques (feature de la rama / features de main / cruce del merge / estados vacíos). Todo OK excepto la sección "Pendientes" del reporte Estado de servicios, **inalcanzable por calendario** — el reporte solo trae cuotas del mes en curso y clasifica ahí las que vencen después de hoy+7 días; corriendo el 29 de julio es imposible. Decisión explícita del usuario: dejarla sin cubrir (comparte render y orden con "Próximos a vencer", que sí se validó) en vez de sembrar datos inconsistentes que ensuciarían otras pantallas.
+- **Hallazgo lateral (H-05 en `TICKET.md`, pendiente)**: `buildTaxMonthKeyboard` (`keyboards/tax.ts:163`) es código muerto — los 4 selectores de mes usan `buildFilteredTaxMonthKeyboard`. Preexistente; armaba la etiqueta a mano con espacio, así que ya divergía de `getMonthLabel` antes del fix. Fuera de alcance, candidato a `/techdebt`.
+- **Tooling de QA descartable**: el dataset de la matriz se sembró con scripts de seed/restore contra el emulador, borrados al cerrar el QA (mismo criterio que el `seed-qa-taxes.js` de la rama anterior — cumplen su propósito y no se versionan). Si hace falta rehacerlos, el patrón de seguridad que valió la pena fue: sondeo TCP al puerto del emulador antes de cualquier escritura, borrado de `GOOGLE_APPLICATION_CREDENTIALS`/`FIREBASE_CONFIG` del entorno para que no pueda escribir en producción, operaciones scopeadas por `telegramUserId`, y snapshot del estado previo que se escribe una sola vez y nunca se pisa al re-sembrar.
+
 ## 2026-07-29: "Listar servicios" migrado a Reportes → Servicios → "Estado de servicios"
 
 - **Decisión**: el listado agrupado por estado de pago (Vencidos / Próximos a vencer / Pagados / Pendientes / Sin cuota), eliminado el día anterior junto con el submenú "Mis servicios" (ver entrada de decisión inmediatamente debajo), se recupera como reporte nuevo en `Reportes → Servicios → Estado de servicios` (`menu_service_status`), mirroreando el patrón standalone de "Métodos de pago" (`service-status-report.service.ts` + `.ts` handler, registro en `telegram.ts`).
@@ -16,6 +25,14 @@
 - **Excepción**: "Ver como listado" de Tarjetas se conserva por decisión explícita del usuario, contra el criterio de aceptación original del ticket.
 - **Auditoría técnica post-QA**: corrigió el tope de nombres recién mencionado y un crash preexistente (no introducido por esta feature) al invocar `/impuestos` como comando de texto; dejó deliberadamente afuera el escaping de Markdown en nombres de entidad (problema transversal al bot, candidato a ticket propio).
 - **Aplicado en**: helpers, keyboards y handlers de impuestos/servicios/tarjetas. Build + lint limpios en todo momento.
+
+## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo — paso de entidad en el doc-router + escena dedicada
+
+- **Diseño**: al elegir "Comprobante" en el doc-router se agrega un paso nuevo — ¿a qué entidad pertenece? (Servicios/Impuestos) — en vez del tercer botón que pedía el ticket original; Impuestos entra a una escena nueva (`tax-receipt.scene.ts`) porque las dos escenas existentes eran service-céntrica o ya tenían un heurístico frágil que hubiera chocado. Los selectores muestran solo impuestos con cuotas pendientes y cuotas no pagadas, confirmando siempre ambos pasos aunque haya un solo candidato; una sola query cubre los dos selectores sin índice nuevo.
+- **De paso** se corrigieron dos problemas de tooling (el hook de escenas bloqueaba editar flujos 100% teclado; los hooks de Claude Code solo corrían en el checkout de main, no en otros worktrees) y un bug heredado de formato de fecha.
+- **QA cerrada**: dos hallazgos menores aceptados sin fix por ser bajo riesgo con un único usuario (UI obsoleta que podría re-marcar una cuota; falta de escaping de Markdown rompiendo un nombre de impuesto con `_`); una variante más severa del segundo (crash sin capturar, en un archivo fuera de esta rama) se derivó a un ticket propio en Trello.
+- **Hallazgo de arquitectura** documentado en `wizard-scenes.md §7.3`: `scene.enter()` corre el composer de la escena antes que el step runner sobre el mismo update — causó un bug intermedio (aviso de reemplazo de archivo disparando también en la entrada) ya corregido.
+- Build + lint limpios (125 warnings = baseline). QA cerrada.
 
 ## 2026-07-23: Desmarcar cuota de impuesto pagada — patrón "unmark", borrado en GCS, y decisión Conservar/Borrar en WizardScene
 

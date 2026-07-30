@@ -13,6 +13,21 @@ export function buildDocTypeKeyboard() {
   ]);
 }
 
+/**
+ * Builds the entity selector shown after "Comprobante": the receipt belongs either to a
+ * service installment (invoice scene, receipt flow) or to a tax installment (tax-receipt scene).
+ *
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildReceiptEntityKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Servicios", "doc_entity_service"),
+      Markup.button.callback("Impuestos", "doc_entity_tax"),
+    ],
+  ]);
+}
+
 export function buildInvoiceServiceListKeyboard(
   services: Service[],
   page: number = 0
