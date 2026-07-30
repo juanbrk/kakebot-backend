@@ -20,15 +20,17 @@
 ### Pendiente
 - Commit (a cargo de Juan). Ticket aparte pendiente para el escaping de Markdown en nombres de entidad.
 
-## 2026-07-29: DRY en keyboards de impuesto paginados (comprobantes de impuesto ya cerrado y commiteado)
+## 2026-07-29: DRY en keyboards de impuesto paginados + merge de main y QA post-merge
 
 ### Completado
-- Extraído `buildPaginatedKeyboardRows` (helper privado en `keyboards/tax.ts`) reutilizado por las 4 funciones de paginación de impuestos (`buildTaxListKeyboard`, `buildTaxInstallmentHistoryKeyboard`, `buildTaxReceiptTaxPickerKeyboard`, `buildTaxReceiptInstallmentPickerKeyboard`); comportamiento idéntico (mismos callbacks, misma lógica de nav), solo deduplicado. QA manual cerrada (4/4 pantallas + paginación en los límites). Commiteado y pusheado (`42483ce`).
-- Se armaron y validaron end-to-end.
-- Build + lint OK (0 errores, 125 warnings = baseline sin cambios).
+- Extraído `buildPaginatedKeyboardRows` (helper privado en `keyboards/tax.ts`) reutilizado por las 4 funciones de paginación de impuestos; comportamiento idéntico, solo deduplicado. Commiteado y pusheado (`42483ce`).
+- Mergeado `main` (PR #72) a la rama (`6fd1c27`): solo conflictuaron los dos logs de memoria; el código auto-mergeó y se verificó a mano (callbacks huérfanos, `getMonthLabel`, escenas nuevas intactas). Build + lint limpios.
+- QA manual post-merge cerrada sobre matriz de 33 casos en 4 bloques: flujo de comprobante de impuesto, listados de entidades y reporte de estado de servicios que trajo main, y los puntos donde las dos ramas se tocan. Todo OK salvo una sección del reporte imposible de poblar por calendario (postergada por decisión).
+- Se usaron scripts de seed/restore contra el emulador, borrados al terminar — herramientas locales, no parte del entregable.
 
 ### Pendiente
 - Abrir PR a main (no existe todavía para esta branch).
+- H-05 en `TICKET.md`: abrir `/techdebt` por código muerto (`buildTaxMonthKeyboard`).
 
 ## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo
 
