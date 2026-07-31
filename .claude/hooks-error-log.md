@@ -8,12 +8,48 @@ Registro estructurado de pain points, bugs detectados por hooks, y estado de imp
 
 `kakebot-backend` (main) y cada worktree (`git worktree list` lo confirma) comparten el mismo repositorio — no son clones separados. Un hook creado y committeado en un worktree **llega solo** a `main` al mergear la branch; no hace falta copiar el archivo a mano. Pasos, en orden:
 
-1. Verificar que el hook está registrado en `.claude/settings.json` (path absoluto a `kakebot-backend`, para que corra desde cualquier worktree) **y** en `.claude/settings.example.json` (placeholder `$PWD`) — ambos archivos están trackeados en git, viajan con el commit.
+1. Verificar que el hook está registrado en `.claude/settings.json` (usando `$CLAUDE_PROJECT_DIR`, para que corra desde cualquier worktree) **y** en `.claude/settings.example.json` (mirror byte-idéntico, mismo `$CLAUDE_PROJECT_DIR`) — ambos archivos están trackeados en git, viajan con el commit.
 2. Mergear la branch a `main` (PR o merge local) — esto ya incluye el hook y los cambios de `settings.json`.
 3. En la carpeta `kakebot-backend` (la que tiene `main` abierto): `git pull`.
 4. Correr un caso de prueba trivial (una edición que debería bloquear, una que debería pasar) ahí para confirmar que el hook está activo.
 
 Aplica a cualquier hook `PreToolUse`/`PostToolUse` nuevo creado desde un worktree. `check-wizard-scene.js` (2026-05-28) y `check-raw-edit-message.js` (2026-07-16) quedaron documentados con un paso de "sincronización manual" que en realidad no hace falta — corregido el 2026-07-22 tras verificar con `git worktree list` que comparten historial.
+
+---
+
+## 2026-07-31: ticket-check.js — invalidación de pr-audit + aviso de tamaño de TICKET.md
+
+**Status:** ✅ Implementado
+
+Hook PostToolUse `Edit|Write|MultiEdit` que desmarca `[x] pr-audit` en `TICKET.md` cuando se edita un archivo fuente (`.ts`/`.js`/`.json`/`.rules`), excluyendo `.claude/rules/` (prosa, no código — el resto de `.claude/` sí cuenta, incluidos sus propios hooks/settings) y build artifacts (`emulator-data/`, `functions/lib/`, `node_modules/`, `package-lock.json`, `dream-state.json`). Cuando el archivo editado es el propio `TICKET.md`, corta directo al chequeo de tamaño (> 150 líneas → recomienda `/ticket-consolidate` vía `additionalContext`) — nunca ambos triggers en la misma invocación.
+
+**Testing:** exit 0 sin mutación al editar una fuente sin checkbox tildado; uncheck confirmado en repo scratch (`[x]` → `[ ]`, `technician-check` intacto); exclusión de `.claude/rules/` confirmada (checkbox permanece `[x]`).
+
+**Detectado en:** rama `techDebt/audit-ticket-rollout`, instalación inicial de la convención `TICKET.md` (`/audit-ticket`).
+
+---
+
+## 2026-07-31: ticket-backfill.js — resolución automática de PENDING-SHA
+
+**Status:** ✅ Implementado
+
+Hook `UserPromptSubmit` (sin matcher de tool — corre en cada mensaje) que resuelve los placeholders `` `PENDING-SHA` `` de la sección Hecho/Done una vez que el marcador `<!-- pending-since: sha -->` difiere del `HEAD` actual. Nunca agrega el marcador — solo resuelve uno que `/commit`/`/commit-lite` ya escribieron. Reemplaza todas las ocurrencias dentro de esa sección y borra el marcador en una sola escritura.
+
+**Testing:** dry-run en repo scratch (`mktemp -d`): commit inicial + marcador → segundo commit → el hook resuelve `` `PENDING-SHA` `` al SHA real y borra el marcador; caso `HEAD` == marcador confirmado como no-op.
+
+**Detectado en:** rama `techDebt/audit-ticket-rollout`, instalación inicial de la convención `TICKET.md` (`/audit-ticket`).
+
+---
+
+## 2026-07-31: commit-dream-check.js — PostToolUse/Bash reemplazado por UserPromptSubmit + SHA-diff
+
+**Status:** ✅ Implementado
+
+El hook original observaba comandos `git commit` vía `PostToolUse`/`Bash` — evento que nunca dispara, porque Claude nunca corre `git commit` (hard wall de `core/hard-walls.md`). El aviso de consolidación de memoria estaba efectivamente muerto desde su creación. Reescrito a `UserPromptSubmit` (corre en cada mensaje) comparando `HEAD` actual contra `last_counted_sha` guardado en `dream-state.json`; la diferencia se cuenta con `git rev-list --count <sha_anterior>..HEAD`. La primera corrida tras el fix hace bootstrap silencioso (semilla `last_counted_sha` desde el `HEAD` vivo, sin contar historial preexistente como commits nuevos).
+
+**Testing:** repo scratch — bootstrap confirmado (primera corrida no cuenta, solo siembra); 9 commits no dispara aviso (< umbral 10); el 10mo commit dispara `additionalContext` con la cuenta correcta.
+
+**Detectado en:** rama `techDebt/audit-ticket-rollout`, durante `/audit-ticket` — bug carried over documentado desde `ligalbrpumptrack-frontend@6d12aed`.
 
 ---
 

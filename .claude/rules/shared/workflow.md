@@ -78,3 +78,36 @@ Separate env files:
 |-----|---------|----------|
 | kakebot | Production | @kakebot_bot (TBD) |
 | botitio_testitoBot | Testing | @botitio_testitoBot |
+
+## Ticket Tracking (TICKET.md)
+
+Every worktree tracks its ticket in a `TICKET.md` at the repo root
+(`$(git rev-parse --show-toplevel)/TICKET.md`). It's gitignored, never committed —
+holds internal review notes and defer/avoid rationales. Full convention, including
+the merge-by-ID rules for `Pending`/`Deferred`:
+`~/.claude/shared/ticket-md.md`.
+
+**Exactly 6 sections, never a 7th:** Context, Pending, Acceptance Criteria, Done
+(with commit SHA), Deferred, Checkpoints. **150-line soft limit** — the
+`ticket-check.js` hook (below) flags it, `/ticket-consolidate` compresses it.
+
+**Two hooks, both `exit 0` always — advisory only, never block:**
+
+| Hook | Trigger | Does |
+|---|---|---|
+| `.claude/hooks/ticket-check.js` | `PostToolUse`, `Edit\|Write\|MultiEdit` | Source-file edit → unchecks `[x] pr-audit`. `TICKET.md` edit → warns past 150 lines |
+| `.claude/hooks/ticket-backfill.js` | `UserPromptSubmit`, every message | Resolves `` `PENDING-SHA` `` placeholders once a real commit lands |
+
+**The `PENDING-SHA` / `pending-since` mechanism:** Claude never runs `git commit`
+(hard wall), so when `/commit`/`/commit-lite` append a `Done` entry the SHA doesn't
+exist yet — they write the literal `` `PENDING-SHA` `` plus a
+`<!-- pending-since: <sha> -->` marker recording `HEAD` at write time.
+`ticket-backfill.js` compares that marker against current `HEAD` on **every**
+subsequent message; the moment they differ, a real commit landed, so it backfills
+the real SHA and drops the marker — no need to re-run `/commit`.
+
+**Checkpoints — exactly two lines, `technician-check` and `pr-audit`:** editing
+source code unchecks `pr-audit` (via `ticket-check.js`); `/audit-pr` re-checks it.
+`technician-check` is **never** touched by a hook or by any other skill — the sole
+exception is `/technician-check` itself, ticking it as the direct result of running
+that pass.

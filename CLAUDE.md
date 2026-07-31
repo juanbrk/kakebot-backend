@@ -79,7 +79,8 @@ growing unbounded, which degrades Claude's performance over time.
 
 **On-demand:** `/mem-consolidate` (run at any time)
 
-**Auto-advisory** triggers after each `git commit` when:
+**Auto-advisory** runs on every message you send (`UserPromptSubmit`, diffing git
+HEAD against the last-seen commit) when:
 - 10+ commits since last consolidation, OR
 - `memory-sessions.md` exceeds 300 lines or 30KB
 
