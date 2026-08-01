@@ -1,6 +1,6 @@
 import { Markup } from "telegraf";
 import { Tax, TaxInstallment, BuildTaxInstallmentDetailKeyboardParams, BuildTaxActionKeyboardParams } from "../../types/tax.types";
-import { formatARS, formatDueDateDayMonth, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatDueDateDayMonth, getMonthLabel } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 const TAXES_PER_PAGE = 6;
@@ -154,40 +154,10 @@ export function buildTaxEditOptionsKeyboard(taxId: string) {
 }
 
 /**
- * Builds a month selector keyboard for registering a new tax installment.
- * Shows current month and the next 2 months.
- *
- * @param {string} taxId - Tax document ID used in callback data
- * @return {Markup.Markup} Inline keyboard markup
- */
-export function buildTaxMonthKeyboard(taxId: string) {
-  const now = new Date();
-  const months = [];
-
-  for (let i = 0; i < 3; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const dueMonth = `${year}-${month}`;
-    const label = `${MONTH_NAMES[date.getMonth()]} ${year}`;
-    months.push([
-      Markup.button.callback(label, `tax_month:${taxId}:${dueMonth}`),
-    ]);
-  }
-
-  months.push([
-    Markup.button.callback("\u2190 Volver a impuestos", "tax_view"),
-  ]);
-
-  return Markup.inlineKeyboard(months);
-}
-
-/**
  * Builds a month selector keyboard showing only months without an existing installment.
  *
  * @param {string[]} availableMonths - Months in "YYYY-MM" format with no existing installment
  * @param {string} taxId - Tax document ID used in callback data
- * @param {boolean} showBackButton - Whether to include a "Volver a impuestos" back button
  * @return {Markup.Markup} Inline keyboard markup
  */
 export function buildFilteredTaxMonthKeyboard(
