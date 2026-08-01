@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-08-01: Eliminado el selector de meses de impuesto muerto (H-05)
+
+### Completado
+- Borrada la función de selector de meses que no usaba nadie: quedaba de un diseño anterior y contradecía dos decisiones vigentes (no filtraba los meses ya ocupados, y traía una fila "Volver" que rompe el wizard). Quien buscara "el keyboard de meses" la encontraba primero, por nombre y por posición.
+- De paso salió un import que quedaba muerto con ella y un `@param` que documentaba un parámetro inexistente.
+- Se decidió **no** renombrar la función que queda: el prefijo `Filtered` describe lo que hace, no solo la distingue de la borrada.
+- Build limpio, lint en la baseline exacta de la rama (123 warnings / 0 errores). QA manual en botitio_testitoBot validada por Juan.
+
+### Pendiente
+- Commits (a cargo de Juan) y PR a main.
+
 ## 2026-07-31: Convención TICKET.md instalada — hooks de seguimiento automático
 
 ### Completado
@@ -41,7 +52,7 @@
 
 ### Pendiente
 - Abrir PR a main (no existe todavía para esta branch).
-- H-05 en `TICKET.md`: abrir `/techdebt` por código muerto (`buildTaxMonthKeyboard`).
+- H-05: resuelto el 2026-08-01 en su propia rama (ver entrada de esa fecha).
 
 ## 2026-07-27: Comprobantes de impuesto desde el envío directo de archivo
 
