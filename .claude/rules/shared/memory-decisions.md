@@ -1,5 +1,9 @@
 # Decisions Log
 
+## 2026-07-31: Convención TICKET.md instalada — decisiones de la implementación
+
+Se decidió inglés como idioma del esquema de TICKET.md para este repo pese a que el patrón `kakebot-*` por defecto resuelve a español, por acuerdo explícito con Juan. La exclusión que desmarca `pr-audit` queda acotada a `.claude/rules/` (documentación) y no a todo `.claude/`, para que editar los propios hooks o `settings.json` siga invalidando una revisión de PR obsoleta. `commit-dream-check.js` pasó de `PostToolUse`/`Bash` (evento que nunca dispara porque Claude no corre `git commit`) a `UserPromptSubmit` con diff de SHA contra `dream-state.json`. De paso, `settings.example.json` dejó de usar el ritual `$PWD` + `sed` y pasó a ser un mirror byte-idéntico con `$CLAUDE_PROJECT_DIR`, evitando que el propio archivo de ejemplo cayera en el mismo bug de rutas que la convención buscaba prevenir.
+
 ## 2026-07-29: Merge de `main` a la rama de comprobantes de impuesto — criterio de resolución y QA post-merge
 
 - **Conflictos**: solo `memory-decisions.md` y `memory-sessions.md`, ambos por "los dos lados agregaron entradas al principio". Criterio: **conservar todo**, bloque de main arriba (su entrada de "Estado de servicios" referencia a la de "Listado de entidades" como "el día anterior", así que ese orden relativo es obligatorio) y las de la rama abajo. Ningún archivo de código conflictuó.
