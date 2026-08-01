@@ -42,15 +42,44 @@ bash scripts/new-worktree.sh "<slug>" <tipo>
 
 Donde `<slug>` es el extraído en el paso 1 y `<tipo>` es el elegido en el paso 2.
 
-### 4. Guardar el ticket como TICKET.md
+### 4. Guardar el ticket como TICKET.md (esquema de 6 secciones)
 
-Una vez que el script termine con éxito, escribí el contenido completo del ticket en:
+Una vez que el script termine con éxito, **no vuelques el ticket tal cual** — mapealo
+al esquema canónico de 6 secciones (convención completa: `~/.claude/shared/ticket-md.md`)
+y escribilo en:
 
 ```
 [WORKTREE_PATH]/TICKET.md
 ```
 
 Donde `[WORKTREE_PATH]` es la ruta que imprimió el script (línea que dice `Ruta:`).
+
+**Resolver el idioma primero**, en este orden (nunca hardcodeado):
+1. `~/.claude/settings.json` → `commitMessageGuidelines.style.language` → match exacto
+   del nombre del worktree (`[WORKTREE_NAME]`, la línea `Worktree:` que imprimió el
+   script) en `projects`.
+2. Si no hay match exacto, el primer glob que matchee en `projectPatterns` (en orden).
+3. Si ninguno matchea, `default`.
+
+Esto decide si los headings van en español (`## Contexto`, `## Pendientes`, `## Hecho`,
+`## Diferido`) o en inglés (`## Context`, `## Pending`, `## Done`, `## Deferred`) —
+`## Criterios de aceptación`/`## Acceptance Criteria` sigue la misma resolución;
+`## Checkpoints` se escribe igual en ambos idiomas.
+
+**Mapeo del contenido del ticket a las 6 secciones:**
+
+| Contenido del ticket | Sección destino |
+|---|---|
+| Historia de usuario / cuerpo descriptivo del problema | `## Contexto` / `## Context` |
+| Criterios de aceptación | `## Criterios de aceptación` / `## Acceptance Criteria` (verbatim) |
+| Ítems accionables (aspectos técnicos, sugerencias UX, tareas explícitas) | `## Pendientes` / `## Pending`, cada uno como `- [ ]` |
+| — | `## Hecho` / `## Done` — vacía |
+| — | `## Diferido` / `## Deferred` — vacía |
+| — | `## Checkpoints` — `- [ ] technician-check` y `- [ ] pr-audit`, ambas sin fecha |
+
+Empezá el archivo con el marcador de esquema en la línea 1:
+`<!-- ticket-schema: v1 lang=es -->` o `<!-- ticket-schema: v1 lang=en -->` según el
+idioma resuelto arriba.
 
 ### 5. Reportar al usuario
 

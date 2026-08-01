@@ -1,6 +1,4 @@
 {
-  "_comment": "Template for .claude/settings.json — replace $PWD with the absolute project root path",
-  "_usage": "sed \"s|\\$PWD|$(pwd)|g\" .claude/settings.example.json > .claude/settings.json",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/protect-sensitive-files.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.js"
           }
         ]
       },
@@ -17,51 +15,66 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/check-list-bullets.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-list-bullets.js"
           },
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/check-param-patterns.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-param-patterns.js"
           },
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/check-wizard-scene.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-wizard-scene.js"
           },
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/check-raw-edit-message.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-raw-edit-message.js"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node $PWD/.claude/hooks/commit-dream-check.js"
-          }
-        ]
-      },
-      {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/track-modified-file.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/track-modified-file.js"
           },
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/env-change-guard.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/env-change-guard.js"
           },
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/typecheck-feedback.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/typecheck-feedback.js"
           },
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/lint-feedback.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/lint-feedback.js"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/ticket-check.js"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/ticket-backfill.js"
+          },
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/commit-dream-check.js"
           }
         ]
       }
@@ -72,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $PWD/.claude/hooks/check-session-params.js"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/check-session-params.js"
           }
         ]
       }

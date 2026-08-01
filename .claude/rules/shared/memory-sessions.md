@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-07-31: Convención TICKET.md instalada — hooks de seguimiento automático
+
+### Completado
+- Hooks nuevos: uno desmarca la revisión de PR al tocar código fuente, otro resuelve el SHA pendiente en Hecho sin re-correr /commit
+- Corregido el aviso de consolidación de memoria, que nunca disparaba porque escuchaba un evento que Claude nunca genera
+- `/worktree` ahora arma TICKET.md con las 6 secciones en vez de volcar el ticket tal cual
+- Validado en vivo tras reiniciar Claude Code: ambos comportamientos confirmados con ediciones reales, no solo dry-run
+
+### Pendiente
+- Commit (a cargo de Juan)
+
 ## 2026-07-29: "Estado de servicios" — reporte nuevo, migración de "Listar servicios" removido
 
 ### Completado
