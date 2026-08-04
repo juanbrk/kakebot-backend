@@ -911,6 +911,14 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
 
   state.statementId = statementId;
   await editOrReply(ctx, "✅ Resumen cargado correctamente.");
+
+  // Entered from the doc-router: the user already sent the PDF before the flow started,
+  // so attach it instead of asking for a file they have handed over.
+  if (state.pendingFileId) {
+    await handlePdfUpload(ctx, state.pendingFileId);
+    return;
+  }
+
   await ctx.reply("¿Deseas adjuntar el PDF del resumen?", buildCardStmtReceiptKeyboard(statementId));
   ctx.wizard.selectStep(CREATE_PDF_STEP);
 }

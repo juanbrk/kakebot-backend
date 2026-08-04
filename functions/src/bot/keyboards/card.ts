@@ -95,6 +95,60 @@ export function buildCardListKeyboard(cards: CreditCard[], page: number) {
 }
 
 /**
+ * Builds the card selector shown inside the card-statement-doc scene, when a statement PDF
+ * arrives before any card is known.
+ *
+ * Parallel to buildCardListKeyboard rather than a reuse of it: that one emits the global
+ * `card_pick:`/`card_pg:` callbacks plus a "← Volver" row pointing at `menu_tarjetas`, which
+ * would pull the user out of the scene mid-flow (keyboards.md, "Selectores dentro de una
+ * escena"). This one uses the scene-scoped `stmtdoc_` prefix and carries no back row.
+ *
+ * @param {CreditCard[]} cards - Cards to offer
+ * @param {number} page - Zero-indexed page number
+ * @return {object} Inline keyboard markup
+ */
+export function buildStatementDocCardPickerKeyboard(cards: CreditCard[], page: number) {
+  const start = page * CARDS_PER_PAGE;
+  const end = start + CARDS_PER_PAGE;
+  const pageCards = cards.slice(start, end);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[] = [];
+
+  for (let i = 0; i < pageCards.length; i += 2) {
+    const row = [
+      Markup.button.callback(
+        buildCardButtonLabel(pageCards[i]),
+        `stmtdoc_pick:${pageCards[i].id}`,
+      ),
+    ];
+    if (i + 1 < pageCards.length) {
+      row.push(
+        Markup.button.callback(
+          buildCardButtonLabel(pageCards[i + 1]),
+          `stmtdoc_pick:${pageCards[i + 1].id}`,
+        ),
+      );
+    }
+    rows.push(row);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const navRow: any[] = [];
+  if (page > 0) {
+    navRow.push(Markup.button.callback("← Anterior", `stmtdoc_pg:${page - 1}`));
+  }
+  if (end < cards.length) {
+    navRow.push(Markup.button.callback("Más →", `stmtdoc_pg:${page + 1}`));
+  }
+  if (navRow.length > 0) {
+    rows.push(navRow);
+  }
+
+  return Markup.inlineKeyboard(rows);
+}
+
+/**
  * Processor selection keyboard for card creation.
  *
  * @return {object} Inline keyboard markup
@@ -146,8 +200,6 @@ export function buildCardStmtMonthKeyboard(cardId: string, existingMonths: strin
       Markup.button.callback(label, `card_stmt_month:${cardId}:${dueMonth}`),
     ]);
   }
-
-  months.push([Markup.button.callback("Cancelar", "card_stmt_cancel")]);
 
   return Markup.inlineKeyboard(months);
 }

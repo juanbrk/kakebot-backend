@@ -1,16 +1,29 @@
 import { Markup } from "telegraf";
 import { Service } from "../../types/service.types";
+import { PendingFileType } from "../../types/index";
 import { MONTH_NAMES } from "../../helpers/format";
 
 const SERVICES_PER_PAGE = 6;
 
-export function buildDocTypeKeyboard() {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback("Factura", "doc_type_invoice"),
-      Markup.button.callback("Comprobante", "doc_type_receipt"),
-    ],
-  ]);
+/**
+ * Builds the document classification keyboard shown right after a file arrives.
+ * "Resumen" is offered only for PDFs: a credit card statement is always a document,
+ * never a photo, and picking it starts the statement registration flow.
+ *
+ * @param {PendingFileType} pendingFileType - Type of the file awaiting classification
+ * @return {Markup.Markup} Inline keyboard markup
+ */
+export function buildDocTypeKeyboard(pendingFileType: PendingFileType) {
+  const row = [
+    Markup.button.callback("Factura", "doc_type_invoice"),
+    Markup.button.callback("Comprobante", "doc_type_receipt"),
+  ];
+
+  if (pendingFileType === "pdf") {
+    row.push(Markup.button.callback("Resumen", "doc_type_statement"));
+  }
+
+  return Markup.inlineKeyboard([row]);
 }
 
 /**
