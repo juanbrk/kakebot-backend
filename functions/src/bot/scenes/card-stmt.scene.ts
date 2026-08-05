@@ -920,6 +920,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   if (state.pendingFileId) {
     ctx.wizard.selectStep(CREATE_PDF_STEP);
     const wasAttached = await handlePdfUpload(ctx, state.pendingFileId);
+    state.pendingFileId = undefined;
     if (!wasAttached) {
       await ctx.reply(
         "¿Deseas adjuntar el PDF del resumen?",

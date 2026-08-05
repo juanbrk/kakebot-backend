@@ -204,6 +204,7 @@ async function handleCardPagination(ctx: KakebotContext): Promise<void> {
       module: "card-statement-doc.scene",
       userId: telegramUserId,
     });
+    await ctx.reply("Error al cargar las tarjetas. Intentá de nuevo.");
   }
 }
 

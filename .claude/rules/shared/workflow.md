@@ -71,6 +71,7 @@ Separate env files:
 - Firestore: port 8080
 - UI: port 4000
 - Ambos modos de `npm run go` importan/exportan seed data de `emulator-data/` automáticamente
+- Seed data persists between sessions automatically
 
 ⚠️ **Nunca matar el emulador de Storage por puerto.** `lsof -ti:9199 | xargs kill -9` no mata "el emulador de Storage": mata al proceso del CLI de Firebase, que lo hospeda in-process. El emulador de Firestore es un proceso Java aparte, queda huérfano agarrado a 8080/9150, y el próximo `npm run go` falla con `Port 8080 is not open on localhost` — mensaje engañoso: significa **ocupado**, no libre. Salida: `kill <pid-java>` (buscarlo con `lsof -nP -iTCP -sTCP:LISTEN | grep :8080`), y cortar la corrida vieja antes de arrancar otra para no dejar dos bots haciendo long-polling.
 
@@ -80,7 +81,6 @@ firebase emulators:start --only firestore --import=./emulator-data --export-on-e
 firebase emulators:start --only storage
 ```
 Así Ctrl-C sobre el segundo baja Storage limpio y no orfana nada.
-- Seed data persists between sessions automatically
 
 ## Telegram Bots
 | Bot | Purpose | Username |

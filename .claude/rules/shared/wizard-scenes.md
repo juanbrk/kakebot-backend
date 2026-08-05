@@ -708,6 +708,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] Todo prompt con `*...*` incluye `parse_mode: "Markdown"`.
 - [ ] Botones: cancelar izquierda, confirmar derecha.
 - [ ] Emojis solo en `✅`/`❌`.
+- [ ] Teclados con opciones condicionales pasan por un funnel único que lee el state en cada llamada, y el action handler re-valida la condición contra el state actual (§8.5).
 
 ### Ediciones de mensaje (regla de tres vías, §9)
 - [ ] Steps usan `ctx.reply()`.
