@@ -1,5 +1,9 @@
 # Decisions Log
 
+## 2026-08-04: "Resumen" en el doc-router registra un resumen nuevo, no adjunta a uno existente
+
+El alcance se corrigió durante el diseño: en vez de adjuntar el PDF a un resumen existente, la opción "Resumen" del clasificador de documentos inicia el registro de un resumen **nuevo** — pregunta la tarjeta y entra al flujo de creación de siempre ya poblado (escena liviana nueva en vez de ampliar la escena de resúmenes existente), evitando tocar el archivo más grande del proyecto. Dos ajustes de QA quedaron aplicados a los dos flujos que comparten el selector de mes de resúmenes (el nuevo y "Añadir Resumen" desde el menú de tarjeta): se sacó el botón "Cancelar" (única salida: escribir "cancelar"), y los 3 botones de clasificación de documento pasan a una sola fila. Sin cambios en servicios ni índices de Firestore — ninguna query nueva.
+
 ## 2026-08-01: Al eliminar el selector de meses muerto, no se renombra el que queda
 
 Con `buildTaxMonthKeyboard` (muerta) fuera, se decidió **no** renombrar `buildFilteredTaxMonthKeyboard` a ocupar el nombre libre: el prefijo `Filtered` describe lo que la función hace —filtra los meses que ya tienen cuota— y no meramente la distingue de la borrada, así que sobrevive por sí solo. Además el rename habría invalidado el criterio de aceptación del ticket (`grep buildTaxMonthKeyboard` → 0) y sumado 5 call sites de `tax.scene.ts` a un diff que de otro modo cabe en un archivo. Gotcha del cambio: `MONTH_NAMES` se importaba en `keyboards/tax.ts` **solo** para la función muerta, así que borrarla sin sanear el import deja un import sin uso — el ticket original no lo contemplaba.
