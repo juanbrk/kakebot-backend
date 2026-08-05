@@ -86,6 +86,16 @@ export interface TaxReceiptWizardState {
 }
 
 /**
+ * Persistent state for the card-statement-doc wizard, held in `ctx.wizard.state`.
+ * Always entered from the doc-router scene with `pendingFileId` and `pendingFileType` pre-set;
+ * the scene only picks the card, then hands the file to the card-stmt create flow.
+ */
+export interface CardStatementDocWizardState {
+  pendingFileId: string;
+  pendingFileType: PendingFileType;
+}
+
+/**
  * Persistent state for the categorize wizard, held in `ctx.wizard.state`.
  * All loop state (pending descriptions, session expenses, message context)
  * is stored here and persisted via the Telegraf session middleware.
@@ -187,6 +197,13 @@ export interface CardStmtWizardState {
   isPaid?: boolean;
   /** Generic pending edit value (ARS amount or due day) awaiting confirmation. */
   pendingEditValue?: number;
+  /**
+   * File_id of a statement PDF already sent by the user, carried in from the
+   * card-statement-doc scene. When present the create flow attaches it on confirm
+   * instead of asking for it. Always a PDF — the doc-router only offers "Resumen"
+   * for documents — so the upload can assume an application/pdf mime type.
+   */
+  pendingFileId?: string;
 }
 
 /**

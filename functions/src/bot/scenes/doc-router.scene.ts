@@ -4,11 +4,13 @@ import {
   DocRouterWizardState,
   InvoiceWizardState,
   TaxReceiptWizardState,
+  CardStatementDocWizardState,
 } from "../../types/telegraf-context.types";
 import { buildDocTypeKeyboard, buildReceiptEntityKeyboard } from "../keyboards/invoice";
 import { replyOrEdit } from "../../helpers/telegram";
 import { INVOICE_SCENE_ID } from "./invoice.scene";
 import { TAX_RECEIPT_SCENE_ID } from "./tax-receipt.scene";
+import { CARD_STATEMENT_DOC_SCENE_ID } from "./card-statement-doc.scene";
 
 export const DOC_ROUTER_SCENE_ID = "doc-router-wizard";
 
@@ -21,12 +23,15 @@ const ENTITY_PROMPT = "*¿A qué entidad pertenece el comprobante?*";
 const FILE_REPLACED_NOTICE = "Voy a usar el último archivo que enviaste.";
 
 /**
- * Sends the doc-type keyboard as a new message.
+ * Sends the doc-type keyboard as a new message. Reads the file type from state on every call —
+ * the keyboard's third option ("Resumen") is PDF-only, so replacing a PDF with a photo mid-flow
+ * has to drop it. Single funnel to buildDocTypeKeyboard for exactly that reason.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function repromptDocType(ctx: KakebotContext): Promise<void> {
-  await ctx.reply(DOC_TYPE_PROMPT, buildDocTypeKeyboard());
+  const { pendingFileType } = ctx.wizard.state as DocRouterWizardState;
+  await ctx.reply(DOC_TYPE_PROMPT, buildDocTypeKeyboard(pendingFileType));
 }
 
 /**
@@ -87,6 +92,32 @@ async function handleDocTypeInvoice(ctx: KakebotContext): Promise<void> {
   const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
   await replyOrEdit(ctx, "Vas a cargar un archivo como Factura");
   await ctx.scene.enter(INVOICE_SCENE_ID, { flow: "invoice", pendingFileId, pendingFileType } as InvoiceWizardState);
+}
+
+/**
+ * Routes a credit card statement to the card-statement-doc scene, which picks the card and
+ * hands the PDF to the statement create flow.
+ *
+ * Guards the file type instead of trusting the button: "Resumen" is only rendered for PDFs,
+ * but a keyboard sent before the user replaced the PDF with a photo stays tappable in the chat.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleDocTypeStatement(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
+
+  if (pendingFileType !== "pdf") {
+    await ctx.reply("El resumen tiene que ser un PDF.");
+    await repromptCurrentKeyboard(ctx);
+    return;
+  }
+
+  await replyOrEdit(ctx, "Vas a cargar un archivo como Resumen");
+  await ctx.scene.enter(
+    CARD_STATEMENT_DOC_SCENE_ID,
+    { pendingFileId, pendingFileType } as CardStatementDocWizardState,
+  );
 }
 
 /**
@@ -247,6 +278,7 @@ export const docRouterScene = new Scenes.WizardScene<KakebotContext>(
 docRouterScene.hears(CANCEL_REGEX, handleCancelWord);
 docRouterScene.action("doc_type_invoice", handleDocTypeInvoice);
 docRouterScene.action("doc_type_receipt", handleDocTypeReceipt);
+docRouterScene.action("doc_type_statement", handleDocTypeStatement);
 docRouterScene.action("doc_entity_service", handleEntityService);
 docRouterScene.action("doc_entity_tax", handleEntityTax);
 docRouterScene.on("photo", handlePhotoWhileWaiting);

@@ -389,6 +389,31 @@ En cada fila de keyboard con cancelar/volver y confirmar/siguiente:
 - ❌ solo en mensajes de error.
 - Nunca en labels de botón ni en prompts.
 
+### 8.5 Teclados con opciones condicionales — funnel único + guard en el handler
+
+Cuando un botón aparece o desaparece según el state (ej. "Resumen" solo si el archivo pendiente
+es un PDF), hacen falta **las dos cosas**:
+
+1. **Un solo funnel hacia el builder.** Todas las re-presentaciones del teclado pasan por un
+   helper que lee el state en cada llamada, en vez de que cada call-site le pase el flag por su
+   cuenta. Así, si el state cambia a mitad del flujo, el teclado siguiente se recalcula solo.
+
+   ```typescript
+   async function repromptDocType(ctx: KakebotContext): Promise<void> {
+     const { pendingFileType } = ctx.wizard.state as DocRouterWizardState;
+     await ctx.reply(DOC_TYPE_PROMPT, buildDocTypeKeyboard(pendingFileType));
+   }
+   ```
+
+2. **Un guard en el action handler.** Ocultar el botón no lo desactiva: **los mensajes anteriores
+   siguen en el chat y sus botones siguen siendo clickeables**. Si el usuario mandó un PDF, no
+   tocó nada, y después mandó una foto, el teclado viejo con "Resumen" sigue ahí. El handler
+   tiene que re-validar la condición contra el state actual y recuperarse re-presentando el
+   teclado vigente — nunca asumir que fue invocado desde el teclado que corresponde al state de
+   ahora.
+
+Referencia: `doc-router.scene.ts` — `repromptDocType` y `handleDocTypeStatement`.
+
 ---
 
 ## 9. Ediciones de mensaje — regla de tres vías
@@ -683,6 +708,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 - [ ] Todo prompt con `*...*` incluye `parse_mode: "Markdown"`.
 - [ ] Botones: cancelar izquierda, confirmar derecha.
 - [ ] Emojis solo en `✅`/`❌`.
+- [ ] Teclados con opciones condicionales pasan por un funnel único que lee el state en cada llamada, y el action handler re-valida la condición contra el state actual (§8.5).
 
 ### Ediciones de mensaje (regla de tres vías, §9)
 - [ ] Steps usan `ctx.reply()`.
@@ -784,7 +810,9 @@ Referencia: `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` / `handl
 | Photo/document handlers con cursor check | `tax.scene.ts:540-581` |
 | Archivo como input primario (photo/document handlers) | `doc-router.scene.ts` — `handlePhotoWhileWaiting` / `handleDocumentWhileWaiting` |
 | Escena de selección pura (sin steps de texto, dos selectores encadenados) | `tax-receipt.scene.ts` |
-| Ruteo a otra escena según elección del usuario | `doc-router.scene.ts` — `handleEntityService` / `handleEntityTax` |
+| Escena de un solo selector que rehidrata un flujo existente | `card-statement-doc.scene.ts` — elige la tarjeta y entra a `card-stmt.scene` con `flow: "create"` ya poblado |
+| Ruteo a otra escena según elección del usuario | `doc-router.scene.ts` — `handleEntityService` / `handleEntityTax` / `handleDocTypeStatement` |
+| Teclado que depende del state (opción condicional) | `doc-router.scene.ts` — `repromptDocType` como funnel único a `buildDocTypeKeyboard` |
 | Cancel word handler | `tax.scene.ts:636-639` |
 | Registro de event handlers | `tax.scene.ts:653-665` |
 | `WizardState` interface | `types/telegraf-context.types.ts` (buscar `[Domain]WizardState`) |

@@ -45,12 +45,21 @@ function buildPaginatedKeyboard(items, page, callbackPrefix) {
 | `buildInvoiceServiceListKeyboard` | `keyboards/invoice.ts` | Yes |
 | `buildTaxReceiptTaxPickerKeyboard` | `keyboards/tax.ts` | Yes |
 | `buildTaxReceiptInstallmentPickerKeyboard` | `keyboards/tax.ts` | Yes |
+| `buildStatementDocCardPickerKeyboard` | `keyboards/card.ts` | Yes |
 
 ### Selectores dentro de una escena — sin fila "Volver"
 
 Un selector que se muestra **dentro** de una WizardScene no lleva fila de navegación hacia atrás: esos callbacks los atiende un handler global, que sacaría al usuario del flujo dejando la escena activa y sin teclado. Dentro de una escena la única salida es escribir `cancelar` (`wizard-scenes.md §8.1`).
 
 Por eso `buildTaxReceiptTaxPickerKeyboard` y `buildTaxReceiptInstallmentPickerKeyboard` existen en paralelo a `buildTaxListKeyboard` / `buildTaxInstallmentHistoryKeyboard` en lugar de reutilizarlas: los builders del menú emiten callbacks globales (`tax_pick:`, `tax_inst:`) y agregan "← Volver a impuestos". Los de la escena usan el prefijo `taxr_` y no traen fila de vuelta.
+
+Mismo caso en tarjetas: `buildStatementDocCardPickerKeyboard` (prefijo `stmtdoc_`, sin fila de vuelta) existe en paralelo a `buildCardListKeyboard`, que emite `card_pick:` / `card_pg:` y una fila "← Volver" apuntando a `menu_tarjetas`.
+
+| Selector de escena | Prefijo | Gemelo de menú (callbacks globales) |
+|---|---|---|
+| `buildTaxReceiptTaxPickerKeyboard` | `taxr_` | `buildTaxListKeyboard` (`tax_pick:`) |
+| `buildTaxReceiptInstallmentPickerKeyboard` | `taxr_` | `buildTaxInstallmentHistoryKeyboard` (`tax_inst:`) |
+| `buildStatementDocCardPickerKeyboard` | `stmtdoc_` | `buildCardListKeyboard` (`card_pick:`) |
 
 ## Empty-State Submenus
 

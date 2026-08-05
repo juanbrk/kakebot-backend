@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-08-05: Registrar un resumen de tarjeta enviando el PDF al bot
+
+### Completado
+- Mandar un PDF al bot ahora ofrece la opción "Resumen": arranca el registro de un resumen nuevo, pregunta la tarjeta y sigue el flujo de creación de siempre, adjuntando el PDF ya enviado.
+- QA cerrada por completo, incluidos ajustes de layout y de comportamiento del botón Cancelar, un bug de reintento fallido corregido, y los hallazgos menores de la auditoría de PR.
+- Build y lint limpios en la baseline de la rama durante todo el trabajo.
+
+### Pendiente
+- Re-correr `/audit-pr` antes de mergear.
+- Commit y PR a main (a cargo de Juan).
+
 ## 2026-08-01: Eliminado el selector de meses de impuesto muerto (H-05)
 
 ### Completado
