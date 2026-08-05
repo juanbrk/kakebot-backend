@@ -913,9 +913,19 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   await editOrReply(ctx, "✅ Resumen cargado correctamente.");
 
   // Entered from the doc-router: the user already sent the PDF before the flow started,
-  // so attach it instead of asking for a file they have handed over.
+  // so attach it instead of asking for a file they have handed over. The cursor moves to
+  // the attach step *before* uploading: on success handlePdfUpload leaves the scene anyway,
+  // and on failure the user lands on the retry prompt instead of on stepGuardCreateConfirm,
+  // where tapping "Confirmar" again would create a second statement for the same month.
   if (state.pendingFileId) {
-    await handlePdfUpload(ctx, state.pendingFileId);
+    ctx.wizard.selectStep(CREATE_PDF_STEP);
+    const wasAttached = await handlePdfUpload(ctx, state.pendingFileId);
+    if (!wasAttached) {
+      await ctx.reply(
+        "¿Deseas adjuntar el PDF del resumen?",
+        buildCardStmtReceiptKeyboard(statementId),
+      );
+    }
     return;
   }
 
@@ -1311,14 +1321,15 @@ async function handleCancelEdit(ctx: KakebotContext): Promise<void> {
  *
  * @param {KakebotContext} ctx - Wizard context
  * @param {string | null} documentFileId - PDF file_id when handling a document; null for photos
+ * @return {boolean} Whether the file was attached; false leaves the caller responsible for the retry prompt
  */
-async function handlePdfUpload(ctx: KakebotContext, documentFileId: string | null): Promise<void> {
+async function handlePdfUpload(ctx: KakebotContext, documentFileId: string | null): Promise<boolean> {
   const state = ctx.wizard.state as CardStmtWizardState;
   const telegramUserId = ctx.from?.id.toString() ?? "";
   const statementId = state.statementId || "";
   if (!statementId) {
     await ctx.reply("Error: datos de sesión incompletos.");
-    return;
+    return false;
   }
 
   let fileId: string;
@@ -1331,7 +1342,7 @@ async function handlePdfUpload(ctx: KakebotContext, documentFileId: string | nul
     const photos = ((ctx.message as any).photo as Array<{ file_id: string }>) || [];
     if (photos.length === 0) {
       await ctx.reply("No se pudo procesar la foto. Intentá de nuevo.");
-      return;
+      return false;
     }
     fileId = photos[photos.length - 1].file_id;
     mimeType = "";
@@ -1360,9 +1371,13 @@ async function handlePdfUpload(ctx: KakebotContext, documentFileId: string | nul
         ...Markup.inlineKeyboard([[Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`)]]),
       });
     }
+    return true;
   } catch (error) {
     log.error("Error uploading card statement receipt", error, { module: "card-stmt.scene", userId: telegramUserId });
-    await ctx.reply("Error al guardar el resumen. Intentá de nuevo.");
+    // The statement itself is already saved by the time this runs — say so, or the user
+    // reads a generic "no se guardó" and retries the whole registration.
+    await ctx.reply("Error al adjuntar el PDF. El resumen ya quedó guardado.");
+    return false;
   }
 }
 
