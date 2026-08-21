@@ -145,9 +145,5 @@ export function buildStatusReportText({
     }),
   ].filter((section) => section.length > 0);
 
-  if (sections.length === 0) {
-    return null;
-  }
-
   return `*${title}*\n\n${sections.join("\n\n")}`;
 }

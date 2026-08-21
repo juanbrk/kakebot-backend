@@ -7,7 +7,7 @@ import { replyOrEdit } from "../../helpers/telegram";
 /**
  * Registers the payment methods report handler.
  *
- * @param {Telegraf<Context>} bot - The Telegraf bot instance
+ * @param {Telegraf<KakebotContext>} bot - The Telegraf bot instance
  */
 export function registerPaymentMethodReportHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("menu_payment_methods", handlePaymentMethodsReport);
