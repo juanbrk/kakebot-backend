@@ -246,6 +246,9 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `MONTH_NAMES` | `helpers/format.ts` | Spanish month name array (0-indexed) |
 | `buildBackdatedTimestamp(yearMonth)` | `helpers/format.ts` | Last day of month at 17:00 ART as Firestore Timestamp |
 | `buildDueDate(year, month, day)` | `helpers/format.ts` | Due-date `Date` anchored at 12:00 UTC — use for any persisted dueDate (service/tax/card installments) to survive process-timezone differences between production (UTC) and local emulator (ART) |
+| `getCurrentMonth()` | `helpers/format.ts` | Current month as `"YYYY-MM"` — usado por todos los reportes del mes en curso |
+| `formatDueDateDayMonth(dueDate)` | `helpers/format.ts` | Firestore Timestamp → `"dd/mm"` |
+| `buildStatusReportText({ title, entries })` | `helpers/status-report.ts` | Agrupa entradas `{ name, installment }` en las 5 secciones de estado de cuota (Vencidos / Próximos a vencer / Pagados / Pendientes / Sin cuota). Fuente única del umbral de 7 días y del formato de línea — compartido por los reportes de servicios e impuestos |
 | `parseArgentineAmount(input)` | `helpers/parse-amount.ts` | Argentine-format string → number |
 | `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` |
 | `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message when triggered from a callback, else reply. Swallows every edit error, but only the double-tap "not modified" is silent — any other reason is logged as `log.warn`. Use for EVERY cosmetic edit (no preceding write): menu navigation, re-rendering screens, consuming a button. |

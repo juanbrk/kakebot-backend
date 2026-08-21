@@ -119,3 +119,14 @@ export function formatUSD(amount: number): string {
     maximumFractionDigits: 2,
   });
 }
+
+/**
+ * Returns the current month in "YYYY-MM" format.
+ *
+ * @return {string} Current year-month string
+ */
+export function getCurrentMonth(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${now.getFullYear()}-${month}`;
+}
