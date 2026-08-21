@@ -1,5 +1,9 @@
 # Decisions Log
 
+## 2026-08-21: "Estado de impuestos" vive en su propio submenú "Impuestos", separado de "Servicios"
+
+QA determinó que el nuevo reporte no debía convivir en Reportes → Servicios (como preveía el ticket original), sino en un submenú nuevo "Impuestos" paralelo a Balances/Pagos/Servicios — coherente con que Servicios e Impuestos ya son dominios separados en el resto del bot; breadcrumb y "← Volver" se ajustaron a `rep_impuestos`. El agrupamiento por estado de cuota (5 secciones, umbral de 7 días, formato de línea) se extrajo a `helpers/status-report.ts` (`buildStatusReportText`) en vez de clonar la lógica de "Estado de servicios", para que ambos reportes no puedan divergir. Los scripts de seed/restore usados para poblar el QA se borraron al cerrar el QA, mismo criterio que en ramas anteriores — no se versionan.
+
 ## 2026-08-04: "Resumen" en el doc-router registra un resumen nuevo, no adjunta a uno existente
 
 El alcance se corrigió durante el diseño: en vez de adjuntar el PDF a un resumen existente, la opción "Resumen" del clasificador de documentos inicia el registro de un resumen **nuevo** — pregunta la tarjeta y entra al flujo de creación de siempre ya poblado (escena liviana nueva en vez de ampliar la escena de resúmenes existente), evitando tocar el archivo más grande del proyecto. Dos ajustes de QA quedaron aplicados a los dos flujos que comparten el selector de mes de resúmenes (el nuevo y "Añadir Resumen" desde el menú de tarjeta): se sacó el botón "Cancelar" (única salida: escribir "cancelar"), y los 3 botones de clasificación de documento pasan a una sola fila. Sin cambios en servicios ni índices de Firestore — ninguna query nueva.

@@ -1,6 +1,6 @@
 import { Service, ServiceInstallment, ServicePaymentMethod } from "../types/service.types";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
-import { formatARS } from "../helpers/format";
+import { formatARS, formatDueDateDayMonth, getCurrentMonth } from "../helpers/format";
 
 const SECTION_LABEL: Record<ServicePaymentMethod, string> = {
   credit_card: "Tarjeta de Crédito",
@@ -11,30 +11,6 @@ const SECTION_LABEL: Record<ServicePaymentMethod, string> = {
 interface ServiceWithInstallment {
   service: Service;
   currentInstallment: ServiceInstallment | null;
-}
-
-/**
- * Returns the current month in "YYYY-MM" format.
- *
- * @return {string} Current year-month string
- */
-function getCurrentMonth(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${now.getFullYear()}-${month}`;
-}
-
-/**
- * Formats a due date as "dd/mm".
- *
- * @param {FirebaseFirestore.Timestamp} dueDate - Firestore timestamp of the due date
- * @return {string} Formatted date string
- */
-function formatDueDate(dueDate: FirebaseFirestore.Timestamp): string {
-  const date = dueDate.toDate();
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${day}/${month}`;
 }
 
 /**
@@ -49,7 +25,7 @@ function formatServiceLine({ service, currentInstallment }: ServiceWithInstallme
     return `  • ${service.name}  $ -`;
   }
   const amountStr = formatARS(currentInstallment.amount);
-  const dateStr = formatDueDate(currentInstallment.dueDate);
+  const dateStr = formatDueDateDayMonth(currentInstallment.dueDate);
   return `  • ${service.name}  ${amountStr} (${dateStr})`;
 }
 

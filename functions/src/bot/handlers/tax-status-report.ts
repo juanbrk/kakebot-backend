@@ -1,38 +1,38 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
-import { generatePaymentMethodReport } from "../../services/payment-method-report.service";
+import { generateTaxStatusReport } from "../../services/tax-status-report.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
 
 /**
- * Registers the payment methods report handler.
+ * Registers the tax status report handler.
  *
  * @param {Telegraf<KakebotContext>} bot - The Telegraf bot instance
  */
-export function registerPaymentMethodReportHandler(bot: Telegraf<KakebotContext>): void {
-  bot.action("menu_payment_methods", handlePaymentMethodsReport);
+export function registerTaxStatusReportHandler(bot: Telegraf<KakebotContext>): void {
+  bot.action("menu_tax_status", handleTaxStatusReport);
 }
 
 /**
- * Generates and sends the payment methods report grouped by paymentMethod.
+ * Generates and sends the tax status report, grouped by due date and payment status.
  *
  * @param {Context} ctx - Telegraf context
  */
-async function handlePaymentMethodsReport(ctx: Context): Promise<void> {
+async function handleTaxStatusReport(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   const telegramUserId = ctx.from?.id.toString() || "";
-  const report = await generatePaymentMethodReport(telegramUserId);
+  const report = await generateTaxStatusReport(telegramUserId);
 
   const backKeyboard = Markup.inlineKeyboard([
-    [Markup.button.callback("← Volver", "rep_servicios")],
+    [Markup.button.callback("← Volver", "rep_impuestos")],
   ]);
 
-  const header = buildBreadcrumb(["Reportes", "Servicios", "Métodos de Pago"]);
+  const header = buildBreadcrumb(["Reportes", "Impuestos", "Estado de impuestos"]);
 
   if (!report) {
     await replyOrEdit(
       ctx,
-      header + "No tenés servicios registrados.",
+      header + "No tenés impuestos registrados.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { parse_mode: "Markdown", reply_markup: backKeyboard.reply_markup as any },
     );

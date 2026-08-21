@@ -7,7 +7,7 @@ import { replyOrEdit } from "../../helpers/telegram";
 /**
  * Registers the service status report handler.
  *
- * @param {Telegraf<Context>} bot - The Telegraf bot instance
+ * @param {Telegraf<KakebotContext>} bot - The Telegraf bot instance
  */
 export function registerServiceStatusReportHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("menu_service_status", handleServiceStatusReport);

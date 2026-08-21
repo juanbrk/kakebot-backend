@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-08-21: Reporte "Estado de impuestos" en su propio submenú de Reportes
+
+### Completado
+- Nuevo reporte de solo lectura en Reportes → Impuestos → Estado de impuestos: agrupa los impuestos del usuario por vencimiento y estado de pago de la cuota del mes, con las mismas 5 secciones que "Estado de servicios". Agrupamiento extraído a un helper compartido para que los dos reportes no diverjan.
+- QA cerrada, incluido el ajuste a submenú "Impuestos" propio; auditoría de PR (`/audit-pr`) con veredicto APPROVE. Las 4 correcciones menores que dejó la auditoría ya están aplicadas.
+
+### Pendiente
+- Commit y PR a main (a cargo de Juan).
+
 ## 2026-08-05: Registrar un resumen de tarjeta enviando el PDF al bot
 
 ### Completado

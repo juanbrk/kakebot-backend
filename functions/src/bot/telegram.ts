@@ -27,6 +27,7 @@ import { registerTaxHandler } from "./handlers/tax";
 import { registerUpcomingDuesHandler } from "./handlers/upcoming-dues";
 import { registerPaymentMethodReportHandler } from "./handlers/payment-method-report";
 import { registerServiceStatusReportHandler } from "./handlers/service-status-report";
+import { registerTaxStatusReportHandler } from "./handlers/tax-status-report";
 import { registerPhotoHandler } from "./handlers/photo";
 import { registerTextHandler } from "./handlers/text";
 
@@ -59,6 +60,7 @@ registerTaxHandler(telegramBot);
 registerUpcomingDuesHandler(telegramBot);
 registerPaymentMethodReportHandler(telegramBot);
 registerServiceStatusReportHandler(telegramBot);
+registerTaxStatusReportHandler(telegramBot);
 registerPhotoHandler(telegramBot);
 registerTextHandler(telegramBot);
 
