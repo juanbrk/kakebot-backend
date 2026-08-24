@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import { Income, SaveIncomeParams } from "../types/income.types";
+import { Income, IncomeCurrency, SaveIncomeParams } from "../types/income.types";
 import { getDb } from "./db";
 
 /**
@@ -10,6 +10,7 @@ import { getDb } from "./db";
 export async function saveIncome({
   telegramUserId,
   amount,
+  currency,
   reason,
   date,
 }: SaveIncomeParams): Promise<string> {
@@ -18,6 +19,7 @@ export async function saveIncome({
   const docRef = await getDb().collection("incomes").add({
     telegramUserId,
     amount,
+    currency,
     reason,
     date: date ?? now,
     createdAt: now,
@@ -28,6 +30,10 @@ export async function saveIncome({
 
 /**
  * Fetches all incomes for a user within a date range.
+ * Incomes stored before the currency field existed are normalized to "ars" here on read,
+ * so no data migration is needed — but this is not the collection's only read path:
+ * `getPastMonthsWithData` (report.service.ts) queries `incomes` directly and does not
+ * go through this normalization (harmless today, since it never reads `currency`).
  *
  * @param {string} telegramUserId - The user's Telegram ID
  * @param {Date} startOfMonth - Start of the period
@@ -46,8 +52,16 @@ export async function getMonthlyIncomes(
     .where("date", "<=", admin.firestore.Timestamp.fromDate(endOfMonth))
     .get();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  } as Income));
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      telegramUserId: data.telegramUserId,
+      amount: data.amount,
+      currency: (data.currency as IncomeCurrency) ?? "ars",
+      reason: data.reason,
+      date: data.date,
+      createdAt: data.createdAt,
+    } as Income;
+  });
 }

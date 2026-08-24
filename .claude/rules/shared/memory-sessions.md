@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-08-24: Registro de ingreso en dólares — implementación y QA completos
+
+### Completado
+- El registro de ingresos ahora pregunta la moneda (Pesos o Dólares) entre monto y motivo; los USD nunca se convierten a ARS. El reporte mensual (detalle y balance) diferencia ingresos por moneda con un header dual, y el resultado del mes queda solo en ARS.
+- Migración dentro de la WizardScene existente: nuevo `stepGuardCurrency`, renumeración completa de `repromptCurrentStep` (el paso más delicado, validado en vivo).
+- QA completa (27 casos) en botitio_testitoBot, con dataset sembrado vía scripts de seed descartables no versionados (doc legacy sin `currency`, meses aislados solo-ARS/solo-USD); el único caso no aplicable (mes sin datos) se cerró por lectura de código — comportamiento preexistente, no tocado por esta rama.
+- `technician-check` + `/audit-pr` corridos y resueltos en el momento: un comentario impreciso corregido, y una confirmación post-escritura que usaba el helper de edición equivocado (`replyOrEdit` en vez de `editOrReply`) corregida.
+
+### Pendiente
+- Commit a main (a cargo de Juan).
+
 ## 2026-08-21: Reporte "Estado de impuestos" en su propio submenú de Reportes
 
 ### Completado

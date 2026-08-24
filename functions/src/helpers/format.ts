@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { IncomeCurrency } from "../types/income.types";
 
 export const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -118,6 +119,17 @@ export function formatUSD(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/**
+ * Formats an income amount with the symbol of the currency it was received in.
+ *
+ * @param {number} amount - Amount to format
+ * @param {IncomeCurrency} currency - Currency the amount is denominated in
+ * @return {string} e.g. "$ 5.000,00" for ars, "U$S 200,00" for usd
+ */
+export function formatIncomeAmount(amount: number, currency: IncomeCurrency): string {
+  return currency === "usd" ? formatUSD(amount) : formatARS(amount);
 }
 
 /**

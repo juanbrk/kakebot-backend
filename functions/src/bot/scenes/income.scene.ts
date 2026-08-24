@@ -2,15 +2,26 @@ import { Scenes } from "telegraf";
 import { KakebotContext, IncomeWizardState } from "../../types/telegraf-context.types";
 import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { formatARS, buildBackdatedTimestamp } from "../../helpers/format";
+import { formatIncomeAmount, buildBackdatedTimestamp } from "../../helpers/format";
 import { log } from "../../helpers/logger";
-import { buildIncomeConfirmKeyboard, buildIncomeConfirmText } from "../keyboards/income";
+import {
+  buildIncomeConfirmKeyboard,
+  buildIncomeConfirmText,
+  buildIncomeCurrencyKeyboard,
+} from "../keyboards/income";
 import { saveIncome } from "../../services/income.service";
-import { replyOrEdit } from "../../helpers/telegram";
+import { IncomeCurrency } from "../../types/income.types";
+import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 
 export const INCOME_SCENE_ID = "income-wizard";
 
 const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
+
+const REASON_STEP = 3;
+
+const CURRENCY_PROMPT = "*¿En qué moneda percibiste el ingreso?*";
+
+const REASON_PROMPT = "*Ingresá el motivo (30 caracteres max)*\n_Escribí cancelar o salir para anular._";
 
 
 /**
@@ -27,7 +38,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 1: validates the amount and prompts for the reason.
+ * Step 1: validates the amount and shows the currency keyboard.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -46,15 +57,28 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as IncomeWizardState;
   state.amount = amount;
 
-  await ctx.reply(
-    "*Ingresá el motivo (30 caracteres max)*\n_Escribí cancelar o salir para anular._",
-    { parse_mode: "Markdown" },
-  );
+  await ctx.reply(CURRENCY_PROMPT, {
+    parse_mode: "Markdown",
+    ...buildIncomeCurrencyKeyboard(),
+  });
   ctx.wizard.next();
 }
 
 /**
- * Step 2: validates the reason and shows the confirmation keyboard.
+ * Step 2: cursor guard — fires when user sends text while the currency keyboard is showing.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function stepGuardCurrency(ctx: KakebotContext): Promise<void> {
+  await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
+  await ctx.reply(CURRENCY_PROMPT, {
+    parse_mode: "Markdown",
+    ...buildIncomeCurrencyKeyboard(),
+  });
+}
+
+/**
+ * Step 3: validates the reason and shows the confirmation keyboard.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -79,12 +103,15 @@ async function stepHandleReason(ctx: KakebotContext): Promise<void> {
   state.reason = reason;
 
   const amount = state.amount ?? 0;
-  await ctx.reply(buildIncomeConfirmText(amount, reason), buildIncomeConfirmKeyboard());
+  await ctx.reply(
+    buildIncomeConfirmText(amount, reason, state.currency ?? "ars"),
+    buildIncomeConfirmKeyboard(),
+  );
   ctx.wizard.next();
 }
 
 /**
- * Step 3: cursor guard — fires when user sends text while the confirm keyboard is showing.
+ * Step 4: cursor guard — fires when user sends text while the confirm keyboard is showing.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -92,9 +119,27 @@ async function stepGuardConfirm(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as IncomeWizardState;
   await ctx.reply("Usá los botones para confirmar o cancelar.");
   await ctx.reply(
-    buildIncomeConfirmText(state.amount ?? 0, state.reason ?? ""),
+    buildIncomeConfirmText(state.amount ?? 0, state.reason ?? "", state.currency ?? "ars"),
     buildIncomeConfirmKeyboard(),
   );
+}
+
+/**
+ * Stores the selected currency and prompts for the reason.
+ * Callback: inc_currency:(ars|usd)
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleCurrencySelected(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currency = ((ctx as any).match as string[])[1] as IncomeCurrency;
+  const state = ctx.wizard.state as IncomeWizardState;
+  state.currency = currency;
+
+  await replyOrEdit(ctx, `Moneda: ${currency === "usd" ? "Dólares" : "Pesos"}`);
+  await ctx.reply(REASON_PROMPT, { parse_mode: "Markdown" });
+  ctx.wizard.selectStep(REASON_STEP);
 }
 
 /**
@@ -107,7 +152,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as IncomeWizardState;
   const telegramUserId = ctx.from?.id.toString() ?? "";
 
-  const hasRequiredData = state.amount && state.reason;
+  const hasRequiredData = state.amount && state.reason && state.currency;
   if (!hasRequiredData) {
     await replyOrEdit(ctx, "Error: datos de sesión incompletos.");
     await ctx.scene.leave();
@@ -116,13 +161,14 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
 
   const amount = state.amount as number;
   const reason = state.reason as string;
+  const currency = state.currency as IncomeCurrency;
   const incomeDate = state.reportMonth ? buildBackdatedTimestamp(state.reportMonth) : undefined;
 
   try {
-    await saveIncome({ telegramUserId, amount, reason, date: incomeDate });
-    await replyOrEdit(
+    await saveIncome({ telegramUserId, amount, currency, reason, date: incomeDate });
+    await editOrReply(
       ctx,
-      `✅ *Ingreso registrado*: ${reason}  ${formatARS(amount)}`,
+      `✅ *Ingreso registrado*: ${reason}  ${formatIncomeAmount(amount, currency)}`,
       { parse_mode: "Markdown" },
     );
     await ctx.scene.leave();
@@ -159,14 +205,17 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     );
     break;
   case 2:
-    await ctx.reply(
-      "*Ingresá el motivo (30 caracteres max)*\n_Escribí cancelar o salir para anular._",
-      { parse_mode: "Markdown" },
-    );
+    await ctx.reply(CURRENCY_PROMPT, {
+      parse_mode: "Markdown",
+      ...buildIncomeCurrencyKeyboard(),
+    });
     break;
-  case 3:
+  case REASON_STEP:
+    await ctx.reply(REASON_PROMPT, { parse_mode: "Markdown" });
+    break;
+  case 4:
     await ctx.reply(
-      buildIncomeConfirmText(state.amount ?? 0, state.reason ?? ""),
+      buildIncomeConfirmText(state.amount ?? 0, state.reason ?? "", state.currency ?? "ars"),
       buildIncomeConfirmKeyboard(),
     );
     break;
@@ -187,13 +236,15 @@ async function handleCancelWord(ctx: KakebotContext): Promise<void> {
 
 export const incomeScene = new Scenes.WizardScene<KakebotContext>(
   INCOME_SCENE_ID,
-  stepInit,
-  stepHandleAmount,
-  stepHandleReason,
-  stepGuardConfirm,
+  stepInit, // 0
+  stepHandleAmount, // 1
+  stepGuardCurrency, // 2
+  stepHandleReason, // 3 = REASON_STEP
+  stepGuardConfirm, // 4
 );
 
 incomeScene.hears(CANCEL_REGEX, handleCancelWord);
+incomeScene.action(/^inc_currency:(ars|usd)$/, handleCurrencySelected);
 incomeScene.action("inc_confirm", handleConfirm);
 incomeScene.action("inc_cancel", handleCancel);
 incomeScene.on("photo", repromptCurrentStep);

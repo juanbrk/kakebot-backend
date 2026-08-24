@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { formatARS, formatUSD, MONTH_NAMES } from "../helpers/format";
+import { formatARS, formatIncomeAmount, formatUSD, MONTH_NAMES } from "../helpers/format";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
 import { getTaxInstallmentsForMonth, getTaxById } from "./tax.service";
@@ -259,26 +259,36 @@ export async function generateMonthlyReport(
     detailLines.push("");
   }
 
-  const incomesTotal = incomes.reduce((sum, income) => sum + income.amount, 0);
+  // USD incomes are never converted: they stay in their own total, shown as a suffix.
+  const incomesTotalARS = incomes
+    .filter((income) => income.currency !== "usd")
+    .reduce((sum, income) => sum + income.amount, 0);
+  const incomesTotalUSD = incomes
+    .filter((income) => income.currency === "usd")
+    .reduce((sum, income) => sum + income.amount, 0);
+  const incomesUSD = incomesTotalUSD > 0 ? ` + ${formatUSD(incomesTotalUSD)}` : "";
 
   if (incomes.length > 0) {
-    detailLines.push(`*INGRESOS* ${formatARS(incomesTotal)}`);
+    detailLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
     for (const income of incomes) {
-      detailLines.push(`  • ${income.reason}  ${formatARS(income.amount)}`);
+      detailLines.push(
+        `  • ${income.reason}  ${formatIncomeAmount(income.amount, income.currency)}`,
+      );
     }
     detailLines.push("");
   }
 
   // --- Balance message ---
   const egresosTotal = expensesTotal + servicesTotal + taxesTotal + tarjetasTotal;
-  const balanceResult = incomesTotal - egresosTotal;
+  // ARS only — USD on either side is reported separately, never folded into this number.
+  const balanceResult = incomesTotalARS - egresosTotal;
   const balanceEmoji = balanceResult >= 0 ? "🟢" : "🔴";
 
   const balanceLines: string[] = [];
   balanceLines.push(
     `*Balance ${MONTH_NAMES[month]} ${year}*\n`,
   );
-  balanceLines.push(`*INGRESOS* ${formatARS(incomesTotal)}`);
+  balanceLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
   balanceLines.push("");
   const egresosUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
   balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
