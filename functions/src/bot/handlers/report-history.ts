@@ -1,5 +1,9 @@
 import { Telegraf, Markup, Context } from "telegraf";
-import { KakebotContext, ExpenseWizardState } from "../../types/telegraf-context.types";
+import {
+  KakebotContext,
+  ExpenseWizardState,
+  IncomeWizardState,
+} from "../../types/telegraf-context.types";
 import { INCOME_SCENE_ID } from "../scenes/income.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { generateMonthlyReport, getPastMonthsWithData } from "../../services/report.service";
@@ -352,6 +356,6 @@ async function handleRepInc(ctx: KakebotContext): Promise<void> {
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando ingreso",
     { parse_mode: "Markdown" },
   );
-  await ctx.scene.enter(INCOME_SCENE_ID, { reportMonth: yearMonth });
+  await ctx.scene.enter(INCOME_SCENE_ID, { reportMonth: yearMonth } as IncomeWizardState);
 }
 

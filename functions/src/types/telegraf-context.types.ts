@@ -1,6 +1,7 @@
 import { Scenes } from "telegraf";
 import { ServicePaymentMethod } from "./service.types";
 import { BulkExpenseEntry } from "./expense.types";
+import { IncomeCurrency } from "./income.types";
 import { PendingFileType, CreditCardProcessor, PendingDescEntry, SessionExpenseEntry } from "./index";
 
 /**
@@ -10,6 +11,9 @@ import { PendingFileType, CreditCardProcessor, PendingDescEntry, SessionExpenseE
 export interface IncomeWizardState {
   amount?: number;
   reason?: string;
+  /** Currency the income was received in; chosen between the amount and reason steps. */
+  currency?: IncomeCurrency;
+  /** YYYY-MM target month for retroactive (past-month) income registration. */
   reportMonth?: string;
 }
 

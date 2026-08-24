@@ -1,5 +1,9 @@
 # Decisions Log
 
+## 2026-08-24: Ingreso en USD sin conversión, y sin backfill de `currency` en producción
+
+El registro de ingresos suma moneda (ARS/USD) al wizard existente, modelada como un campo `currency` único por documento (no un par `amountARS`/`amountUSD` como `CardStatement`) — cada ingreso ocurre en una sola moneda, a diferencia de un resumen de tarjeta que puede tener ambas. La conversión/venta de USD a ARS queda explícitamente fuera de alcance, para una etapa futura. Decisión explícita del usuario: no correr un backfill contra la colección `incomes` de producción para los documentos anteriores a este feature (sin campo `currency`) — `getMonthlyIncomes` ya los normaliza a `"ars"` en la lectura, así que no hace falta migrar datos; retomar si algún código nuevo llega a leer `incomes` sin pasar por ese normalizador. Nota para cuando se agregue una tercera moneda: `incomesTotalARS` (`report.service.ts`) filtra por `currency !== "usd"` en vez de `=== "ars"`, así que cualquier moneda nueva caería silenciosamente en el balde ARS — revisar ese filtro en ese momento.
+
 ## 2026-08-21: "Estado de impuestos" vive en su propio submenú "Impuestos", separado de "Servicios"
 
 QA determinó que el nuevo reporte no debía convivir en Reportes → Servicios (como preveía el ticket original), sino en un submenú nuevo "Impuestos" paralelo a Balances/Pagos/Servicios — coherente con que Servicios e Impuestos ya son dominios separados en el resto del bot; breadcrumb y "← Volver" se ajustaron a `rep_impuestos`. El agrupamiento por estado de cuota (5 secciones, umbral de 7 días, formato de línea) se extrajo a `helpers/status-report.ts` (`buildStatusReportText`) en vez de clonar la lógica de "Estado de servicios", para que ambos reportes no puedan divergir. Los scripts de seed/restore usados para poblar el QA se borraron al cerrar el QA, mismo criterio que en ramas anteriores — no se versionan.

@@ -243,6 +243,8 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 |---|---|---|
 | `buildBreadcrumb(segments)` | `helpers/breadcrumb.ts` | Italic nav path `_A / B / C_\n\n` with `parse_mode: "Markdown"` |
 | `formatARS(amount)` | `helpers/format.ts` | ARS currency formatting (dot thousands, comma decimal) |
+| `formatUSD(amount)` | `helpers/format.ts` | USD currency formatting → `"U$S 49,47"` |
+| `formatIncomeAmount(amount, currency)` | `helpers/format.ts` | Despacha a `formatARS`/`formatUSD` según `IncomeCurrency`. Usarlo para todo monto de ingreso — nunca hardcodear `formatARS` en el flujo de ingresos |
 | `MONTH_NAMES` | `helpers/format.ts` | Spanish month name array (0-indexed) |
 | `buildBackdatedTimestamp(yearMonth)` | `helpers/format.ts` | Last day of month at 17:00 ART as Firestore Timestamp |
 | `buildDueDate(year, month, day)` | `helpers/format.ts` | Due-date `Date` anchored at 12:00 UTC — use for any persisted dueDate (service/tax/card installments) to survive process-timezone differences between production (UTC) and local emulator (ART) |
