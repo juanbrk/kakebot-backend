@@ -53,13 +53,20 @@ interface GroupedIncome {
  * amounts are never added together. Reasons match case- and whitespace-insensitively, but are
  * displayed as they were written the first time.
  *
- * @param {Income[]} incomes - Incomes of the reported month, in display order
+ * Sorted by `createdAt` ascending before grouping: retroactive months share the same `date`
+ * (`buildBackdatedTimestamp`), so Firestore's query order falls back to doc ID (`__name__`)
+ * instead of registration order — `createdAt` is always distinct, even for backdated entries.
+ *
+ * @param {Income[]} incomes - Incomes of the reported month, in any order
  * @return {GroupedIncome[]} One entry per reason and currency
  */
 function groupIncomesByReason(incomes: Income[]): GroupedIncome[] {
   const groups = new Map<string, GroupedIncome>();
+  const chronologicalIncomes = [...incomes].sort(
+    (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis(),
+  );
 
-  for (const income of incomes) {
+  for (const income of chronologicalIncomes) {
     const groupKey = `${income.reason.toLowerCase().trim()}|${income.currency}`;
     const existingGroup = groups.get(groupKey);
 
