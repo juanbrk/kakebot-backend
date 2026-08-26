@@ -7,6 +7,7 @@ import { getTaxInstallmentsForMonth, getTaxById } from "./tax.service";
 import { getStatementsByUserAndMonth, getCardById } from "./card.service";
 import { formatServicePaymentMethod } from "../helpers/payment-method";
 import { MonthlyReport } from "../types/report.types";
+import { Income, IncomeCurrency } from "../types/income.types";
 
 /**
  * Returns a sorted list of "YYYY-MM" strings for months that have at least
@@ -34,6 +35,46 @@ export async function getPastMonthsWithData(telegramUserId: string): Promise<str
   }
 
   return [...monthSet].sort();
+}
+
+/**
+ * One line of the INGRESOS section: every income sharing a reason and a currency,
+ * accumulated into a single entry.
+ */
+interface GroupedIncome {
+  displayReason: string;
+  currency: IncomeCurrency;
+  total: number;
+}
+
+/**
+ * Accumulates incomes into one entry per reason and currency, preserving the order in which
+ * each group's first income appears. The currency is part of the grouping key, so ARS and USD
+ * amounts are never added together. Reasons match case- and whitespace-insensitively, but are
+ * displayed as they were written the first time.
+ *
+ * @param {Income[]} incomes - Incomes of the reported month, in display order
+ * @return {GroupedIncome[]} One entry per reason and currency
+ */
+function groupIncomesByReason(incomes: Income[]): GroupedIncome[] {
+  const groups = new Map<string, GroupedIncome>();
+
+  for (const income of incomes) {
+    const groupKey = `${income.reason.toLowerCase().trim()}|${income.currency}`;
+    const existingGroup = groups.get(groupKey);
+
+    if (existingGroup) {
+      existingGroup.total += income.amount;
+    } else {
+      groups.set(groupKey, {
+        displayReason: income.reason,
+        currency: income.currency,
+        total: income.amount,
+      });
+    }
+  }
+
+  return [...groups.values()];
 }
 
 /**
@@ -270,9 +311,9 @@ export async function generateMonthlyReport(
 
   if (incomes.length > 0) {
     detailLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
-    for (const income of incomes) {
+    for (const group of groupIncomesByReason(incomes)) {
       detailLines.push(
-        `  • ${income.reason}  ${formatIncomeAmount(income.amount, income.currency)}`,
+        `  • ${group.displayReason}  ${formatIncomeAmount(group.total, group.currency)}`,
       );
     }
     detailLines.push("");
