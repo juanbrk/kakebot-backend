@@ -60,7 +60,7 @@ interface GroupedIncome {
  * @param {Income[]} incomes - Incomes of the reported month, in any order
  * @return {GroupedIncome[]} One entry per reason and currency
  */
-function groupIncomesByReason(incomes: Income[]): GroupedIncome[] {
+function groupIncomesByReasonAndCurrency(incomes: Income[]): GroupedIncome[] {
   const groups = new Map<string, GroupedIncome>();
   const chronologicalIncomes = [...incomes].sort(
     (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis(),
@@ -318,7 +318,7 @@ export async function generateMonthlyReport(
 
   if (incomes.length > 0) {
     detailLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
-    for (const group of groupIncomesByReason(incomes)) {
+    for (const group of groupIncomesByReasonAndCurrency(incomes)) {
       detailLines.push(
         `  • ${group.displayReason}  ${formatIncomeAmount(group.total, group.currency)}`,
       );

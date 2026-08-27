@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-08-26: Ingresos agrupados por motivo en el reporte mensual
+
+### Completado
+- La sección INGRESOS del reporte mensual muestra una sola línea por motivo con el total acumulado, en vez de un renglón por ingreso registrado. Motivos con distinta capitalización o espacios sobrantes se unifican, y ARS y USD nunca se suman entre sí.
+- Corregido un hallazgo de `technician-check` (T1): en meses cargados retroactivamente, el motivo mostrado por grupo ahora respeta el orden real de registro en vez del desempate de Firestore por doc ID. QA validada en botitio_testitoBot, mes actual y retroactivo.
+- `/audit-pr` cerrado con APPROVE — sin bloqueantes ni mayores. Único cambio aplicado: renombrar la función de agrupamiento para que el nombre cargue la moneda, que forma parte de la clave pero solo figuraba en el JSDoc.
+
+### Pendiente
+- Commit a cargo de Juan.
+
 ## 2026-08-24: Registro de ingreso en dólares — implementación y QA completos
 
 ### Completado
