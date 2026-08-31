@@ -5,9 +5,11 @@ import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
 import { getTaxInstallmentsForMonth, getTaxById } from "./tax.service";
 import { getStatementsByUserAndMonth, getCardById } from "./card.service";
+import { getMonthlyUsdSales } from "./usd-sale.service";
 import { formatServicePaymentMethod } from "../helpers/payment-method";
 import { MonthlyReport } from "../types/report.types";
 import { Income, IncomeCurrency } from "../types/income.types";
+import { UsdSale } from "../types/usd-sale.types";
 
 /**
  * Returns a sorted list of "YYYY-MM" strings for months that have at least
@@ -85,6 +87,21 @@ function groupIncomesByReasonAndCurrency(incomes: Income[]): GroupedIncome[] {
 }
 
 /**
+ * Weighted average exchange rate across a month's USD sales — Σ(amountARS) / Σ(amountUSD),
+ * not a plain average of each sale's rate. Callers must guard for an empty array themselves;
+ * this returns 0 in that case, which is never formatted because the caller is guarded by
+ * `sales.length > 0`.
+ *
+ * @param {UsdSale[]} sales - USD sales of the reported month
+ * @return {number} Weighted average ARS-per-USD rate
+ */
+function calculateWeightedAverageSaleRate(sales: UsdSale[]): number {
+  const totalUSD = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
+  const totalARS = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
+  return totalUSD > 0 ? totalARS / totalUSD : 0;
+}
+
+/**
  * Generates a monthly report with detail and balance messages.
  *
  * @param {string} telegramUserId - The user's Telegram ID
@@ -112,7 +129,7 @@ export async function generateMonthlyReport(
   const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
   const dueMonth = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  const [expensesSnapshot, services, installments, incomes, taxInstallments, statements] =
+  const [expensesSnapshot, services, installments, incomes, taxInstallments, statements, sales] =
     await Promise.all([
       getDb()
         .collection("expenses")
@@ -125,6 +142,7 @@ export async function generateMonthlyReport(
       getMonthlyIncomes(telegramUserId, startOfMonth, endOfMonth),
       getTaxInstallmentsForMonth(telegramUserId, dueMonth),
       getStatementsByUserAndMonth(telegramUserId, dueMonth),
+      getMonthlyUsdSales(telegramUserId, startOfMonth, endOfMonth),
     ]);
 
   const hasNoData =
@@ -132,7 +150,8 @@ export async function generateMonthlyReport(
     services.length === 0 &&
     taxInstallments.length === 0 &&
     incomes.length === 0 &&
-    statements.length === 0;
+    statements.length === 0 &&
+    sales.length === 0;
   if (hasNoData) {
     return null;
   }
@@ -323,6 +342,26 @@ export async function generateMonthlyReport(
         `  • ${group.displayReason}  ${formatIncomeAmount(group.total, group.currency)}`,
       );
     }
+    detailLines.push("");
+  }
+
+  if (sales.length > 0) {
+    const chronologicalSales = [...sales].sort(
+      (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis(),
+    );
+    const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
+    const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
+    const averageSaleRate = calculateWeightedAverageSaleRate(sales);
+
+    detailLines.push(
+      `*VENTA DE USD*  ${formatUSD(totalUSDSold)} → ${formatARS(totalARSFromSales)}`,
+    );
+    for (const sale of chronologicalSales) {
+      detailLines.push(
+        `  • ${formatUSD(sale.amountUSD)}  (${formatARS(sale.exchangeRate)})  →  ${formatARS(sale.amountARS)}`,
+      );
+    }
+    detailLines.push(`  Cotización promedio: ${formatARS(averageSaleRate)}`);
     detailLines.push("");
   }
 
