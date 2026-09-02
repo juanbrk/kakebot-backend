@@ -24,7 +24,9 @@ const CONFIRM_STEP = 3;
 const MIN_PLAUSIBLE_EXCHANGE_RATE = 100;
 
 const AMOUNT_USD_PROMPT
-  = "*Ingresá el monto en dólares a vender*\n_Escribí cancelar o salir para anular._";
+  = "*Ingresá el monto en dólares a vender*\n"
+  + "_Ingresá el número sin puntos de mil. Ej: 500 o 1250,50_\n"
+  + "_Escribí cancelar o salir para anular._";
 
 const EXCHANGE_RATE_PROMPT
   = "*¿A qué cotización vendiste?*\n_Ingresá el número sin puntos de mil. Ej: 1400 o 1400,50_";
@@ -51,7 +53,7 @@ async function stepHandleAmountUSD(ctx: KakebotContext): Promise<void> {
   const isValidAmount = amountUSD !== null && amountUSD > 0;
   if (!isValidAmount) {
     await ctx.reply(
-      "*No entendí el monto.*\nIngresá solo el número:\n_Ej: 500 o 1.250,50_",
+      "*No entendí el monto.*\nIngresá solo el número sin puntos de mil:\n_Ej: 500 o 1250,50_",
       { parse_mode: "Markdown" }
     );
     return;
