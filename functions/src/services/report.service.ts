@@ -12,12 +12,12 @@ import { Income, IncomeCurrency } from "../types/income.types";
 import { UsdSale } from "../types/usd-sale.types";
 
 /**
- * Floor of USD sold in the month before showing the dollar cost-of-living reading.
- * Not a business threshold — a statistical significance floor for the weighted average
- * sale rate: below it, one or two sales can swing the rate enough to make the reading
- * meaningless.
+ * Floor of USD sold in the month before any reading derived from the weighted average sale
+ * rate is shown (INGRESOS/EGRESOS/Resultado del mes USD-equivalent suffixes). Not a business
+ * threshold — a statistical significance floor: below it, one or two sales can swing the rate
+ * enough to make any conversion through it meaningless.
  */
-const MIN_USD_SOLD_FOR_COST_OF_LIVING = 500;
+const MIN_USD_SOLD_FOR_RELIABLE_RATE = 500;
 
 /**
  * Returns a sorted list of "YYYY-MM" strings for months that have at least
@@ -336,14 +336,42 @@ export async function generateMonthlyReport(
     detailLines.push("");
   }
 
-  // USD incomes are never converted: they stay in their own total, shown as a suffix.
+  // Computed unconditionally (0 with no sales) — feeds every TCM-derived USD reading below
+  // (INGRESOS/EGRESOS/Resultado del mes suffixes) plus the balance's financing line.
+  const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
+  const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
+  const averageSaleRate = calculateWeightedAverageSaleRate(sales);
+  // Statistical significance floor for the weighted average sale rate: below it, one or two
+  // sales can swing the average enough to make any conversion through it meaningless.
+  const hasSignificantSales = totalUSDSold >= MIN_USD_SOLD_FOR_RELIABLE_RATE;
+
+  /**
+   * Builds the "(U$S tcm-value | rate) + U$S native" suffix shared by INGRESOS, EGRESOS and
+   * Resultado del mes. The parenthetical converts an ARS-only value through this month's
+   * weighted average sale rate — 0 (and hidden) without a reliable rate. The native amount is
+   * money that was already in dollars, untouched by any conversion. The two never combine into
+   * one figure, they only concatenate — so a real USD income and a sale-rate reading never blend.
+   *
+   * @param {number} arsValue - ARS-only amount to convert (can be negative, e.g. balanceResult)
+   * @param {number} nativeValue - Amount already denominated in USD (0 if none)
+   * @param {boolean} includeRate - Whether to append the sale rate inside the parenthetical
+   * @return {string} Suffix string, or "" when there is nothing to show
+   */
+  function buildUsdSuffix(arsValue: number, nativeValue: number, includeRate: boolean): string {
+    const tcmValue = hasSignificantSales ? arsValue / averageSaleRate : 0;
+    const ratePart = includeRate ? ` | ${formatARS(averageSaleRate)}` : "";
+    const tcmPart = tcmValue !== 0 ? ` (${formatUSD(tcmValue)}${ratePart})` : "";
+    const nativePart = nativeValue !== 0 ? ` + ${formatUSD(nativeValue)}` : "";
+    return `${tcmPart}${nativePart}`;
+  }
+
   const incomesTotalARS = incomes
     .filter((income) => income.currency !== "usd")
     .reduce((sum, income) => sum + income.amount, 0);
   const incomesTotalUSD = incomes
     .filter((income) => income.currency === "usd")
     .reduce((sum, income) => sum + income.amount, 0);
-  const incomesUSD = incomesTotalUSD > 0 ? ` + ${formatUSD(incomesTotalUSD)}` : "";
+  const incomesUSD = buildUsdSuffix(incomesTotalARS, incomesTotalUSD, false);
 
   if (incomes.length > 0) {
     detailLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
@@ -354,12 +382,6 @@ export async function generateMonthlyReport(
     }
     detailLines.push("");
   }
-
-  // Computed unconditionally (0 with no sales) — feeds the balance's financing line
-  // and dollar cost-of-living reading below, not just the detail section.
-  const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
-  const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
-  const averageSaleRate = calculateWeightedAverageSaleRate(sales);
 
   if (sales.length > 0) {
     const chronologicalSales = [...sales].sort(
@@ -391,7 +413,7 @@ export async function generateMonthlyReport(
   );
   balanceLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
   balanceLines.push("");
-  const egresosUSD = egresosTotalUSD > 0 ? ` + ${formatUSD(egresosTotalUSD)}` : "";
+  const egresosUSD = buildUsdSuffix(egresosTotal, egresosTotalUSD, false);
   balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
 
   if (servicesTotal > 0) {
@@ -401,30 +423,17 @@ export async function generateMonthlyReport(
     balanceLines.push(` • Impuestos  ${formatARS(taxesTotal)}`);
   }
   if (tarjetasTotal > 0) {
-    const balanceUSD = egresosTotalUSD > 0 ? ` + ${formatUSD(egresosTotalUSD)}` : "";
-    balanceLines.push(` • Tarjetas  ${formatARS(tarjetasTotal)}${balanceUSD}`);
+    balanceLines.push(` • Tarjetas  ${formatARS(tarjetasTotal)}`);
   }
   for (const category of categoryTotals) {
     balanceLines.push(` • ${category.label}  ${formatARS(category.total)}`);
   }
 
-  // Real USD flow takes precedence over the sale-rate reading: it's actual money,
-  // not a valuation. The rate itself only tags along when the month had sales to derive it.
-  const hasUsdMovement = incomesTotalUSD > 0 || egresosTotalUSD > 0;
-  const hasSignificantSales = totalUSDSold >= MIN_USD_SOLD_FOR_COST_OF_LIVING;
-
-  let usdSuffix = "";
-  if (hasUsdMovement || hasSignificantSales) {
-    const totalUSDValue = hasUsdMovement ?
-      incomesTotalUSD - egresosTotalUSD :
-      egresosTotal / averageSaleRate;
-    const ratePart = sales.length > 0 ? ` | ${formatARS(averageSaleRate)}` : "";
-    usdSuffix = ` (${formatUSD(totalUSDValue)}${ratePart})`;
-  }
+  const usdSuffix = buildUsdSuffix(balanceResult, incomesTotalUSD - egresosTotalUSD, true);
 
   balanceLines.push("");
   balanceLines.push(
-    `*Resultado del mes*  ${formatARS(balanceResult)} ${balanceEmoji}${usdSuffix}`,
+    `*Resultado del mes* ${balanceEmoji}  ${formatARS(balanceResult)}${usdSuffix}`,
   );
 
   if (sales.length > 0) {
