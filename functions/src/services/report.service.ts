@@ -12,6 +12,14 @@ import { Income, IncomeCurrency } from "../types/income.types";
 import { UsdSale } from "../types/usd-sale.types";
 
 /**
+ * Floor of USD sold in the month before showing the dollar cost-of-living reading.
+ * Not a business threshold — a statistical significance floor for the weighted average
+ * sale rate: below it, one or two sales can swing the rate enough to make the reading
+ * meaningless.
+ */
+const MIN_USD_SOLD_FOR_COST_OF_LIVING = 500;
+
+/**
  * Returns a sorted list of "YYYY-MM" strings for months that have at least
  * one expense or income, strictly before the current calendar month.
  *
@@ -273,7 +281,9 @@ export async function generateMonthlyReport(
   }
 
   let tarjetasTotal = 0;
-  let tarjetasPendingUSD = 0;
+  // Accumulates all USD not settled in pesos, paid or not — a statement paid in USD
+  // still belongs here, it just never converts to ARS.
+  let tarjetasTotalUSD = 0;
 
   if (statements.length > 0) {
     const uniqueCardIds = [...new Set(statements.map((s) => s.cardId))];
@@ -311,14 +321,14 @@ export async function generateMonthlyReport(
         ? ` (${formatARS(statement.amountUSD * rate)} | ${formatARS(rate)})`
         : "";
 
-      if (!paidInARS) tarjetasPendingUSD += statement.amountUSD;
+      if (!paidInARS) tarjetasTotalUSD += statement.amountUSD;
 
       return { cardLabel, arsEquivalent, amountText, usdDetail, dueSuffix };
     });
 
     tarjetasTotal = statementLines.reduce((sum, line) => sum + line.arsEquivalent, 0);
 
-    const titleUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
+    const titleUSD = tarjetasTotalUSD > 0 ? ` + ${formatUSD(tarjetasTotalUSD)}` : "";
     detailLines.push(`*TARJETAS* ${formatARS(tarjetasTotal)}${titleUSD}`);
     for (const { cardLabel, amountText, usdDetail, dueSuffix } of statementLines) {
       detailLines.push(`  • ${cardLabel}  ${amountText}${usdDetail} ${dueSuffix}`);
@@ -345,13 +355,16 @@ export async function generateMonthlyReport(
     detailLines.push("");
   }
 
+  // Computed unconditionally (0 with no sales) — feeds the balance's financing line
+  // and dollar cost-of-living reading below, not just the detail section.
+  const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
+  const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
+  const averageSaleRate = calculateWeightedAverageSaleRate(sales);
+
   if (sales.length > 0) {
     const chronologicalSales = [...sales].sort(
       (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis(),
     );
-    const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
-    const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
-    const averageSaleRate = calculateWeightedAverageSaleRate(sales);
 
     detailLines.push(
       `*VENTA DE USD*  ${formatUSD(totalUSDSold)} → ${formatARS(totalARSFromSales)}`,
@@ -361,12 +374,13 @@ export async function generateMonthlyReport(
         `  • ${formatUSD(sale.amountUSD)}  (${formatARS(sale.exchangeRate)})  →  ${formatARS(sale.amountARS)}`,
       );
     }
-    detailLines.push(`  Cotización promedio: ${formatARS(averageSaleRate)}`);
     detailLines.push("");
   }
 
   // --- Balance message ---
   const egresosTotal = expensesTotal + servicesTotal + taxesTotal + tarjetasTotal;
+  // Seam for a future second USD egresos source — today it's exactly the card total.
+  const egresosTotalUSD = tarjetasTotalUSD;
   // ARS only — USD on either side is reported separately, never folded into this number.
   const balanceResult = incomesTotalARS - egresosTotal;
   const balanceEmoji = balanceResult >= 0 ? "🟢" : "🔴";
@@ -377,7 +391,7 @@ export async function generateMonthlyReport(
   );
   balanceLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
   balanceLines.push("");
-  const egresosUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
+  const egresosUSD = egresosTotalUSD > 0 ? ` + ${formatUSD(egresosTotalUSD)}` : "";
   balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
 
   if (servicesTotal > 0) {
@@ -387,17 +401,35 @@ export async function generateMonthlyReport(
     balanceLines.push(` • Impuestos  ${formatARS(taxesTotal)}`);
   }
   if (tarjetasTotal > 0) {
-    const balanceUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
+    const balanceUSD = egresosTotalUSD > 0 ? ` + ${formatUSD(egresosTotalUSD)}` : "";
     balanceLines.push(` • Tarjetas  ${formatARS(tarjetasTotal)}${balanceUSD}`);
   }
   for (const category of categoryTotals) {
     balanceLines.push(` • ${category.label}  ${formatARS(category.total)}`);
   }
 
+  // Real USD flow takes precedence over the sale-rate reading: it's actual money,
+  // not a valuation. The rate itself only tags along when the month had sales to derive it.
+  const hasUsdMovement = incomesTotalUSD > 0 || egresosTotalUSD > 0;
+  const hasSignificantSales = totalUSDSold >= MIN_USD_SOLD_FOR_COST_OF_LIVING;
+
+  let usdSuffix = "";
+  if (hasUsdMovement || hasSignificantSales) {
+    const totalUSDValue = hasUsdMovement ?
+      incomesTotalUSD - egresosTotalUSD :
+      egresosTotal / averageSaleRate;
+    const ratePart = sales.length > 0 ? ` | ${formatARS(averageSaleRate)}` : "";
+    usdSuffix = ` (${formatUSD(totalUSDValue)}${ratePart})`;
+  }
+
   balanceLines.push("");
   balanceLines.push(
-    `*Resultado del mes*  ${formatARS(balanceResult)} ${balanceEmoji}`,
+    `*Resultado del mes*  ${formatARS(balanceResult)} ${balanceEmoji}${usdSuffix}`,
   );
+
+  if (sales.length > 0) {
+    balanceLines.push(`_Financiado con venta de USD: ${formatARS(totalARSFromSales)}_`);
+  }
 
   return {
     detail: detailLines.join("\n"),
