@@ -20,6 +20,23 @@
       "collectionGroup": "service_installments",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "dueMonth", "order": "ASCENDING" },
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "serviceName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "services",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "service_installments",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "serviceId", "order": "ASCENDING" },
         { "fieldPath": "dueMonth", "order": "ASCENDING" }
       ]
@@ -97,6 +114,14 @@
         { "fieldPath": "telegramUserId", "order": "ASCENDING" },
         { "fieldPath": "isPaid", "order": "ASCENDING" },
         { "fieldPath": "dueDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "usd_sales",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "telegramUserId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
       ]
     }
   ],

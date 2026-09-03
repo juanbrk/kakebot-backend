@@ -5,9 +5,19 @@ import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
 import { getTaxInstallmentsForMonth, getTaxById } from "./tax.service";
 import { getStatementsByUserAndMonth, getCardById } from "./card.service";
+import { getMonthlyUsdSales } from "./usd-sale.service";
 import { formatServicePaymentMethod } from "../helpers/payment-method";
 import { MonthlyReport } from "../types/report.types";
 import { Income, IncomeCurrency } from "../types/income.types";
+import { UsdSale } from "../types/usd-sale.types";
+
+/**
+ * Floor of USD sold in the month before any reading derived from the weighted average sale
+ * rate is shown (INGRESOS/EGRESOS/Resultado del mes USD-equivalent suffixes). Not a business
+ * threshold — a statistical significance floor: below it, one or two sales can swing the rate
+ * enough to make any conversion through it meaningless.
+ */
+const MIN_USD_SOLD_FOR_RELIABLE_RATE = 500;
 
 /**
  * Returns a sorted list of "YYYY-MM" strings for months that have at least
@@ -85,6 +95,21 @@ function groupIncomesByReasonAndCurrency(incomes: Income[]): GroupedIncome[] {
 }
 
 /**
+ * Weighted average exchange rate across a month's USD sales — Σ(amountARS) / Σ(amountUSD),
+ * not a plain average of each sale's rate. Returns 0 for an empty array, so callers must never
+ * divide by it without checking `MIN_USD_SOLD_FOR_RELIABLE_RATE` first — a stricter guard than
+ * a non-empty check, and the only one that gates every reading derived from this rate.
+ *
+ * @param {UsdSale[]} sales - USD sales of the reported month
+ * @return {number} Weighted average ARS-per-USD rate
+ */
+function calculateWeightedAverageSaleRate(sales: UsdSale[]): number {
+  const totalUSD = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
+  const totalARS = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
+  return totalUSD > 0 ? totalARS / totalUSD : 0;
+}
+
+/**
  * Generates a monthly report with detail and balance messages.
  *
  * @param {string} telegramUserId - The user's Telegram ID
@@ -112,7 +137,7 @@ export async function generateMonthlyReport(
   const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
   const dueMonth = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  const [expensesSnapshot, services, installments, incomes, taxInstallments, statements] =
+  const [expensesSnapshot, services, installments, incomes, taxInstallments, statements, sales] =
     await Promise.all([
       getDb()
         .collection("expenses")
@@ -125,6 +150,7 @@ export async function generateMonthlyReport(
       getMonthlyIncomes(telegramUserId, startOfMonth, endOfMonth),
       getTaxInstallmentsForMonth(telegramUserId, dueMonth),
       getStatementsByUserAndMonth(telegramUserId, dueMonth),
+      getMonthlyUsdSales(telegramUserId, startOfMonth, endOfMonth),
     ]);
 
   const hasNoData =
@@ -132,7 +158,8 @@ export async function generateMonthlyReport(
     services.length === 0 &&
     taxInstallments.length === 0 &&
     incomes.length === 0 &&
-    statements.length === 0;
+    statements.length === 0 &&
+    sales.length === 0;
   if (hasNoData) {
     return null;
   }
@@ -254,7 +281,9 @@ export async function generateMonthlyReport(
   }
 
   let tarjetasTotal = 0;
-  let tarjetasPendingUSD = 0;
+  // Accumulates all USD not settled in pesos, paid or not — a statement paid in USD
+  // still belongs here, it just never converts to ARS.
+  let tarjetasTotalUSD = 0;
 
   if (statements.length > 0) {
     const uniqueCardIds = [...new Set(statements.map((s) => s.cardId))];
@@ -292,14 +321,14 @@ export async function generateMonthlyReport(
         ? ` (${formatARS(statement.amountUSD * rate)} | ${formatARS(rate)})`
         : "";
 
-      if (!paidInARS) tarjetasPendingUSD += statement.amountUSD;
+      if (!paidInARS) tarjetasTotalUSD += statement.amountUSD;
 
       return { cardLabel, arsEquivalent, amountText, usdDetail, dueSuffix };
     });
 
     tarjetasTotal = statementLines.reduce((sum, line) => sum + line.arsEquivalent, 0);
 
-    const titleUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
+    const titleUSD = tarjetasTotalUSD > 0 ? ` + ${formatUSD(tarjetasTotalUSD)}` : "";
     detailLines.push(`*TARJETAS* ${formatARS(tarjetasTotal)}${titleUSD}`);
     for (const { cardLabel, amountText, usdDetail, dueSuffix } of statementLines) {
       detailLines.push(`  • ${cardLabel}  ${amountText}${usdDetail} ${dueSuffix}`);
@@ -307,14 +336,43 @@ export async function generateMonthlyReport(
     detailLines.push("");
   }
 
-  // USD incomes are never converted: they stay in their own total, shown as a suffix.
+  // Computed unconditionally (0 with no sales) — feeds every TCM-derived USD reading below
+  // (INGRESOS/EGRESOS/Resultado del mes suffixes) plus the balance's financing line.
+  const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
+  const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
+  const averageSaleRate = calculateWeightedAverageSaleRate(sales);
+  const hasSignificantSales = totalUSDSold >= MIN_USD_SOLD_FOR_RELIABLE_RATE;
+
+  /**
+   * Builds the "(U$S tcm-value | rate) + U$S native" suffix shared by INGRESOS, EGRESOS and
+   * Resultado del mes. The parenthetical converts an ARS-only value through this month's
+   * weighted average sale rate — 0 (and hidden) without a reliable rate. The native amount is
+   * money that was already in dollars, untouched by any conversion. The two never combine into
+   * one figure, they only concatenate — so a real USD income and a sale-rate reading never blend.
+   *
+   * @param {number} arsValue - ARS-only amount to convert (can be negative, e.g. balanceResult)
+   * @param {number} nativeValue - Amount already denominated in USD (0 if none). Negative when
+   *   USD egresos outweigh USD income, so the sign is rendered as the operator joining it.
+   * @param {boolean} includeRate - Whether to append the sale rate inside the parenthetical
+   * @return {string} Suffix string, or "" when there is nothing to show
+   */
+  function buildUsdSuffix(arsValue: number, nativeValue: number, includeRate: boolean): string {
+    const tcmValue = hasSignificantSales ? arsValue / averageSaleRate : 0;
+    const ratePart = includeRate ? ` | ${formatARS(averageSaleRate)}` : "";
+    const tcmPart = tcmValue !== 0 ? ` (${formatUSD(tcmValue)}${ratePart})` : "";
+    const nativeOperator = nativeValue >= 0 ? "+" : "−";
+    const nativeAmount = formatUSD(Math.abs(nativeValue));
+    const nativePart = nativeValue !== 0 ? ` ${nativeOperator} ${nativeAmount}` : "";
+    return `${tcmPart}${nativePart}`;
+  }
+
   const incomesTotalARS = incomes
     .filter((income) => income.currency !== "usd")
     .reduce((sum, income) => sum + income.amount, 0);
   const incomesTotalUSD = incomes
     .filter((income) => income.currency === "usd")
     .reduce((sum, income) => sum + income.amount, 0);
-  const incomesUSD = incomesTotalUSD > 0 ? ` + ${formatUSD(incomesTotalUSD)}` : "";
+  const incomesUSD = buildUsdSuffix(incomesTotalARS, incomesTotalUSD, false);
 
   if (incomes.length > 0) {
     detailLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
@@ -326,8 +384,26 @@ export async function generateMonthlyReport(
     detailLines.push("");
   }
 
+  if (sales.length > 0) {
+    const chronologicalSales = [...sales].sort(
+      (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis(),
+    );
+
+    detailLines.push(
+      `*VENTA DE USD*  ${formatUSD(totalUSDSold)} → ${formatARS(totalARSFromSales)}`,
+    );
+    for (const sale of chronologicalSales) {
+      detailLines.push(
+        `  • ${formatUSD(sale.amountUSD)}  (${formatARS(sale.exchangeRate)})  →  ${formatARS(sale.amountARS)}`,
+      );
+    }
+    detailLines.push("");
+  }
+
   // --- Balance message ---
   const egresosTotal = expensesTotal + servicesTotal + taxesTotal + tarjetasTotal;
+  // Seam for a future second USD egresos source — today it's exactly the card total.
+  const egresosTotalUSD = tarjetasTotalUSD;
   // ARS only — USD on either side is reported separately, never folded into this number.
   const balanceResult = incomesTotalARS - egresosTotal;
   const balanceEmoji = balanceResult >= 0 ? "🟢" : "🔴";
@@ -338,7 +414,7 @@ export async function generateMonthlyReport(
   );
   balanceLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
   balanceLines.push("");
-  const egresosUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
+  const egresosUSD = buildUsdSuffix(egresosTotal, egresosTotalUSD, false);
   balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
 
   if (servicesTotal > 0) {
@@ -348,17 +424,22 @@ export async function generateMonthlyReport(
     balanceLines.push(` • Impuestos  ${formatARS(taxesTotal)}`);
   }
   if (tarjetasTotal > 0) {
-    const balanceUSD = tarjetasPendingUSD > 0 ? ` + ${formatUSD(tarjetasPendingUSD)}` : "";
-    balanceLines.push(` • Tarjetas  ${formatARS(tarjetasTotal)}${balanceUSD}`);
+    balanceLines.push(` • Tarjetas  ${formatARS(tarjetasTotal)}`);
   }
   for (const category of categoryTotals) {
     balanceLines.push(` • ${category.label}  ${formatARS(category.total)}`);
   }
 
+  const usdSuffix = buildUsdSuffix(balanceResult, incomesTotalUSD - egresosTotalUSD, true);
+
   balanceLines.push("");
   balanceLines.push(
-    `*Resultado del mes*  ${formatARS(balanceResult)} ${balanceEmoji}`,
+    `*Resultado del mes* ${balanceEmoji}  ${formatARS(balanceResult)}${usdSuffix}`,
   );
+
+  if (sales.length > 0) {
+    balanceLines.push(`_Financiado con venta de USD: ${formatARS(totalARSFromSales)}_`);
+  }
 
   return {
     detail: detailLines.join("\n"),

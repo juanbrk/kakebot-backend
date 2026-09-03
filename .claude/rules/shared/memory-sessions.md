@@ -1,5 +1,17 @@
 # Session Log
 
+## 2026-08-28 – 2026-09-03: Registro de venta de dólares y cierre bimonetario del balance — completo
+
+### Completado
+- Comando `/ventausd` (WizardScene, monto → cotización con guard de plausibilidad → confirmación), colección propia `usd_sales`, índice compuesto deployado y `READY` en prod.
+- Sección "VENTA DE USD" en el detalle del reporte mensual, con cotización promedio ponderada (TCM = Σ ARS/Σ USD); neutral para el balance.
+- Balance bimonetario: INGRESOS, EGRESOS y Resultado del mes muestran cada uno su propio sufijo en USD (TCM + monto nativo, concatenados vía `buildUsdSuffix`); `tarjetasPendingUSD` renombrado a `tarjetasTotalUSD`.
+- `/technician-check` y `/audit-pr` (2 corridas) cerrados con APPROVE: hallazgos corregidos (incluido el signo del sufijo, que imprimía `+ U$S -800,00`) o diferidos con rationale en `TICKET.md`.
+- Build + lint limpios en toda la rama (0 errores, 128 warnings = baseline).
+
+### Pendiente
+- Ninguno de bloqueante — merge a `main` a cargo de Juan.
+
 ## 2026-08-26: Ingresos agrupados por motivo en el reporte mensual
 
 ### Completado

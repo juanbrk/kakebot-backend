@@ -18,6 +18,16 @@ export interface IncomeWizardState {
 }
 
 /**
+ * Persistent state for the USD sale wizard, held in `ctx.wizard.state`.
+ * Fields are filled progressively across the scene steps; the sale date is
+ * always today, so no date field is carried here.
+ */
+export interface UsdSaleWizardState {
+  amountUSD?: number;
+  exchangeRate?: number;
+}
+
+/**
  * Persistent state for the tax wizard, held in `ctx.wizard.state`.
  * Covers both full tax creation and installment-only entry paths.
  */

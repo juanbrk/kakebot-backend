@@ -15,7 +15,8 @@ export function registerStartHandler(bot: Telegraf<KakebotContext>): void {
       "/categorizar - Asignar categorías a gastos sin categorizar\n" +
       "/servicios - Gestionar servicios fijos (Expensas, Gas, etc.)\n" +
       "/tarjetas - Gestionar tarjetas de crédito\n" +
-      "/ingreso - Registrar un ingreso"
+      "/ingreso - Registrar un ingreso\n" +
+      "/ventausd - Registrar una venta de dólares"
     );
   });
 }

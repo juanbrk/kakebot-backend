@@ -3,6 +3,7 @@ import { log } from "../helpers/logger";
 import { KakebotContext } from "../types/telegraf-context.types";
 import { buildTelegrafSessionStore } from "../services/telegraf-session.store";
 import { incomeScene } from "./scenes/income.scene";
+import { usdSaleScene } from "./scenes/usd-sale.scene";
 import { taxScene } from "./scenes/tax.scene";
 import { bulkScene } from "./scenes/bulk.scene";
 import { expenseScene } from "./scenes/expense.scene";
@@ -22,6 +23,7 @@ import { registerReportHistoryHandler } from "./handlers/report-history";
 import { registerCategorizeHandler } from "./handlers/categorize";
 import { registerServiceHandler } from "./handlers/service";
 import { registerIncomeHandler } from "./handlers/income";
+import { registerUsdSaleHandler } from "./handlers/usd-sale";
 import { registerCardHandler } from "./handlers/card";
 import { registerTaxHandler } from "./handlers/tax";
 import { registerUpcomingDuesHandler } from "./handlers/upcoming-dues";
@@ -42,7 +44,7 @@ telegramBot.use(session({
 }));
 
 const stage = new Scenes.Stage<KakebotContext>([
-  incomeScene, taxScene, bulkScene, expenseScene,
+  incomeScene, usdSaleScene, taxScene, bulkScene, expenseScene,
   docRouterScene, invoiceScene, taxReceiptScene, categorizeScene, serviceScene,
   cardCreateScene, cardStmtScene, cardStatementDocScene,
 ]);
@@ -55,6 +57,7 @@ registerReportHistoryHandler(telegramBot);
 registerCategorizeHandler(telegramBot);
 registerServiceHandler(telegramBot);
 registerIncomeHandler(telegramBot);
+registerUsdSaleHandler(telegramBot);
 registerCardHandler(telegramBot);
 registerTaxHandler(telegramBot);
 registerUpcomingDuesHandler(telegramBot);
