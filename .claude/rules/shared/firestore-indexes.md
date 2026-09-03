@@ -50,7 +50,8 @@ service_installments query filters by (telegramUserId + dueMonth + serviceName)
 | `services` | `telegramUserId` ↑, `createdAt` ↑ | ✅ | List user's services |
 | `service_installments` | `dueMonth` ↑, `telegramUserId` ↑, `serviceName` ↑ | ✅ | Generate monthly report with service section |
 | `expenses` | `telegramUserId` ↑, `date` ↑ | ✅ | Monthly report expense filtering |
-| `incomes` | `telegramUserId` ↑, `date` ↑ | ⏳ | Monthly income report filtering |
+| `incomes` | `telegramUserId` ↑, `date` ↑ | ✅ | Monthly income report filtering |
+| `usd_sales` | `telegramUserId` ↑, `date` ↑ | ✅ | Monthly USD sale section + weighted average sale rate |
 
 ## Preferred Workflow
 

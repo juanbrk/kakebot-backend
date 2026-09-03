@@ -96,9 +96,9 @@ function groupIncomesByReasonAndCurrency(incomes: Income[]): GroupedIncome[] {
 
 /**
  * Weighted average exchange rate across a month's USD sales — Σ(amountARS) / Σ(amountUSD),
- * not a plain average of each sale's rate. Callers must guard for an empty array themselves;
- * this returns 0 in that case, which is never formatted because the caller is guarded by
- * `sales.length > 0`.
+ * not a plain average of each sale's rate. Returns 0 for an empty array, so callers must never
+ * divide by it without checking `MIN_USD_SOLD_FOR_RELIABLE_RATE` first — a stricter guard than
+ * a non-empty check, and the only one that gates every reading derived from this rate.
  *
  * @param {UsdSale[]} sales - USD sales of the reported month
  * @return {number} Weighted average ARS-per-USD rate
@@ -341,8 +341,6 @@ export async function generateMonthlyReport(
   const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
   const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
   const averageSaleRate = calculateWeightedAverageSaleRate(sales);
-  // Statistical significance floor for the weighted average sale rate: below it, one or two
-  // sales can swing the average enough to make any conversion through it meaningless.
   const hasSignificantSales = totalUSDSold >= MIN_USD_SOLD_FOR_RELIABLE_RATE;
 
   /**
@@ -353,7 +351,8 @@ export async function generateMonthlyReport(
    * one figure, they only concatenate — so a real USD income and a sale-rate reading never blend.
    *
    * @param {number} arsValue - ARS-only amount to convert (can be negative, e.g. balanceResult)
-   * @param {number} nativeValue - Amount already denominated in USD (0 if none)
+   * @param {number} nativeValue - Amount already denominated in USD (0 if none). Negative when
+   *   USD egresos outweigh USD income, so the sign is rendered as the operator joining it.
    * @param {boolean} includeRate - Whether to append the sale rate inside the parenthetical
    * @return {string} Suffix string, or "" when there is nothing to show
    */
@@ -361,7 +360,9 @@ export async function generateMonthlyReport(
     const tcmValue = hasSignificantSales ? arsValue / averageSaleRate : 0;
     const ratePart = includeRate ? ` | ${formatARS(averageSaleRate)}` : "";
     const tcmPart = tcmValue !== 0 ? ` (${formatUSD(tcmValue)}${ratePart})` : "";
-    const nativePart = nativeValue !== 0 ? ` + ${formatUSD(nativeValue)}` : "";
+    const nativeOperator = nativeValue >= 0 ? "+" : "−";
+    const nativeAmount = formatUSD(Math.abs(nativeValue));
+    const nativePart = nativeValue !== 0 ? ` ${nativeOperator} ${nativeAmount}` : "";
     return `${tcmPart}${nativePart}`;
   }
 

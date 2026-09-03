@@ -10,8 +10,8 @@ import { formatARS, formatUSD } from "../../helpers/format";
 export function buildUsdSaleConfirmKeyboard() {
   return Markup.inlineKeyboard([
     [
-      Markup.button.callback("Cancelar", "sale_cancel"),
-      Markup.button.callback("Confirmar", "sale_confirm"),
+      Markup.button.callback("Cancelar", "usdsale_cancel"),
+      Markup.button.callback("Confirmar", "usdsale_confirm"),
     ],
   ]);
 }
@@ -25,6 +25,6 @@ export function buildUsdSaleConfirmKeyboard() {
  */
 export function buildUsdSaleConfirmText(amountUSD: number, exchangeRate: number): string {
   const amountARS = amountUSD * exchangeRate;
-  return "*Registrar venta de dólares?*\n"
+  return "*¿Registrar venta de dólares?*\n"
     + `${formatUSD(amountUSD)} × ${formatARS(exchangeRate)} = ${formatARS(amountARS)}`;
 }

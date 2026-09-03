@@ -209,7 +209,7 @@ export const usdSaleScene = new Scenes.WizardScene<KakebotContext>(
 );
 
 usdSaleScene.hears(CANCEL_REGEX, handleCancelWord);
-usdSaleScene.action("sale_confirm", handleConfirm);
-usdSaleScene.action("sale_cancel", handleCancel);
+usdSaleScene.action("usdsale_confirm", handleConfirm);
+usdSaleScene.action("usdsale_cancel", handleCancel);
 usdSaleScene.on("photo", repromptCurrentStep);
 usdSaleScene.on("document", repromptCurrentStep);
