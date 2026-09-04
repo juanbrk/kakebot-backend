@@ -4,12 +4,13 @@ on:
   push:
     branches:
       - main
-    # firebase.ci.json y este propio archivo entran al filtro para que el job se revalide
-    # solo: si alguien los rompe o los borra, el próximo push a main lo detecta en vez de
-    # esperar meses al siguiente cambio de índices.
+    # firebase.ci.json, firebase.json y este propio archivo entran al filtro para que el job
+    # se revalide solo: si alguien los rompe, los borra o los desincroniza entre sí, el
+    # próximo push a main lo detecta en vez de esperar meses al siguiente cambio de índices.
     paths:
       - "firestore.indexes.json"
       - "firebase.ci.json"
+      - "firebase.json"
       - ".github/workflows/deploy-indexes.yml"
   workflow_dispatch:
 
