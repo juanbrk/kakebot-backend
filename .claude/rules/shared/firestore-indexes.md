@@ -64,6 +64,23 @@ Benefits:
 
 ⚠️ Do NOT create indexes manually in Firebase Console — they won't be tracked in git.
 
+### `firebase.ci.json` — por qué existe un segundo archivo de config
+
+`deploy-indexes.yml` deploya con `--config firebase.ci.json`, no con `firebase.json`. Ese archivo
+es el bloque `firestore` de `firebase.json` **menos** `"rules"`, y la omisión es deliberada: con
+`--only firestore:indexes`, `firebase-tools` igual compila `firestore.rules` (su `prepare.js`
+ignora el flag `context.firestoreRules` que él mismo calcula), y esa compilación pega a
+`firebaserules.googleapis.com/...:test`, que requiere el permiso `firebaserules.rulesets.test`.
+El service account del WIF tiene `roles/firebase.sdkAdminServiceAgent`, que **no** lo incluye →
+403 y el job muere sin deployar nada (pasó el 2026-09-03). Sin `"rules"` en la config, esa
+compilación no ocurre.
+
+**No borrar `firebase.ci.json` "porque duplica firebase.json"**, ni agregarle `"rules"`. Las rules
+nunca se deployaron desde este workflow — `deploy.js` y `release.js` sí respetan el flag. Si algún
+día hace falta deployarlas desde CI, el camino es otro: darle al SA `firebaserules.rulesets.test`.
+El deploy manual (`npm run go` → Prod → Deploy indexes) sigue usando `firebase.json` y corre con
+las credenciales de Juan, que sí tienen el permiso.
+
 ## Creating Indexes Programmatically
 
 Add entries to `firestore.indexes.json`:

@@ -4,8 +4,13 @@ on:
   push:
     branches:
       - main
+    # firebase.ci.json y este propio archivo entran al filtro para que el job se revalide
+    # solo: si alguien los rompe o los borra, el próximo push a main lo detecta en vez de
+    # esperar meses al siguiente cambio de índices.
     paths:
       - "firestore.indexes.json"
+      - "firebase.ci.json"
+      - ".github/workflows/deploy-indexes.yml"
   workflow_dispatch:
 
 jobs:
@@ -33,4 +38,9 @@ jobs:
           service_account: "firebase-adminsdk-fbsvc@kakebot-972c2.iam.gserviceaccount.com"
 
       - name: Deploy Indexes
-        run: npx firebase deploy --only firestore:indexes --project kakebot-972c2
+        # firebase.ci.json omite "rules" a propósito: con --only firestore:indexes el CLI igual
+        # compila firestore.rules (prepare.js ignora su propio flag context.firestoreRules) y esa
+        # llamada requiere firebaserules.rulesets.test, permiso que el service account del WIF no
+        # tiene. Sin "rules" en la config no hay compilación. Las rules nunca se deployaron desde
+        # acá: deploy.js y release.js sí respetan el flag.
+        run: npx firebase deploy --only firestore:indexes --project kakebot-972c2 --config firebase.ci.json
