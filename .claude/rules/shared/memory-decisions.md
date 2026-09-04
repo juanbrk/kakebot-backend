@@ -1,5 +1,25 @@
 # Decisions Log
 
+## 2026-09-04: El deploy de índices en CI usa `firebase.ci.json` (sin `rules`), no un grant de IAM
+
+`firebase-tools` compila `firestore.rules` aunque se le pase `--only firestore:indexes`
+(`prepare.js` ignora el flag `context.firestoreRules` que él mismo calcula; `deploy.js` y
+`release.js` sí lo respetan, así que las rules nunca se deployaron desde ahí). Esa compilación
+requiere `firebaserules.rulesets.test`, permiso que `roles/firebase.sdkAdminServiceAgent` — el rol
+del SA del WIF — no incluye: 403 y el workflow muerto sin deployar nada. Se eligió una config de CI
+sin `rules` (`firebase.ci.json` + `--config`) en vez de grantear el permiso al SA: queda dentro del
+repo, con permisos mínimos, e inmune a que el CLI cambie ese comportamiento. `firebase.json` no se
+toca — el emulador y el deploy manual siguen leyendo las rules. Si algún día se deployan rules desde
+CI, ahí sí corresponde el grant. `firestore.rules` es vestigial (declara `users`/`families`/
+`transactions`; el bot escribe con Admin SDK, que saltea las rules) — documentado en
+`firestore-indexes.md` para que nadie "limpie" el archivo duplicado. De paso, el filtro `paths`
+del workflow suma `firebase.ci.json`, `firebase.json` y el propio `.yml`: el job se revalida al
+tocar su propia config —o el archivo del que esa config es copia—, en vez de que una config rota
+quede latente hasta el próximo cambio de índices: meses después, y en un merge donde importa. Eso
+atrapa una config de CI **rota o ausente**, no una divergencia: nadie compara los dos archivos, así
+que una diferencia que deje `firebase.ci.json` válido (setting nuevo, `location` distinta, segundo
+bloque de database) deploya en verde. Chequearla de verdad pide una assertion en `ci.yml`.
+
 ## 2026-08-28 – 2026-08-31: Venta de USD — `/ventausd`, y sufijo bimonetario del balance (diseño final)
 
 - **Decisión**: venta de USD registrada vía comando standalone `/ventausd` (simétrico a `/ingreso`), colección propia `usd_sales`. INGRESOS, EGRESOS y `*Resultado del mes*` muestran cada uno, de forma independiente, un sufijo que **concatena** (nunca reemplaza) su monto en ARS convertido al TCM del mes con su propio monto nativo en USD — helper compartido `buildUsdSuffix(arsValue, nativeValue, includeRate)`; solo Resultado del mes agrega la cotización.

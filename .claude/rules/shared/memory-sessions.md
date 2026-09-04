@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-09-04: Arreglado el deploy de índices de Firestore en CI
+
+### Completado
+- El workflow de índices fallaba con un 403 al validar las reglas de Firestore, algo que ni siquiera
+  necesitaba hacer. Ahora deploya con una config propia que no las menciona, sin tocar permisos de
+  producción. Verificado: el deploy corre limpio y los 15 índices siguen `READY`.
+- El workflow ahora también se dispara al tocar su propia config o `firebase.json`, del que esa
+  config es copia: una config de CI rota sale a la luz en el próximo push a main y no meses
+  después. No compara los dos archivos entre sí — eso pediría una assertion aparte.
+- `/audit-pr` cerrado sin hallazgos sobre el fix. El único real fue de registro: dos entradas de
+  memoria figuraban commiteadas sin estarlo, porque el hook de backfill resolvió su `PENDING-SHA`
+  contra el commit siguiente sin chequear que ese commit tocara los archivos.
+
+### Pendiente
+- Commit y merge a `main` (a cargo de Juan). El merge ya dispara el workflow solo, así que alcanza
+  con mirar que corra verde con las credenciales del CI.
+
 ## 2026-08-28 – 2026-09-03: Registro de venta de dólares y cierre bimonetario del balance — completo
 
 ### Completado
