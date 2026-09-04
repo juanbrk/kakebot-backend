@@ -81,6 +81,11 @@ día hace falta deployarlas desde CI, el camino es otro: darle al SA `firebaseru
 El deploy manual (`npm run go` → Prod → Deploy indexes) sigue usando `firebase.json` y corre con
 las credenciales de Juan, que sí tienen el permiso.
 
+Tampoco recortar el archivo a solo `"indexes"`: `prepare.js` llama `createDatabase()` en **todo**
+deploy y, si `getDatabase` devuelve 404, crea la base en `firestoreCfg.location || "nam5"`. Con la
+base ya existente nunca se dispara, pero `database` y `location` son lo que evita que el default
+silencioso apunte al hemisferio equivocado.
+
 ## Creating Indexes Programmatically
 
 Add entries to `firestore.indexes.json`:
