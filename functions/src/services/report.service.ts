@@ -337,7 +337,8 @@ export async function generateMonthlyReport(
   }
 
   // Computed unconditionally (0 with no sales) — feeds every TCM-derived USD reading below
-  // (INGRESOS/EGRESOS/Resultado del mes suffixes) plus the balance's financing line.
+  // (INGRESOS/EGRESOS/Resultado del mes suffixes), the balance's own VENTA DE USD line, and
+  // `balanceResult` itself, which folds in the month's ARS liquidation.
   const totalUSDSold = sales.reduce((sum, sale) => sum + sale.amountUSD, 0);
   const totalARSFromSales = sales.reduce((sum, sale) => sum + sale.amountARS, 0);
   const averageSaleRate = calculateWeightedAverageSaleRate(sales);
@@ -404,8 +405,11 @@ export async function generateMonthlyReport(
   const egresosTotal = expensesTotal + servicesTotal + taxesTotal + tarjetasTotal;
   // Seam for a future second USD egresos source — today it's exactly the card total.
   const egresosTotalUSD = tarjetasTotalUSD;
-  // ARS only — USD on either side is reported separately, never folded into this number.
-  const balanceResult = incomesTotalARS - egresosTotal;
+  // Folds in the month's USD liquidation: pesos obtained by selling dollars were spendable this
+  // month, so leaving them out made a month lived off previously-held dollars read as incomeless.
+  // What stays out is every amount still denominated in USD — reported separately, in its own
+  // currency, and never converted into this number.
+  const balanceResult = incomesTotalARS + totalARSFromSales - egresosTotal;
   const balanceEmoji = balanceResult >= 0 ? "🟢" : "🔴";
 
   const balanceLines: string[] = [];
@@ -414,6 +418,17 @@ export async function generateMonthlyReport(
   );
   balanceLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
   balanceLines.push("");
+
+  // Built by hand rather than through buildUsdSuffix: that helper hides its parenthetical below
+  // MIN_USD_SOLD_FOR_RELIABLE_RATE, a floor that guards readings *inferred* through the average
+  // rate. Here the USD amount and the rate are measured directly off this month's sales, so the
+  // floor does not apply — applying it would strip a small month's line of its only dollar context.
+  if (sales.length > 0) {
+    const saleDetail = `(${formatUSD(totalUSDSold)} | ${formatARS(averageSaleRate)})`;
+    balanceLines.push(`*VENTA DE USD* ${formatARS(totalARSFromSales)} ${saleDetail}`);
+    balanceLines.push("");
+  }
+
   const egresosUSD = buildUsdSuffix(egresosTotal, egresosTotalUSD, false);
   balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
 
@@ -436,10 +451,6 @@ export async function generateMonthlyReport(
   balanceLines.push(
     `*Resultado del mes* ${balanceEmoji}  ${formatARS(balanceResult)}${usdSuffix}`,
   );
-
-  if (sales.length > 0) {
-    balanceLines.push(`_Financiado con venta de USD: ${formatARS(totalARSFromSales)}_`);
-  }
 
   return {
     detail: detailLines.join("\n"),
