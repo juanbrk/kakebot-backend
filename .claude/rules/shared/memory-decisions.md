@@ -1,5 +1,44 @@
 # Decisions Log
 
+## 2026-09-07: El "Resultado del mes" incorpora la venta de USD — revierte la neutralidad del 2026-08-28
+
+Se revierte **solo** la parte "la venta de USD es neutra para el balance" de la decisión del
+2026-08-28/31 (abajo): `balanceResult` pasa de `incomesTotalARS - egresosTotal` a sumarle
+`totalARSFromSales`. El motivo es que venta e ingreso viven en meses distintos — un ingreso en USD
+puede entrar en Enero y liquidarse en Marzo a otra cotización — así que la neutralidad hacía que un
+mes vivido con dólares guardados apareciera como un mes sin ingreso. Lo liquidado se muestra en una
+sección par `*VENTA DE USD*` entre INGRESOS y EGRESOS (mismo label que ya usaba la sección del
+detalle), y la línea italic `_Financiado con venta de USD_` que colgaba de "Resultado del mes"
+desaparece: era esa misma información sin peso en el cálculo.
+
+**Lo que NO se revirtió**: los sufijos bimonetarios de INGRESOS/EGRESOS/Resultado del mes, el helper
+`buildUsdSuffix` y el piso `MIN_USD_SOLD_FOR_RELIABLE_RATE` siguen vigentes tal cual. `incomesTotalARS`
+e `incomesTotalUSD` tampoco se tocaron: leen solo `incomes`, nunca `usd_sales`, así que el ingreso
+original se sigue contando una sola vez, en el mes y la moneda en que se registró.
+
+**Trampa que se evitó, y es lo no obvio del cambio**: la línea `*VENTA DE USD*` **no** se arma con
+`buildUsdSuffix`, aunque `buildUsdSuffix(totalARSFromSales, 0, true)` produzca exactamente el texto
+buscado (el paréntesis TCM se reduce algebraicamente a `totalUSDSold`). Ese helper esconde su
+paréntesis por debajo de `MIN_USD_SOLD_FOR_RELIABLE_RATE`, piso que existe para lecturas *inferidas*
+a través del TCM. Acá `totalUSDSold` y `averageSaleRate` son hechos medidos directamente sobre las
+ventas del mes, no inferencias: el piso no aplica, y aplicarlo dejaría a un mes de venta chica con
+una línea sin ningún dato en dólares. Se arma a mano y se gatea solo con `sales.length > 0`. El
+`/audit-pr` encontró el corolario: los JSDoc de `MIN_USD_SOLD_FOR_RELIABLE_RATE` y de
+`calculateWeightedAverageSaleRate` afirmaban que el piso gatea **toda** lectura derivada del TCM, y
+esta línea es justo la excepción — ahora dicen "inferida" y nombran la excepción, para que el
+próximo que agregue un sitio de cotización no la lea al revés.
+
+**Decisiones de UX confirmadas con el usuario**: si en el mismo mes entra un ingreso en USD y además
+se venden dólares, el sufijo nativo (`+ U$S x`) **no** descuenta lo vendido — sin FIFO, sin lotes,
+sin stock de dólares, como pide el ticket; el costo aceptado es que en ese caso puntual la lectura
+en ARS y la nativa en USD se superponen parcialmente. Y el paréntesis en USD de "Resultado del mes"
+queda como estaba: convierte el resultado completo (venta incluida) al TCM del mes. En un mes 100%
+financiado por venta ese número reconstruye exactamente los USD vendidos — es correcto, no un bug.
+
+**Aplicado en**: `services/report.service.ts`, únicamente dentro del bloque `--- Balance message ---`,
+más el comentario de los agregados y los dos JSDoc del piso. Ningún otro archivo de código, ningún
+tipo nuevo, ninguna query nueva.
+
 ## 2026-09-04: El deploy de índices en CI usa `firebase.ci.json` (sin `rules`), no un grant de IAM
 
 `firebase-tools` compila `firestore.rules` aunque se le pase `--only firestore:indexes`
@@ -22,7 +61,7 @@ bloque de database) deploya en verde. Chequearla de verdad pide una assertion en
 
 ## 2026-08-28 – 2026-08-31: Venta de USD — `/ventausd`, y sufijo bimonetario del balance (diseño final)
 
-- **Decisión**: venta de USD registrada vía comando standalone `/ventausd` (simétrico a `/ingreso`), colección propia `usd_sales`. INGRESOS, EGRESOS y `*Resultado del mes*` muestran cada uno, de forma independiente, un sufijo que **concatena** (nunca reemplaza) su monto en ARS convertido al TCM del mes con su propio monto nativo en USD — helper compartido `buildUsdSuffix(arsValue, nativeValue, includeRate)`; solo Resultado del mes agrega la cotización.
+- **Decisión**: venta de USD registrada vía comando standalone `/ventausd` (simétrico a `/ingreso`), colección propia `usd_sales`. INGRESOS, EGRESOS y `*Resultado del mes*` muestran cada uno, de forma independiente, un sufijo que **concatena** (nunca reemplaza) su monto en ARS convertido al TCM del mes con su propio monto nativo en USD — helper compartido `buildUsdSuffix(arsValue, nativeValue, includeRate)`; solo Resultado del mes agrega la cotización. ⚠️ La neutralidad de la venta para el balance **fue revertida el 2026-09-07** (entrada de arriba); todo lo demás de esta entrada sigue vigente.
 - **Motivo**: tres rondas de QA manual corrigieron el diseño intermedio (paréntesis mutuamente excluyente con el monto nativo) al final — son dos lecturas independientes, no alternativas. `MIN_USD_SOLD_FOR_COST_OF_LIVING` renombrado a `MIN_USD_SOLD_FOR_RELIABLE_RATE` (piso de USD 500 ya no gobierna solo una lectura).
 - **Riesgos aceptados** (`/technician-check`, 2026-09-02): `usd_sales` es write-only (sin listar/editar/borrar); frontera de mes por huso horario (`Timestamp.now()` UTC vs proceso) — ambos preexistentes/compartidos con otras colecciones, documentados en `TICKET.md`.
 - **Aplicado en**: `bot/scenes/usd-sale.scene.ts`, `services/usd-sale.service.ts`, `services/report.service.ts` (`buildUsdSuffix`, `tarjetasPendingUSD`→`tarjetasTotalUSD`), índice compuesto `usd_sales` en `firestore.indexes.json`.

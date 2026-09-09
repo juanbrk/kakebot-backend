@@ -12,10 +12,14 @@ import { Income, IncomeCurrency } from "../types/income.types";
 import { UsdSale } from "../types/usd-sale.types";
 
 /**
- * Floor of USD sold in the month before any reading derived from the weighted average sale
- * rate is shown (INGRESOS/EGRESOS/Resultado del mes USD-equivalent suffixes). Not a business
- * threshold — a statistical significance floor: below it, one or two sales can swing the rate
- * enough to make any conversion through it meaningless.
+ * Floor of USD sold in the month before any reading *inferred* through the weighted average
+ * sale rate is shown (INGRESOS/EGRESOS/Resultado del mes USD-equivalent suffixes). Not a
+ * business threshold — a statistical significance floor: below it, one or two sales can swing
+ * the rate enough to make any conversion through it meaningless.
+ *
+ * Does not gate the balance's `*VENTA DE USD*` line: there the rate and the USD amount are
+ * measured directly off the month's sales, not inferred through them, so the floor would only
+ * strip a small month's line of its only dollar context.
  */
 const MIN_USD_SOLD_FOR_RELIABLE_RATE = 500;
 
@@ -98,7 +102,7 @@ function groupIncomesByReasonAndCurrency(incomes: Income[]): GroupedIncome[] {
  * Weighted average exchange rate across a month's USD sales — Σ(amountARS) / Σ(amountUSD),
  * not a plain average of each sale's rate. Returns 0 for an empty array, so callers must never
  * divide by it without checking `MIN_USD_SOLD_FOR_RELIABLE_RATE` first — a stricter guard than
- * a non-empty check, and the only one that gates every reading derived from this rate.
+ * a non-empty check.
  *
  * @param {UsdSale[]} sales - USD sales of the reported month
  * @return {number} Weighted average ARS-per-USD rate
