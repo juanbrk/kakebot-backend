@@ -5,7 +5,13 @@ import { CARD_STMT_SCENE_ID } from "../scenes/card-stmt.scene";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { buildNameListText, formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
+import {
+  buildNameListText,
+  formatARS,
+  formatUSD,
+  getCurrentMonth,
+  MONTH_NAMES,
+} from "../../helpers/format";
 import {
   getCardsByUser,
   getCardById,
@@ -98,9 +104,7 @@ async function handlePickCard(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardId = ((ctx as any).match as string[])[1];
 
-  const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const currentMonth = `${now.getFullYear()}-${monthStr}`;
+  const currentMonth = getCurrentMonth();
 
   const [card, statement] = await Promise.all([
     getCardById(cardId),
@@ -473,8 +477,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
   const telegramUserId = String(ctx.from!.id);
 
   const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const currentMonth = `${now.getFullYear()}-${monthStr}`;
+  const currentMonth = getCurrentMonth();
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   const [cards, statements] = await Promise.all([

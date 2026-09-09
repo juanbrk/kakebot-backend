@@ -266,7 +266,10 @@ export function buildCardStmtAfterCreateKeyboard(cardId: string) {
 
 /**
  * Card detail keyboard with primary navigation options.
- * "Añadir Resumen" is shown only when no statement exists for the current month.
+ * "Añadir Resumen" is shown only when no statement exists for the current month;
+ * "Marcar como pagado" only when that statement exists and is still unpaid. The
+ * latter reuses the `card_stmt_pay:` callback of the statement detail screen, so
+ * both entry points run the same payment flow.
  * PDF actions are available from the individual statement detail, not here.
  *
  * @param {string} cardId
@@ -278,6 +281,14 @@ export function buildCardDetailKeyboard(
   statement: CardStatement | null,
 ) {
   const rows: ReturnType<typeof Markup.button.callback>[][] = [];
+
+  // An absent id would render `card_stmt_pay:`, which the handler regex never
+  // matches, leaving the tap unanswered — omitting the button beats a dead one.
+  if (statement?.id && !statement.isPaid) {
+    rows.push([
+      Markup.button.callback("Marcar como pagado", `card_stmt_pay:${statement.id}`),
+    ]);
+  }
 
   if (!statement) {
     rows.push([
