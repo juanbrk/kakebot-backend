@@ -1,5 +1,26 @@
 # Session Log
 
+## 2026-09-07 – 2026-09-09: El resultado del mes incluye la venta de dólares — completo
+
+### Completado
+- El balance mensual deja de tratar la venta de USD como neutra: lo liquidado suma al "Resultado
+  del mes" y se muestra en una sección propia entre INGRESOS y EGRESOS, para no confundirlo con
+  ingreso nuevo; reemplaza la línea informativa que antes colgaba del resultado sin sumar. El
+  total de Ingresos por moneda no cambió — el ingreso original en USD se cuenta una sola vez, en
+  su mes. Revierte la parte "venta neutra" de la decisión del 2026-08-28/31.
+- QA manual 9/9 en botitio_testitoBot; `/technician-check` y `/audit-pr` cerrados con APPROVE.
+  Único hallazgo del audit: dos comentarios afirmaban que el piso de confiabilidad del TCM cubría
+  toda lectura en dólares, y este cambio agrega justo la excepción — corregidos en el pase.
+- Build + lint limpios (128 warnings = baseline) durante toda la rama.
+
+### Pendiente
+- Commit y merge a `main` — a cargo de Juan. Tres riesgos diferidos a tickets propios; el más
+  pesado: `usd_sales` no tiene edición ni carga retroactiva, y ahora gobierna el resultado del mes.
+- Ticket propio para `ticket-backfill.js`: su marcador acepta SHA de 7 a 40 chars pero compara
+  contra `rev-parse --short`, así que un marcador de 40 lo hace resolver siempre en el mensaje
+  siguiente y atribuir el trabajo a un commit que no lo contiene. Segunda vez que da una falsa
+  atribución (ver 2026-09-04); acá se destapó al marcar M1 como commiteado sin estarlo.
+
 ## 2026-09-04: Arreglado el deploy de índices de Firestore en CI
 
 ### Completado
