@@ -1,5 +1,22 @@
 # Decisions Log
 
+## 2026-09-09: Botón "Marcar como pagado" en detalle de tarjeta reutiliza el callback existente, sin replicar el patrón de servicios
+
+El botón se agrega en `buildCardDetailKeyboard` cuando hay un resumen del mes en curso impago,
+emitiendo el mismo `card_stmt_pay:<statementId>` que ya usa el detalle del resumen — sin callback,
+handler ni query nuevos. A diferencia de servicios (`svc_pay_from:`, decisión 2026-07-02, "cada entry
+point vuelve a su origen"), acá no hace falta distinguir el origen: el flujo de pago de tarjeta no
+vuelve a ninguna pantalla, termina en un resumen de texto plano sin teclado. El riesgo de doble pago
+(`handleMarkStatementAsPaid` no valida `isPaid`) queda diferido en TICKET.md (D1) — preexistente y
+compartido con la vía original desde Resúmenes.
+
+Posición: fila 2, debajo de la fila de navegación y encima de "← Volver a tarjetas"
+(`/technician-check` T1) — el pago se ejecuta al toque, sin confirmación, y los resúmenes de tarjeta
+no tienen unmark, así que la fila superior, donde el dedo va por costumbre, queda reservada a lo
+reversible. Es el **mismo lugar relativo** que en `buildServiceActionKeyboard`
+(`keyboards/service.ts:105-118`): fila 2, inmediatamente después de la primera fila de navegación;
+servicios solo intercala una fila más ("Cuotas"/"Modificar") antes de su "← Volver".
+
 ## 2026-09-07: El "Resultado del mes" incorpora la venta de USD — revierte la neutralidad del 2026-08-28
 
 Se revierte **solo** la parte "la venta de USD es neutra para el balance" de la decisión del

@@ -1,5 +1,22 @@
 # Session Log
 
+## 2026-09-09 – 2026-09-12: Botón "Marcar como pagado" en el detalle de la tarjeta — completo
+
+### Completado
+- El detalle de una tarjeta ofrece "Marcar como pagado" cuando el resumen del mes en curso existe y
+  sigue impago, disparando el mismo flujo de pago que ya existía desde el detalle del resumen. De
+  paso, las dos pantallas de tarjetas arman el mes actual con el helper compartido.
+- `/technician-check` (1 fix / 2 defer / 1 avoid) y `/audit-pr` (APPROVE; 3 menores, todos de
+  registro) cerrados. Único cambio de comportamiento que salió de las revisiones: el botón bajó de
+  la fila 1 a la 2 — pagar es irreversible y los resúmenes de tarjeta no tienen unmark, así que la
+  fila donde el dedo va por costumbre queda para lo reversible.
+- QA manual (14 casos + 1 de regresión) validada en botitio_testitoBot. Build + lint limpios
+  (128 warnings = baseline).
+
+### Pendiente
+- Commit(s) y merge a main (a cargo de Juan) — feature y refactor del mes actual son cambios
+  lógicamente separados, ver TICKET.md.
+
 ## 2026-09-07 – 2026-09-09: El resultado del mes incluye la venta de dólares — completo
 
 ### Completado
