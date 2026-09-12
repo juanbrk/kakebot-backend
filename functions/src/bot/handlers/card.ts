@@ -5,7 +5,14 @@ import { CARD_STMT_SCENE_ID } from "../scenes/card-stmt.scene";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { buildNameListText, formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
+import {
+  buildNameListText,
+  formatARS,
+  formatUSD,
+  getCurrentMonth,
+  getMonthLabel,
+  MONTH_NAMES,
+} from "../../helpers/format";
 import {
   getCardsByUser,
   getCardById,
@@ -93,14 +100,18 @@ async function handleCardPagination(ctx: Context): Promise<void> {
   });
 }
 
+/**
+ * Renders a card's detail screen, including its current-month statement status.
+ *
+ * @param {Context} ctx - Telegraf context
+ * @return {Promise<void>}
+ */
 async function handlePickCard(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cardId = ((ctx as any).match as string[])[1];
 
-  const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const currentMonth = `${now.getFullYear()}-${monthStr}`;
+  const currentMonth = getCurrentMonth();
 
   const [card, statement] = await Promise.all([
     getCardById(cardId),
@@ -114,7 +125,7 @@ async function handlePickCard(ctx: Context): Promise<void> {
 
   const label = buildCardLabel(card);
   const breadcrumb = buildBreadcrumb(["Tarjetas", label]);
-  const detailText = buildCardDetailText(card, statement);
+  const detailText = buildCardDetailText(card, statement, currentMonth);
 
   await replyOrEdit(ctx, `${breadcrumb}${detailText}`, {
     parse_mode: "Markdown",
@@ -466,16 +477,20 @@ async function handleEditDay(ctx: Context): Promise<void> {
 }
 
 
+/**
+ * Renders the "Ver como listado" screen with each card's current-month statement status.
+ *
+ * @param {Context} ctx - Telegraf context
+ * @return {Promise<void>}
+ */
 async function handleListAllCards(ctx: Context): Promise<void> {
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery();
   }
   const telegramUserId = String(ctx.from!.id);
 
-  const now = new Date();
-  const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-  const currentMonth = `${now.getFullYear()}-${monthStr}`;
-  const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+  const currentMonth = getCurrentMonth();
+  const monthLabel = getMonthLabel(currentMonth);
 
   const [cards, statements] = await Promise.all([
     getCardsByUser(telegramUserId),

@@ -10,7 +10,7 @@ import {
   BuildStmtPayARSKeyboardParams,
   BuildStmtUsdCurrencyKeyboardParams,
 } from "../../types/card.types";
-import { formatARS, formatUSD, MONTH_NAMES } from "../../helpers/format";
+import { formatARS, formatUSD, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
 
 const CARDS_PER_PAGE = 6;
 const STATEMENTS_PER_PAGE = 6;
@@ -266,7 +266,10 @@ export function buildCardStmtAfterCreateKeyboard(cardId: string) {
 
 /**
  * Card detail keyboard with primary navigation options.
- * "Añadir Resumen" is shown only when no statement exists for the current month.
+ * "Añadir Resumen" is shown only when no statement exists for the current month;
+ * "Marcar como pagado" only when that statement exists and is still unpaid. It reuses
+ * the `card_stmt_pay:` callback of the statement detail screen, so both entry points
+ * run the same payment flow.
  * PDF actions are available from the individual statement detail, not here.
  *
  * @param {string} cardId
@@ -288,20 +291,34 @@ export function buildCardDetailKeyboard(
     rows.push([Markup.button.callback("Resúmenes", `card_stmts:${cardId}`)]);
   }
 
+  // Below the navigation row on purpose: paying is immediate and there is no unmark
+  // for statements, so it must not sit where a habitual tap lands.
+  // An absent id would render `card_stmt_pay:`, which the handler regex never
+  // matches, leaving the tap unanswered — omitting the button beats a dead one.
+  if (statement?.id && !statement.isPaid) {
+    rows.push([
+      Markup.button.callback("Marcar como pagado", `card_stmt_pay:${statement.id}`),
+    ]);
+  }
+
   rows.push([Markup.button.callback("← Volver a tarjetas", "card_list")]);
   return Markup.inlineKeyboard(rows);
 }
 
 /**
  * Builds the card detail text for the read-only view.
+ * Takes the month from the caller instead of reading the clock again, so the
+ * heading always names the month the statement was actually fetched for.
  *
  * @param {CreditCard} card
- * @param {CardStatement | null} statement - Current month statement, if any
+ * @param {CardStatement | null} statement - Statement for currentMonth, if any
+ * @param {string} currentMonth - Month the statement was looked up for, "YYYY-MM"
  * @return {string} Formatted detail text
  */
 export function buildCardDetailText(
   card: CreditCard,
   statement: CardStatement | null,
+  currentMonth: string,
 ): string {
   const label = buildCardLabel(card);
   const expiryStr = `${String(card.expiryMonth).padStart(2, "0")}/${card.expiryYear}`;
@@ -313,9 +330,7 @@ export function buildCardDetailText(
     `*Procesador*: ${card.processor}`,
   ];
 
-  const now = new Date();
-  const monthName = MONTH_NAMES[now.getMonth()];
-  const year = now.getFullYear();
+  const monthLabel = getMonthLabel(currentMonth);
 
   if (statement) {
     const dueDate = statement.dueDate.toDate();
@@ -323,7 +338,7 @@ export function buildCardDetailText(
     const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
 
     lines.push("");
-    lines.push(`*Resumen ${monthName} ${year}:*`);
+    lines.push(`*Resumen ${monthLabel}:*`);
     lines.push(` • Monto: ${formatARS(statement.amountARS)}`);
     if (statement.amountUSD > 0) {
       lines.push(` • Dólares: ${formatUSD(statement.amountUSD)}`);
@@ -334,7 +349,7 @@ export function buildCardDetailText(
     );
   } else {
     lines.push("");
-    lines.push(`Sin resumen registrado para ${monthName} ${year}.`);
+    lines.push(`Sin resumen registrado para ${monthLabel}.`);
   }
 
   return lines.join("\n");
