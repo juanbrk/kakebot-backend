@@ -241,7 +241,7 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 
 | Function | File | Purpose |
 |---|---|---|
-| `buildBreadcrumb(segments)` | `helpers/breadcrumb.ts` | Italic nav path `_A / B / C_\n\n` with `parse_mode: "Markdown"` |
+| `buildBreadcrumb(segments)` | `helpers/breadcrumb.ts` | Italic nav path `<i>A / B / C</i>\n\n` with `parse_mode: "HTML"` |
 | `formatARS(amount)` | `helpers/format.ts` | ARS currency formatting (dot thousands, comma decimal) |
 | `formatUSD(amount)` | `helpers/format.ts` | USD currency formatting → `"U$S 49,47"` |
 | `formatIncomeAmount(amount, currency)` | `helpers/format.ts` | Despacha a `formatARS`/`formatUSD` según `IncomeCurrency`. Usarlo para todo monto de ingreso — nunca hardcodear `formatARS` en el flujo de ingresos |
@@ -266,12 +266,12 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 
 Sole exception: the categorization loop (`services/category.service.ts`) uses low-level `ctx.telegram.editMessageText` targeting a stored `chatId`/`messageId` — not migratable, lives outside the guarded paths. See `wizard-scenes.md §9` for the full semantics.
 
-**Breadcrumb pattern** — every screen that uses `buildBreadcrumb` MUST use `parse_mode: "Markdown"`:
+**Breadcrumb pattern** — every screen that uses `buildBreadcrumb` MUST use `parse_mode: "HTML"`:
 ```typescript
 await replyOrEdit(
   ctx,
   buildBreadcrumb(["Section", "Subsection"]) + "Prompt text",
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+  { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
 );
 ```

@@ -33,17 +33,17 @@ Cada pantalla de menú (no de reporte) sigue este patrón:
 
 ```typescript
 buildBreadcrumb(["Reportes", "Sección"]) +
-  "*¿Qué querés ver?*\n\n" +
-  "• *Opción A*: descripción breve de lo que muestra\n" +
-  "• *Opción B*: descripción breve de lo que muestra"
+  "<b>¿Qué querés ver?</b>\n\n" +
+  "• <b>Opción A</b>: descripción breve de lo que muestra\n" +
+  "• <b>Opción B</b>: descripción breve de lo que muestra"
 ```
 
 Reglas:
-- La pregunta `*¿Qué querés ver?*` va en bold (Markdown `*...*`)
+- La pregunta `<b>¿Qué querés ver?</b>` va en bold (HTML `<b>...</b>`)
 - Cada opción del menú tiene un bullet `•` (U+2022) + nombre **en negrita** + `: ` + descripción breve
 - El nombre del bullet debe coincidir exactamente con el label del botón
 - Las descripciones van en texto plano (sin negrita ni itálica)
-- `parse_mode: "Markdown"` siempre presente
+- `parse_mode: "HTML"` siempre presente
 
 El formato negrita + `:` reemplaza al viejo `• Nombre — descripción` en texto plano. La
 divergencia arrancó como excepción puntual del submenú Servicios (decisión 2026-07-29, para que
@@ -111,7 +111,7 @@ reporte queda reducido a fetch + map (ver `services/tax-status-report.service.ts
 En `bot/handlers/report-history.ts`, en la función `handleXxxMenu` correspondiente:
 - Agregar `[Markup.button.callback("Nombre del reporte", "menu_xxx")]`
 - Agregar bullet con descripción en el texto del menú:
-  `"• *Nombre del reporte*: descripción breve de lo que muestra\n"`
+  `"• <b>Nombre del reporte</b>: descripción breve de lo que muestra\n"`
 
 ### 4. Registrar el handler externo en report-history.ts (solo si usa un callback de este archivo)
 
