@@ -48,9 +48,9 @@ async function handleCardsHub(ctx: Context): Promise<void> {
   if (cards.length === 0) {
     await replyOrEdit(
       ctx,
-      `${breadcrumb}No tenés ninguna tarjeta registrada.\n\n*¿Qué querés hacer?*`,
+      `${breadcrumb}No tenés ninguna tarjeta registrada.\n\n<b>¿Qué querés hacer?</b>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         ...buildCardEmptyStateKeyboard(),
       },
     );
@@ -58,8 +58,8 @@ async function handleCardsHub(ctx: Context): Promise<void> {
   }
 
   const cardList = buildNameListText(cards.map((card) => buildCardLabel(card)));
-  await replyOrEdit(ctx, `${breadcrumb}${cardList}\n\n*¿Qué querés hacer?*`, {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, `${breadcrumb}${cardList}\n\n<b>¿Qué querés hacer?</b>`, {
+    parse_mode: "HTML",
     ...buildCardsHubKeyboard(),
   });
 }
@@ -74,14 +74,14 @@ async function handleOpenCards(ctx: Context): Promise<void> {
 
   if (cards.length === 0) {
     await replyOrEdit(ctx, `${breadcrumb}No tenés tarjetas registradas.`, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildCardEmptyStateKeyboard(),
     });
     return;
   }
 
   await replyOrEdit(ctx, `${breadcrumb}Seleccioná una tarjeta:`, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildCardListKeyboard(cards, 0),
   });
 }
@@ -95,7 +95,7 @@ async function handleCardPagination(ctx: Context): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Tarjetas"]);
 
   await replyOrEdit(ctx, `${breadcrumb}Seleccioná una tarjeta:`, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildCardListKeyboard(cards, page),
   });
 }
@@ -128,7 +128,7 @@ async function handlePickCard(ctx: Context): Promise<void> {
   const detailText = buildCardDetailText(card, statement, currentMonth);
 
   await replyOrEdit(ctx, `${breadcrumb}${detailText}`, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildCardDetailKeyboard(cardId, statement),
   });
 }
@@ -137,9 +137,9 @@ async function handleAddCard(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Vas a registrar una nueva tarjeta de crédito*\n" +
-      "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Vas a registrar una nueva tarjeta de crédito</b>\n" +
+      "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_CREATE_SCENE_ID);
 }
@@ -159,9 +159,9 @@ async function handleStartStatement(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
-      "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}</b>\n` +
+      "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
 
   await ctx.scene.enter(CARD_STMT_SCENE_ID, { flow: "create", cardId, cardLabel } as CardStmtWizardState);
@@ -246,7 +246,7 @@ async function showStatementDetail(
     ctx,
     `${breadcrumb}${buildStatementDetailText(statement, cardLabel)}`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildStatementDetailKeyboard({
         statementId,
         cardId: statement.cardId,
@@ -281,7 +281,7 @@ async function handleStatementsList(ctx: Context): Promise<void> {
       ctx,
       `${breadcrumb}No hay resúmenes registrados para esta tarjeta.`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         ...buildStatementListKeyboard({
           statements,
           page: 0,
@@ -293,8 +293,8 @@ async function handleStatementsList(ctx: Context): Promise<void> {
     return;
   }
 
-  await replyOrEdit(ctx, `${breadcrumb}*Seleccioná un resumen:*`, {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, `${breadcrumb}<b>Seleccioná un resumen:</b>`, {
+    parse_mode: "HTML",
     ...buildStatementListKeyboard({ statements, page: 0, cardId, cardLabel }),
   });
 }
@@ -314,8 +314,8 @@ async function handleStatementsListPagination(ctx: Context): Promise<void> {
 
   const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
 
-  await replyOrEdit(ctx, `${breadcrumb}*Seleccioná un resumen:*`, {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, `${breadcrumb}<b>Seleccioná un resumen:</b>`, {
+    parse_mode: "HTML",
     ...buildStatementListKeyboard({ statements, page, cardId, cardLabel }),
   });
 }
@@ -348,9 +348,9 @@ async function handleAttachStatementPdfFromHistory(
 
   await replyOrEdit(
     ctx,
-    `*Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${cardLabel}*\n` +
-      "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${cardLabel}</b>\n` +
+      "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
     flow: "receipt_pdf",
@@ -385,8 +385,8 @@ async function handleStatementEditMenu(ctx: Context): Promise<void> {
     "Modificar",
   ]);
 
-  await replyOrEdit(ctx, `${breadcrumb}*¿Qué querés modificar?*`, {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, `${breadcrumb}<b>¿Qué querés modificar?</b>`, {
+    parse_mode: "HTML",
     ...buildStatementEditMenuKeyboard(statementId),
   });
 }
@@ -407,8 +407,9 @@ async function handleEditArs(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a modificar el monto en pesos para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
-    { parse_mode: "Markdown" },
+    `<b>Vas a modificar el monto en pesos para la tarjeta ${cardLabel}</b>\n`
+    + "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as unknown as KakebotContext).scene.enter(CARD_STMT_SCENE_ID, {
     flow: "edit_ars",
@@ -435,8 +436,9 @@ async function handleEditUsd(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a modificar el monto en dólares para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
-    { parse_mode: "Markdown" },
+    `<b>Vas a modificar el monto en dólares para la tarjeta ${cardLabel}</b>\n`
+    + "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as unknown as KakebotContext).scene.enter(CARD_STMT_SCENE_ID, {
     flow: "edit_usd",
@@ -464,8 +466,8 @@ async function handleEditDay(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a modificar el vencimiento para la tarjeta ${cardLabel}*\n_Enviá la palabra cancelar para salir._`,
-    { parse_mode: "Markdown" },
+    `<b>Vas a modificar el vencimiento para la tarjeta ${cardLabel}</b>\n<i>Enviá la palabra cancelar para salir.</i>`,
+    { parse_mode: "HTML" },
   );
   await (ctx as unknown as KakebotContext).scene.enter(CARD_STMT_SCENE_ID, {
     flow: "edit_day",
@@ -501,7 +503,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
 
   if (cards.length === 0) {
     await replyOrEdit(ctx, `${breadcrumb}No hay tarjetas registradas.`, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildCardListViewKeyboard(),
     });
     return;
@@ -514,12 +516,12 @@ async function handleListAllCards(ctx: Context): Promise<void> {
   const totalARS = statements.reduce((sum, stmt) => sum + stmt.amountARS, 0);
 
   const lines: string[] = [];
-  lines.push(`*${breadcrumb}Tarjetas ${monthLabel}*`);
+  lines.push(`<b>${breadcrumb}Tarjetas ${monthLabel}</b>`);
   lines.push("");
 
   for (const card of cards) {
     const stmt = statementByCardId.get(card.id || "");
-    const label = `  • *${buildCardLabel(card)}*`;
+    const label = `  • <b>${buildCardLabel(card)}</b>`;
     if (stmt) {
       let cardLine = `${label}: ${formatARS(stmt.amountARS)}`;
       if (stmt.amountUSD > 0) {
@@ -532,14 +534,14 @@ async function handleListAllCards(ctx: Context): Promise<void> {
   }
 
   lines.push("");
-  lines.push(`*Total*: ${formatARS(totalARS)}`);
+  lines.push(`<b>Total</b>: ${formatARS(totalARS)}`);
 
   lines.push("");
-  lines.push("*Vencimientos*");
+  lines.push("<b>Vencimientos</b>");
 
   for (const card of cards) {
     const stmt = statementByCardId.get(card.id || "");
-    const label = `  • *${buildCardLabel(card)}*`;
+    const label = `  • <b>${buildCardLabel(card)}</b>`;
     if (stmt) {
       const dueDate = stmt.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
@@ -552,7 +554,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
   }
 
   await replyOrEdit(ctx, lines.join("\n"), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildCardListViewKeyboard(),
   });
 }
@@ -615,9 +617,9 @@ async function handleStmtReceiptsMenu(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `${breadcrumb}*¿Qué querés hacer?*`,
+    `${breadcrumb}<b>¿Qué querés hacer?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildStmtReceiptsKeyboard({
         statementId,
         hasReceipt: !!statement.receiptUrl,
@@ -655,8 +657,8 @@ async function handleStmtReceiptsAttachARS(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `_${monthLabel} · ${cardLabel} — adjuntando comprobante ARS_`,
-    { parse_mode: "Markdown" },
+    `<i>${monthLabel} · ${cardLabel} — adjuntando comprobante ARS</i>`,
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
     flow: "receipt_ars",
@@ -692,8 +694,8 @@ async function handleAttachReceiptUSD(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `_${monthLabel} · ${cardLabel} — adjuntando comprobante USD_`,
-    { parse_mode: "Markdown" },
+    `<i>${monthLabel} · ${cardLabel} — adjuntando comprobante USD</i>`,
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
     flow: "receipt_usd",
@@ -805,9 +807,9 @@ async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
   if (availableMonths.length === 0) {
     await replyOrEdit(
       ctx,
-      `*Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.*`,
+      `<b>Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.</b>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: Markup.inlineKeyboard([[
           Markup.button.callback("← Volver", `card_stmts:${cardId}`),
@@ -819,9 +821,9 @@ async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}*\n` +
-    "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}</b>\n` +
+    "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
 
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {

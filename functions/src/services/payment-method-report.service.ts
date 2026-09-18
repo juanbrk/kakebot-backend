@@ -58,7 +58,7 @@ function buildSection(label: string, items: ServiceWithInstallment[]): string {
     return "";
   }
   const lines = sortByDueDateAscending(items).map(formatServiceLine).join("\n");
-  return `*${label}*\n${lines}`;
+  return `<b>${label}</b>\n${lines}`;
 }
 
 /**
@@ -123,5 +123,5 @@ export async function generatePaymentMethodReport(telegramUserId: string): Promi
     return null;
   }
 
-  return `*Métodos de Pago — Servicios*\n\n${sections.join("\n\n")}`;
+  return `<b>Métodos de Pago — Servicios</b>\n\n${sections.join("\n\n")}`;
 }

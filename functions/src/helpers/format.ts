@@ -102,7 +102,7 @@ export function buildNameListText(names: string[]): string {
 
   const hiddenCount = names.length - visibleNames.length;
   if (hiddenCount > 0) {
-    lines.push(`_y ${hiddenCount} más_`);
+    lines.push(`<i>y ${hiddenCount} más</i>`);
   }
 
   return lines.join("\n");
@@ -141,4 +141,26 @@ export function getCurrentMonth(): string {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   return `${now.getFullYear()}-${month}`;
+}
+
+/**
+ * Escapes the three characters Telegram's HTML parse mode treats as markup.
+ * The ampersand goes first, so the ampersands introduced by the angle-bracket
+ * replacements are not escaped a second time.
+ *
+ * Apply it at the interpolation that enters a message sent with
+ * parse_mode "HTML" - never on a value held in a variable, a parameter or the
+ * wizard state. The same value also feeds button labels and file-name slugs,
+ * which Telegram renders literally, so an entity there would be visible to the
+ * user. Shared builders that receive raw entity fields escape internally and
+ * must never be handed an already-escaped value.
+ *
+ * @param {string} text - Raw user-supplied text
+ * @return {string} Text safe to interpolate into an HTML-formatted message
+ */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }

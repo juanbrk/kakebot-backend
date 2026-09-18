@@ -103,9 +103,9 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     }
     const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, state.taxId);
     await ctx.reply(
-      "*¿A qué mes corresponde la cuota?*",
+      "<b>¿A qué mes corresponde la cuota?</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: keyboard.reply_markup as any,
       },
@@ -114,8 +114,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
   }
 
   await ctx.reply(
-    "*¿Cómo se llama el impuesto?*\n_Ej: Monotributo, AFIP, Rentas Automotor_",
-    { parse_mode: "Markdown" },
+    "<b>¿Cómo se llama el impuesto?</b>\n<i>Ej: Monotributo, AFIP, Rentas Automotor</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -135,8 +135,8 @@ async function stepHandleName(ctx: KakebotContext): Promise<void> {
   (ctx.wizard.state as TaxWizardState).taxName = name;
 
   const keyboard = buildPaymentMethodKeyboard({ callbackPrefix: "tax_pm" });
-  await ctx.reply("*Seleccioná el método de pago*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el método de pago</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -151,8 +151,8 @@ async function stepHandleName(ctx: KakebotContext): Promise<void> {
 async function stepGuardPaymentMethod(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Elegí un método de pago del teclado, o escribí \"cancelar\" para anular.");
   const keyboard = buildPaymentMethodKeyboard({ callbackPrefix: "tax_pm" });
-  await ctx.reply("*Seleccioná el método de pago*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el método de pago</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -174,9 +174,9 @@ async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   const availableMonths = await getAvailableMonthsForTax(taxId);
   const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, taxId);
   await ctx.reply(
-    "*¿A qué mes corresponde la cuota?*",
+    "<b>¿A qué mes corresponde la cuota?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -212,8 +212,8 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
 
   const maxDay = getDaysInMonth(selectedMonth);
   await ctx.reply(
-    `*¿Cuál es el día de vencimiento de esta cuota? (1-${maxDay})*`,
-    { parse_mode: "Markdown" },
+    `<b>¿Cuál es el día de vencimiento de esta cuota? (1-${maxDay})</b>`,
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -266,13 +266,13 @@ async function stepHandleInstallmentDueDay(ctx: KakebotContext): Promise<void> {
   const dayLabel = String(dueDate.getDate()).padStart(2, "0");
   const moLabel = String(dueDate.getMonth() + 1).padStart(2, "0");
   await ctx.reply(
-    `✅ *Cuota registrada*: ${taxName} ${formatARS(amount as number)} (vence ${dayLabel}/${moLabel})`,
-    { parse_mode: "Markdown" },
+    `✅ <b>Cuota registrada</b>: ${taxName} ${formatARS(amount as number)} (vence ${dayLabel}/${moLabel})`,
+    { parse_mode: "HTML" },
   );
 
   const keyboard = buildTaxPaidPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás marcar la cuota como pagada?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Deseás marcar la cuota como pagada?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -290,8 +290,8 @@ async function stepGuardPaidDecision(ctx: KakebotContext): Promise<void> {
 
   await ctx.reply("Usá los botones para indicar si la cuota está pagada.");
   const keyboard = buildTaxPaidPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás marcar la cuota como pagada?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Deseás marcar la cuota como pagada?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -307,8 +307,8 @@ async function stepGuardReceipt(ctx: KakebotContext): Promise<void> {
   const installmentId = state.installmentId ?? "";
   await ctx.reply("Enviá la foto o PDF del comprobante, o usá los botones.");
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás adjuntar un comprobante?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Deseás adjuntar un comprobante?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -377,9 +377,9 @@ async function stepGuardUnpayDecision(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Usá los botones para indicar qué hacer con el comprobante.");
   const keyboard = buildUnpayReceiptDecisionKeyboard(installmentId);
   await ctx.reply(
-    "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+    "El impuesto figuraba como pagado con un comprobante de pago\n<b>¿Qué deseas hacer con el comprobante?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -426,9 +426,9 @@ async function handlePaymentMethod(ctx: KakebotContext): Promise<void> {
 
   const keyboard = buildFilteredTaxMonthKeyboard(availableMonths, taxId);
   await ctx.reply(
-    "*¿A qué mes corresponde la cuota?*",
+    "<b>¿A qué mes corresponde la cuota?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -459,13 +459,13 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a registrar la cuota para ${monthLabel}*`,
-    { parse_mode: "Markdown" },
+    `<b>Vas a registrar la cuota para ${monthLabel}</b>`,
+    { parse_mode: "HTML" },
   );
 
   await ctx.reply(
-    `*¿Cuál es el monto de la cuota para ${monthLabel}?*\n_Ej: 53136 o 53.136,74_`,
-    { parse_mode: "Markdown" },
+    `<b>¿Cuál es el monto de la cuota para ${monthLabel}?</b>\n<i>Ej: 53136 o 53.136,74</i>`,
+    { parse_mode: "HTML" },
   );
   ctx.wizard.selectStep(AMOUNT_STEP);
 }
@@ -482,11 +482,11 @@ async function handlePaidYes(ctx: KakebotContext): Promise<void> {
   const installmentId = ((ctx as any).match as string[])[1];
 
   await markTaxInstallmentAsPaid(installmentId);
-  await editOrReply(ctx, "✅ Cuota marcada como pagada.", { parse_mode: "Markdown" });
+  await editOrReply(ctx, "✅ Cuota marcada como pagada.", { parse_mode: "HTML" });
 
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás adjuntar un comprobante?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Deseás adjuntar un comprobante?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -512,7 +512,7 @@ async function handlePaidNo(ctx: KakebotContext): Promise<void> {
       ctx,
       `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}\n\n`
         + buildTaxInstallmentDetailText(installment),
-      { parse_mode: "Markdown" },
+      { parse_mode: "HTML" },
     );
   }
 
@@ -527,8 +527,8 @@ async function handlePaidNo(ctx: KakebotContext): Promise<void> {
  */
 async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await replyOrEdit(ctx, "*Enviá la foto o PDF del comprobante de pago.*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, "<b>Enviá la foto o PDF del comprobante de pago.</b>", {
+    parse_mode: "HTML",
   });
 }
 
@@ -567,7 +567,7 @@ async function resolveUnpayDecision(
     ctx,
     `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada. `
     + receiptNote,
-    { parse_mode: "Markdown" },
+    { parse_mode: "HTML" },
   );
 
   const { text, extra } = buildTaxInstallmentDetailPayload(installment);
@@ -650,9 +650,9 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     if (state.unpayDecision && state.installmentId) {
       const keyboard = buildUnpayReceiptDecisionKeyboard(state.installmentId);
       await ctx.reply(
-        "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+        "El impuesto figuraba como pagado con un comprobante de pago\n<b>¿Qué deseas hacer con el comprobante?</b>",
         {
-          parse_mode: "Markdown",
+          parse_mode: "HTML",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           reply_markup: keyboard.reply_markup as any,
         },
@@ -661,9 +661,9 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
       const availableMonths = await getAvailableMonthsForTax(state.taxId);
       const monthKeyboard = buildFilteredTaxMonthKeyboard(availableMonths, state.taxId);
       await ctx.reply(
-        "*¿A qué mes corresponde la cuota?*",
+        "<b>¿A qué mes corresponde la cuota?</b>",
         {
-          parse_mode: "Markdown",
+          parse_mode: "HTML",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           reply_markup: monthKeyboard.reply_markup as any,
         },
@@ -673,14 +673,14 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   }
   case 1:
     await ctx.reply(
-      "*¿Cómo se llama el impuesto?*\n_Ej: Monotributo, AFIP, Rentas Automotor_",
-      { parse_mode: "Markdown" },
+      "<b>¿Cómo se llama el impuesto?</b>\n<i>Ej: Monotributo, AFIP, Rentas Automotor</i>",
+      { parse_mode: "HTML" },
     );
     break;
   case 2: {
     const pmKeyboard = buildPaymentMethodKeyboard({ callbackPrefix: "tax_pm" });
-    await ctx.reply("*Seleccioná el método de pago*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>Seleccioná el método de pago</b>", {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: pmKeyboard.reply_markup as any,
     });
@@ -695,8 +695,8 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
       ? `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`
       : "el mes seleccionado";
     await ctx.reply(
-      `*¿Cuál es el monto de la cuota para ${monthLabel}?*\n_Ej: 53136 o 53.136,74_`,
-      { parse_mode: "Markdown" },
+      `<b>¿Cuál es el monto de la cuota para ${monthLabel}?</b>\n<i>Ej: 53136 o 53.136,74</i>`,
+      { parse_mode: "HTML" },
     );
     break;
   }
@@ -704,16 +704,16 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     const selectedMonth = state.selectedMonth ?? "";
     const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
     await ctx.reply(
-      `*¿Cuál es el día de vencimiento de esta cuota? (1-${maxDay})*`,
-      { parse_mode: "Markdown" },
+      `<b>¿Cuál es el día de vencimiento de esta cuota? (1-${maxDay})</b>`,
+      { parse_mode: "HTML" },
     );
     break;
   }
   case 6: {
     const installmentId = state.installmentId ?? "";
     const paidKeyboard = buildTaxPaidPromptKeyboard(installmentId);
-    await ctx.reply("*¿Deseás marcar la cuota como pagada?*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>¿Deseás marcar la cuota como pagada?</b>", {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: paidKeyboard.reply_markup as any,
     });
@@ -723,8 +723,8 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     const selectedMonth = state.selectedMonth ?? "";
     const maxDay = selectedMonth ? getDaysInMonth(selectedMonth) : 31;
     await ctx.reply(
-      `*¿Cuál es el nuevo día de vencimiento de esta cuota? (1-${maxDay})*`,
-      { parse_mode: "Markdown" },
+      `<b>¿Cuál es el nuevo día de vencimiento de esta cuota? (1-${maxDay})</b>`,
+      { parse_mode: "HTML" },
     );
     break;
   }
@@ -732,9 +732,9 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     const installmentId = state.installmentId ?? "";
     const keyboard = buildUnpayReceiptDecisionKeyboard(installmentId);
     await ctx.reply(
-      "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+      "El impuesto figuraba como pagado con un comprobante de pago\n<b>¿Qué deseas hacer con el comprobante?</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: keyboard.reply_markup as any,
       },

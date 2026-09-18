@@ -235,7 +235,7 @@ export function buildInstallmentDetailText(
     : "Estado: Pendiente";
 
   return (
-    `*Cuota: ${installment.serviceName}*\n\n` +
+    `<b>Cuota: ${installment.serviceName}</b>\n\n` +
     `Monto: ${formatARS(installment.amount)}\n` +
     `Vencimiento: ${day}/${month}\n` +
     statusLine

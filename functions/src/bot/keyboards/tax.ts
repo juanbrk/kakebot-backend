@@ -339,13 +339,13 @@ export function buildTaxInstallmentDetailText(
   installment: TaxInstallment,
 ): string {
   const statusLine = installment.isPaid
-    ? "*Estado*: ✅ Pagado"
-    : "*Estado*: Pendiente";
+    ? "<b>Estado</b>: ✅ Pagado"
+    : "<b>Estado</b>: Pendiente";
 
   return (
-    `*Cuota: ${installment.taxName}*\n\n`
-    + `*Monto*: ${formatARS(installment.amount)}\n`
-    + `*Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}\n`
+    `<b>Cuota: ${installment.taxName}</b>\n\n`
+    + `<b>Monto</b>: ${formatARS(installment.amount)}\n`
+    + `<b>Vencimiento</b>: ${formatDueDateDayMonth(installment.dueDate)}\n`
     + statusLine
   );
 }
@@ -378,7 +378,7 @@ export function buildTaxInstallmentDetailPayload(
   return {
     text,
     extra: {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },

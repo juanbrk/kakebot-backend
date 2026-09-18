@@ -55,7 +55,7 @@ export function buildExpensePromptText({
   total,
 }: BuildExpensePromptTextParams): string {
   return (
-    `*${displayName}* ${formatARS(totalAmount)} (${current} de ${total})\n` +
+    `<b>${displayName}</b> ${formatARS(totalAmount)} (${current} de ${total})\n` +
     "• Elegí una categoría o creá una nueva\n" +
     "• Escribí \"cancelar\" para salir"
   );

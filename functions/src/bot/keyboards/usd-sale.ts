@@ -25,6 +25,6 @@ export function buildUsdSaleConfirmKeyboard() {
  */
 export function buildUsdSaleConfirmText(amountUSD: number, exchangeRate: number): string {
   const amountARS = amountUSD * exchangeRate;
-  return "*¿Registrar venta de dólares?*\n"
+  return "<b>¿Registrar venta de dólares?</b>\n"
     + `${formatUSD(amountUSD)} × ${formatARS(exchangeRate)} = ${formatARS(amountARS)}`;
 }

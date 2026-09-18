@@ -13,8 +13,8 @@ export function registerReportHandler(bot: Telegraf<KakebotContext>): void {
       return;
     }
 
-    await ctx.reply(report.detail, { parse_mode: "Markdown" });
-    await ctx.reply(report.balance, { parse_mode: "Markdown" });
+    await ctx.reply(report.detail, { parse_mode: "HTML" });
+    await ctx.reply(report.balance, { parse_mode: "HTML" });
   });
 
   bot.action("menu_reporte", async (ctx) => {
@@ -29,8 +29,8 @@ export function registerReportHandler(bot: Telegraf<KakebotContext>): void {
     }
 
     await replyOrEdit(ctx, report.detail, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
     });
-    await ctx.reply(report.balance, { parse_mode: "Markdown" });
+    await ctx.reply(report.balance, { parse_mode: "HTML" });
   });
 }

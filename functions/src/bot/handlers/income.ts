@@ -32,9 +32,9 @@ async function handleIncomeFromMenu(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Estás registrando un nuevo ingreso*\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Estás registrando un nuevo ingreso</b>\n" +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(INCOME_SCENE_ID);
 }

@@ -49,13 +49,13 @@ async function handleReportesMenu(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes"]) +
-      "*¿Qué querés ver?*\n\n" +
-      "• *Balances*: resumenes mensuales de gastos e ingresos\n" +
-      "• *Pagos*: Pagos de servicios, impuestos y tarjetas\n" +
-      "• *Servicios*: estado y método de pago de servicios\n" +
-      "• *Impuestos*: estado de impuestos",
+      "<b>¿Qué querés ver?</b>\n\n" +
+      "• <b>Balances</b>: resumenes mensuales de gastos e ingresos\n" +
+      "• <b>Pagos</b>: Pagos de servicios, impuestos y tarjetas\n" +
+      "• <b>Servicios</b>: estado y método de pago de servicios\n" +
+      "• <b>Impuestos</b>: estado de impuestos",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -74,11 +74,11 @@ async function handleBalancesMenu(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Balances"]) +
-      "*¿Qué querés ver?*\n\n" +
-      "• *Ver Balance actual*: detalle de gastos e ingresos del mes en curso\n" +
-      "• *Balances anteriores*: Historial de reportes pasados",
+      "<b>¿Qué querés ver?</b>\n\n" +
+      "• <b>Ver Balance actual</b>: detalle de gastos e ingresos del mes en curso\n" +
+      "• <b>Balances anteriores</b>: Historial de reportes pasados",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -96,10 +96,10 @@ async function handlePagosMenu(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Pagos"]) +
-      "*¿Qué querés ver?*\n\n" +
-      "• *Próximos Vencimientos*: servicios e impuestos a vencer en los próximos 7 días",
+      "<b>¿Qué querés ver?</b>\n\n" +
+      "• <b>Próximos Vencimientos</b>: servicios e impuestos a vencer en los próximos 7 días",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -118,11 +118,11 @@ async function handleServiciosMenu(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Servicios"]) +
-      "*¿Qué querés ver?*\n\n" +
-      "• *Métodos de pago*: Listado de servicios agrupados por forma de pago\n" +
-      "• *Estado de servicios*: Servicios agrupados por vencimiento y estado de pago",
+      "<b>¿Qué querés ver?</b>\n\n" +
+      "• <b>Métodos de pago</b>: Listado de servicios agrupados por forma de pago\n" +
+      "• <b>Estado de servicios</b>: Servicios agrupados por vencimiento y estado de pago",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -140,10 +140,10 @@ async function handleImpuestosMenu(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Impuestos"]) +
-      "*¿Qué querés ver?*\n\n" +
-      "• *Estado de impuestos*: Impuestos agrupados por vencimiento y estado de pago",
+      "<b>¿Qué querés ver?</b>\n\n" +
+      "• <b>Estado de impuestos</b>: Impuestos agrupados por vencimiento y estado de pago",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -162,8 +162,8 @@ async function handleRepCurrent(ctx: Context): Promise<void> {
     return;
   }
 
-  await replyOrEdit(ctx, report.detail, { parse_mode: "Markdown" });
-  await ctx.reply(report.balance, { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, report.detail, { parse_mode: "HTML" });
+  await ctx.reply(report.balance, { parse_mode: "HTML" });
 }
 
 /**
@@ -186,7 +186,7 @@ async function handleRepHistory(ctx: Context): Promise<void> {
       ctx,
       buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "No hay registros anteriores.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
     );
     return;
   }
@@ -206,7 +206,7 @@ async function handleRepHistory(ctx: Context): Promise<void> {
     ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "Seleccioná el año",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
+    { parse_mode: "HTML", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
   );
 }
 
@@ -264,7 +264,7 @@ async function showMonthSelector({
     ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", year]) + "Seleccioná el mes",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
+    { parse_mode: "HTML", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
   );
 }
 
@@ -292,7 +292,7 @@ async function handleRepMonth(ctx: Context): Promise<void> {
     ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Selecciona una opción",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -313,8 +313,8 @@ async function handleRepView(ctx: Context): Promise<void> {
     return;
   }
 
-  await replyOrEdit(ctx, report.detail, { parse_mode: "Markdown" });
-  await ctx.reply(report.balance, { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, report.detail, { parse_mode: "HTML" });
+  await ctx.reply(report.balance, { parse_mode: "HTML" });
 }
 
 /**
@@ -333,7 +333,7 @@ async function handleRepExp(ctx: KakebotContext): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando gasto",
-    { parse_mode: "Markdown" },
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(EXPENSE_SCENE_ID, { reportMonth: yearMonth } as ExpenseWizardState);
 }
@@ -354,7 +354,7 @@ async function handleRepInc(ctx: KakebotContext): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Reportes", "Balances", "Anteriores", monthLabel]) + "Registrando ingreso",
-    { parse_mode: "Markdown" },
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(INCOME_SCENE_ID, { reportMonth: yearMonth } as IncomeWizardState);
 }

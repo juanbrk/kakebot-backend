@@ -202,7 +202,7 @@ export async function generateMonthlyReport(
   // --- Detail message ---
   const detailLines: string[] = [];
   detailLines.push(
-    `*Reporte ${MONTH_NAMES[month]} ${year}*\n`,
+    `<b>Reporte ${MONTH_NAMES[month]} ${year}</b>\n`,
   );
 
   const categoryTotals: { label: string; total: number }[] = [];
@@ -218,7 +218,7 @@ export async function generateMonthlyReport(
 
     categoryTotals.push({ label: categoryLabel, total: categoryTotal });
 
-    detailLines.push(`*${categoryLabel}* ${formatARS(categoryTotal)}`);
+    detailLines.push(`<b>${categoryLabel}</b> ${formatARS(categoryTotal)}`);
 
     for (const subcategory of Object.values(subcategories)) {
       detailLines.push(
@@ -240,7 +240,7 @@ export async function generateMonthlyReport(
       0,
     );
 
-    detailLines.push(`*SERVICIOS* ${formatARS(servicesTotal)}`);
+    detailLines.push(`<b>SERVICIOS</b> ${formatARS(servicesTotal)}`);
     for (const service of services) {
       const installment = installmentByServiceId.get(service.id || "");
       if (installment) {
@@ -269,7 +269,7 @@ export async function generateMonthlyReport(
       taxEntities.filter(Boolean).map((t) => [t!.id, t!]),
     );
 
-    detailLines.push(`*IMPUESTOS* ${formatARS(taxesTotal)}`);
+    detailLines.push(`<b>IMPUESTOS</b> ${formatARS(taxesTotal)}`);
     for (const inst of taxInstallments) {
       const tax = taxMap.get(inst.taxId);
       const pmLabel = tax?.paymentMethod
@@ -333,7 +333,7 @@ export async function generateMonthlyReport(
     tarjetasTotal = statementLines.reduce((sum, line) => sum + line.arsEquivalent, 0);
 
     const titleUSD = tarjetasTotalUSD > 0 ? ` + ${formatUSD(tarjetasTotalUSD)}` : "";
-    detailLines.push(`*TARJETAS* ${formatARS(tarjetasTotal)}${titleUSD}`);
+    detailLines.push(`<b>TARJETAS</b> ${formatARS(tarjetasTotal)}${titleUSD}`);
     for (const { cardLabel, amountText, usdDetail, dueSuffix } of statementLines) {
       detailLines.push(`  • ${cardLabel}  ${amountText}${usdDetail} ${dueSuffix}`);
     }
@@ -380,7 +380,7 @@ export async function generateMonthlyReport(
   const incomesUSD = buildUsdSuffix(incomesTotalARS, incomesTotalUSD, false);
 
   if (incomes.length > 0) {
-    detailLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
+    detailLines.push(`<b>INGRESOS</b> ${formatARS(incomesTotalARS)}${incomesUSD}`);
     for (const group of groupIncomesByReasonAndCurrency(incomes)) {
       detailLines.push(
         `  • ${group.displayReason}  ${formatIncomeAmount(group.total, group.currency)}`,
@@ -395,7 +395,7 @@ export async function generateMonthlyReport(
     );
 
     detailLines.push(
-      `*VENTA DE USD*  ${formatUSD(totalUSDSold)} → ${formatARS(totalARSFromSales)}`,
+      `<b>VENTA DE USD</b>  ${formatUSD(totalUSDSold)} → ${formatARS(totalARSFromSales)}`,
     );
     for (const sale of chronologicalSales) {
       detailLines.push(
@@ -418,9 +418,9 @@ export async function generateMonthlyReport(
 
   const balanceLines: string[] = [];
   balanceLines.push(
-    `*Balance ${MONTH_NAMES[month]} ${year}*\n`,
+    `<b>Balance ${MONTH_NAMES[month]} ${year}</b>\n`,
   );
-  balanceLines.push(`*INGRESOS* ${formatARS(incomesTotalARS)}${incomesUSD}`);
+  balanceLines.push(`<b>INGRESOS</b> ${formatARS(incomesTotalARS)}${incomesUSD}`);
   balanceLines.push("");
 
   // Built by hand rather than through buildUsdSuffix: that helper hides its parenthetical below
@@ -429,12 +429,12 @@ export async function generateMonthlyReport(
   // floor does not apply — applying it would strip a small month's line of its only dollar context.
   if (sales.length > 0) {
     const saleDetail = `(${formatUSD(totalUSDSold)} | ${formatARS(averageSaleRate)})`;
-    balanceLines.push(`*VENTA DE USD* ${formatARS(totalARSFromSales)} ${saleDetail}`);
+    balanceLines.push(`<b>VENTA DE USD</b> ${formatARS(totalARSFromSales)} ${saleDetail}`);
     balanceLines.push("");
   }
 
   const egresosUSD = buildUsdSuffix(egresosTotal, egresosTotalUSD, false);
-  balanceLines.push(`*EGRESOS* ${formatARS(egresosTotal)}${egresosUSD}`);
+  balanceLines.push(`<b>EGRESOS</b> ${formatARS(egresosTotal)}${egresosUSD}`);
 
   if (servicesTotal > 0) {
     balanceLines.push(` • Servicios  ${formatARS(servicesTotal)}`);
@@ -453,7 +453,7 @@ export async function generateMonthlyReport(
 
   balanceLines.push("");
   balanceLines.push(
-    `*Resultado del mes* ${balanceEmoji}  ${formatARS(balanceResult)}${usdSuffix}`,
+    `<b>Resultado del mes</b> ${balanceEmoji}  ${formatARS(balanceResult)}${usdSuffix}`,
   );
 
   return {

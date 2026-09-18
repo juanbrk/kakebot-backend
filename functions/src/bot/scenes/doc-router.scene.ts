@@ -19,7 +19,7 @@ const TYPE_GUARD_STEP = 1;
 const ENTITY_GUARD_STEP = 2;
 
 const DOC_TYPE_PROMPT = "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.";
-const ENTITY_PROMPT = "*¿A qué entidad pertenece el comprobante?*";
+const ENTITY_PROMPT = "<b>¿A qué entidad pertenece el comprobante?</b>";
 const FILE_REPLACED_NOTICE = "Voy a usar el último archivo que enviaste.";
 
 /**
@@ -41,7 +41,7 @@ async function repromptDocType(ctx: KakebotContext): Promise<void> {
  */
 async function repromptEntity(ctx: KakebotContext): Promise<void> {
   await ctx.reply(ENTITY_PROMPT, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildReceiptEntityKeyboard().reply_markup as any,
   });

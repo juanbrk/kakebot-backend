@@ -116,7 +116,7 @@ export async function advanceOrFinish(
     wizardState.messageId,
     undefined,
     messageText,
-    { ...keyboard, parse_mode: "Markdown" }
+    { ...keyboard, parse_mode: "HTML" }
   );
 
   return "continue";
@@ -194,7 +194,7 @@ async function finishCategorizingFlow(
         wizardState.messageId,
         undefined,
         messageText,
-        { ...keyboard, parse_mode: "Markdown" }
+        { ...keyboard, parse_mode: "HTML" }
       );
 
       return "continue";

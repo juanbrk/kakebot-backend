@@ -21,7 +21,7 @@ const CARD_GUARD_STEP = 1;
 // How many months ahead the statement create flow offers, mirroring buildCardStmtMonthKeyboard.
 const MONTHS_AHEAD = 3;
 
-const CARD_PROMPT = "*¿A qué tarjeta corresponde el resumen?*";
+const CARD_PROMPT = "<b>¿A qué tarjeta corresponde el resumen?</b>";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ async function repromptCardPicker(ctx: KakebotContext): Promise<void> {
   try {
     const cards = await getCardsByUser(telegramUserId);
     await ctx.reply(CARD_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildStatementDocCardPickerKeyboard(cards, 0).reply_markup as any,
     });
@@ -88,7 +88,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     }
 
     await ctx.reply(CARD_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildStatementDocCardPickerKeyboard(cards, 0).reply_markup as any,
     });
@@ -159,8 +159,8 @@ async function handlePickCard(ctx: KakebotContext): Promise<void> {
   // Recover in place instead of leaving: the user still holds an unfiled PDF and another
   // card may well have room, so the selector comes back rather than dead-ending the flow.
   if (getAvailableMonths(existingMonths).length === 0) {
-    await replyOrEdit(ctx, `*Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.*`, {
-      parse_mode: "Markdown",
+    await replyOrEdit(ctx, `<b>Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.</b>`, {
+      parse_mode: "HTML",
     });
     await repromptCardPicker(ctx);
     return;
@@ -168,9 +168,9 @@ async function handlePickCard(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a registrar un nuevo resumen para la tarjeta ${cardLabel}*\n`
-    + "_Enviá la palabra cancelar para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a registrar un nuevo resumen para la tarjeta ${cardLabel}</b>\n`
+    + "<i>Enviá la palabra cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
     flow: "create",
@@ -195,7 +195,7 @@ async function handleCardPagination(ctx: KakebotContext): Promise<void> {
   try {
     const cards = await getCardsByUser(telegramUserId);
     await replyOrEdit(ctx, CARD_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildStatementDocCardPickerKeyboard(cards, page).reply_markup as any,
     });

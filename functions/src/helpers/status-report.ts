@@ -83,7 +83,7 @@ function buildSection({ label, items, formatLine, sortByDueDate }: BuildSectionP
   }
   const orderedItems = sortByDueDate ? sortByDueDateAscending(items) : items;
   const lines = orderedItems.map(formatLine).join("\n");
-  return `*${label}*\n${lines}`;
+  return `<b>${label}</b>\n${lines}`;
 }
 
 /**
@@ -145,5 +145,5 @@ export function buildStatusReportText({
     }),
   ].filter((section) => section.length > 0);
 
-  return `*${title}*\n\n${sections.join("\n\n")}`;
+  return `<b>${title}</b>\n\n${sections.join("\n\n")}`;
 }

@@ -110,7 +110,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   const sentMessage = await ctx.reply(messageText, {
     ...keyboard,
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
   });
 
   const state = ctx.wizard.state as CategorizeWizardState;
@@ -178,8 +178,8 @@ async function stepHandleNewCategoryName(ctx: KakebotContext): Promise<void> {
   }
 
   await ctx.reply(
-    `✅ Agregaste *${categorizedDisplayName}* ${formatARS(categorizedAmount)} a *${categoryName}*.`,
-    { parse_mode: "Markdown" },
+    `✅ Agregaste <b>${categorizedDisplayName}</b> ${formatARS(categorizedAmount)} a <b>${categoryName}</b>.`,
+    { parse_mode: "HTML" },
   );
 
   if (result === "done") {
@@ -272,11 +272,11 @@ async function handleCatNew(ctx: KakebotContext): Promise<void> {
   ]);
   await replyOrEdit(
     ctx,
-    `*Nueva categoría para "${state.currentDisplayName}"*:\n\n` +
+    `<b>Nueva categoría para "${state.currentDisplayName}"</b>:\n\n` +
     "Escribí el nombre de la nueva categoría.\n" +
-    "_Escribí \"cancelar\" para salir._",
+    "<i>Escribí \"cancelar\" para salir.</i>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: promptKeyboard.reply_markup as any,
     },
@@ -361,7 +361,7 @@ async function handleCatBackToList(ctx: KakebotContext): Promise<void> {
   });
 
   await replyOrEdit(ctx, messageText, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -388,9 +388,9 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   case 2: {
     const state = ctx.wizard.state as CategorizeWizardState;
     await ctx.reply(
-      `*Nueva categoría para "${state.currentDisplayName}"*:\n\n` +
+      `<b>Nueva categoría para "${state.currentDisplayName}"</b>:\n\n` +
       "Escribí el nombre de la nueva categoría.",
-      { parse_mode: "Markdown" },
+      { parse_mode: "HTML" },
     );
     break;
   }

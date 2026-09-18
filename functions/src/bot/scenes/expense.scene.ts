@@ -63,8 +63,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   if (state.description) {
     await ctx.reply(
-      `*¿Cuánto gastaste en ${state.description}?*\n_Escribí cancelar para salir._`,
-      { parse_mode: "Markdown" },
+      `<b>¿Cuánto gastaste en ${state.description}?</b>\n<i>Escribí cancelar para salir.</i>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.next();
     return;
@@ -72,16 +72,16 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   if (state.amount) {
     await ctx.reply(
-      `*¿En qué gastaste ${formatARS(state.amount)}?*\n_Escribí cancelar para salir._`,
-      { parse_mode: "Markdown" },
+      `<b>¿En qué gastaste ${formatARS(state.amount)}?</b>\n<i>Escribí cancelar para salir.</i>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.next();
     return;
   }
 
   await ctx.reply(
-    "*Ingresá descripción y monto en un solo mensaje.*\n_Ej: Panaderia 5000_\n_Escribí cancelar para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Ingresá descripción y monto en un solo mensaje.</b>\n<i>Ej: Panaderia 5000</i>\n<i>Escribí cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -220,18 +220,18 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   case 1:
     if (state.description && !state.amount) {
       await ctx.reply(
-        `*¿Cuánto gastaste en ${state.description}?*\n_Escribí cancelar para salir._`,
-        { parse_mode: "Markdown" },
+        `<b>¿Cuánto gastaste en ${state.description}?</b>\n<i>Escribí cancelar para salir.</i>`,
+        { parse_mode: "HTML" },
       );
     } else if (state.amount && !state.description) {
       await ctx.reply(
-        `*¿En qué gastaste ${formatARS(state.amount)}?*\n_Escribí cancelar para salir._`,
-        { parse_mode: "Markdown" },
+        `<b>¿En qué gastaste ${formatARS(state.amount)}?</b>\n<i>Escribí cancelar para salir.</i>`,
+        { parse_mode: "HTML" },
       );
     } else {
       await ctx.reply(
-        "*Ingresá descripción y monto en un solo mensaje.*\n_Ej: Panaderia 5000_\n_Escribí cancelar para salir._",
-        { parse_mode: "Markdown" },
+        "<b>Ingresá descripción y monto en un solo mensaje.</b>\n<i>Ej: Panaderia 5000</i>\n<i>Escribí cancelar para salir.</i>",
+        { parse_mode: "HTML" },
       );
     }
     break;

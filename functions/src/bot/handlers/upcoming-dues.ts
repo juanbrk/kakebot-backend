@@ -37,7 +37,7 @@ function formatDueItemLine(item: UpcomingDueItem): string {
 function formatBucket(bucket: UpcomingDuesBucket): string {
   const totalUSD = bucket.items.reduce((sum, item) => sum + (item.amountUSD ?? 0), 0);
   const usdPart = totalUSD > 0 ? ` y ${formatUSD(totalUSD)}` : "";
-  const header = `*${bucket.label}: ${formatARS(bucket.subtotal)}${usdPart}*`;
+  const header = `<b>${bucket.label}: ${formatARS(bucket.subtotal)}${usdPart}</b>`;
   const lines = bucket.items.map(formatDueItemLine);
   return [header, ...lines].join("\n");
 }
@@ -66,13 +66,13 @@ async function handleUpcomingDues(ctx: Context): Promise<void> {
     text = breadcrumb + "No hay vencimientos hoy ni en los próximos 7 días.";
   } else {
     const sections = result.buckets.map(formatBucket).join("\n\n");
-    text = breadcrumb + "*PRÓXIMOS VENCIMIENTOS*\n\n" + sections;
+    text = breadcrumb + "<b>PRÓXIMOS VENCIMIENTOS</b>\n\n" + sections;
   }
 
   await replyOrEdit(
     ctx,
     text,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any }
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any }
   );
 }
