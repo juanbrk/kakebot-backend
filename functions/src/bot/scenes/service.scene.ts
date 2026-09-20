@@ -1,9 +1,9 @@
 import { Scenes, Markup } from "telegraf";
 import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { buildDueDate, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
+import { buildDueDate, escapeHtml, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
 import {
@@ -69,7 +69,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       return;
     }
     const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
-    await ctx.reply(`<b>Seleccioná el mes para ${state.serviceName || "el servicio"}:</b>`, {
+    await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
       parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
@@ -130,9 +130,14 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Wizard context
  */
 async function stepHandleName(ctx: KakebotContext): Promise<void> {
-  const name = getMessageText(ctx);
-  if (!name) {
+  const raw = getMessageText(ctx);
+  if (!raw) {
     await ctx.reply("El nombre no puede estar vacío.");
+    return;
+  }
+  const name = normalizeUserText(raw);
+  if (name.length > MAX_ENTITY_NAME_LENGTH) {
+    await ctx.reply(`El nombre no puede superar los ${MAX_ENTITY_NAME_LENGTH} caracteres.`);
     return;
   }
   const telegramUserId = ctx.from?.id.toString() ?? "";
@@ -177,7 +182,7 @@ async function stepGuardInstallmentChoice(ctx: KakebotContext): Promise<void> {
   const serviceName = state.serviceName || "el servicio";
   const serviceId = state.serviceId || "";
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
-  await ctx.reply(`✅ Servicio '${serviceName}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`, {
+  await ctx.reply(`✅ Servicio '${escapeHtml(serviceName)}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`, {
     parse_mode: "HTML",
     reply_markup: Markup.inlineKeyboard([
       [
@@ -199,7 +204,7 @@ async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as ServiceWizardState;
   await ctx.reply("Elegí el mes del teclado, o escribí \"cancelar\" para anular.");
   const keyboard = buildFilteredMonthKeyboard(state.availableMonths || [], state.serviceId || "");
-  await ctx.reply(`<b>Seleccioná el mes para ${state.serviceName || "el servicio"}:</b>`, {
+  await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
     parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -423,7 +428,7 @@ async function handlePaymentMethodSelected(ctx: KakebotContext): Promise<void> {
   }
   await editOrReply(
     ctx,
-    `✅ Servicio '${serviceName}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`,
+    `✅ Servicio '${escapeHtml(serviceName)}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`,
     {
       parse_mode: "HTML",
       reply_markup: Markup.inlineKeyboard([
@@ -509,7 +514,7 @@ async function handleConfirmAddInstallment(ctx: KakebotContext): Promise<void> {
     "Podés crear cuotas solo para meses que aún no tengan una.",
     { parse_mode: "HTML" },
   );
-  await ctx.reply(`<b>Seleccioná el mes para ${state.serviceName || "el servicio"}:</b>`, {
+  await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
     parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
@@ -695,7 +700,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   }
   case 3:
     await ctx.reply(
-      `✅ Servicio '${state.serviceName || "el servicio"}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`,
+      `✅ Servicio '${escapeHtml(state.serviceName || "el servicio")}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`,
       {
         parse_mode: "HTML",
         reply_markup: Markup.inlineKeyboard([
@@ -710,7 +715,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     break;
   case MONTH_STEP: {
     const monthKeyboard = buildFilteredMonthKeyboard(state.availableMonths || [], state.serviceId || "");
-    await ctx.reply(`<b>Seleccioná el mes para ${state.serviceName || "el servicio"}:</b>`, {
+    await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
       parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: monthKeyboard.reply_markup as any,

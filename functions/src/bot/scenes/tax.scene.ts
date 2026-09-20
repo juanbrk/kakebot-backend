@@ -1,10 +1,10 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../../helpers/wizard";
 import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxInstallment } from "../../types/tax.types";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { buildDueDate, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
+import { buildDueDate, escapeHtml, formatARS, getDaysInMonth, MONTH_NAMES } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { buildPaymentMethodKeyboard } from "../../helpers/payment-method";
@@ -126,9 +126,14 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function stepHandleName(ctx: KakebotContext): Promise<void> {
-  const name = getMessageText(ctx);
-  if (!name || name.length === 0) {
+  const raw = getMessageText(ctx);
+  if (!raw || raw.length === 0) {
     await ctx.reply("El nombre no puede estar vacío.");
+    return;
+  }
+  const name = normalizeUserText(raw);
+  if (name.length > MAX_ENTITY_NAME_LENGTH) {
+    await ctx.reply(`El nombre no puede superar los ${MAX_ENTITY_NAME_LENGTH} caracteres.`);
     return;
   }
 
@@ -266,7 +271,7 @@ async function stepHandleInstallmentDueDay(ctx: KakebotContext): Promise<void> {
   const dayLabel = String(dueDate.getDate()).padStart(2, "0");
   const moLabel = String(dueDate.getMonth() + 1).padStart(2, "0");
   await ctx.reply(
-    `✅ <b>Cuota registrada</b>: ${taxName} ${formatARS(amount as number)} (vence ${dayLabel}/${moLabel})`,
+    `✅ <b>Cuota registrada</b>: ${escapeHtml(taxName)} ${formatARS(amount as number)} (vence ${dayLabel}/${moLabel})`,
     { parse_mode: "HTML" },
   );
 
@@ -510,7 +515,7 @@ async function handlePaidNo(ctx: KakebotContext): Promise<void> {
     const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
     await replyOrEdit(
       ctx,
-      `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}\n\n`
+      `Acá tenés el detalle de ${escapeHtml(installment.taxName)} para ${monthLabel}\n\n`
         + buildTaxInstallmentDetailText(installment),
       { parse_mode: "HTML" },
     );
@@ -565,7 +570,7 @@ async function resolveUnpayDecision(
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
   await editOrReply(
     ctx,
-    `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada. `
+    `Marcaste la cuota del mes de ${monthLabel} para ${escapeHtml(installment.taxName)} como no pagada. `
     + receiptNote,
     { parse_mode: "HTML" },
   );

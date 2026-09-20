@@ -1,8 +1,8 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, IncomeWizardState } from "../../types/telegraf-context.types";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_INCOME_REASON_LENGTH } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { formatIncomeAmount, buildBackdatedTimestamp } from "../../helpers/format";
+import { escapeHtml, formatIncomeAmount, buildBackdatedTimestamp } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import {
   buildIncomeConfirmKeyboard,
@@ -84,18 +84,19 @@ async function stepGuardCurrency(ctx: KakebotContext): Promise<void> {
  */
 async function stepHandleReason(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as IncomeWizardState;
-  const reason = getMessageText(ctx);
+  const raw = getMessageText(ctx);
 
-  const isReasonEmpty = !reason || reason.length === 0;
+  const isReasonEmpty = !raw || raw.length === 0;
   if (isReasonEmpty) {
     await ctx.reply("El motivo no puede estar vacío.");
     return;
   }
 
-  const isReasonTooLong = reason.length > 30;
+  const reason = normalizeUserText(raw);
+  const isReasonTooLong = reason.length > MAX_INCOME_REASON_LENGTH;
   if (isReasonTooLong) {
     await ctx.reply(
-      "El motivo no puede superar los 30 caracteres. Ingresalo de nuevo.",
+      `El motivo no puede superar los ${MAX_INCOME_REASON_LENGTH} caracteres. Ingresalo de nuevo.`,
     );
     return;
   }
@@ -168,7 +169,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
     await saveIncome({ telegramUserId, amount, currency, reason, date: incomeDate });
     await editOrReply(
       ctx,
-      `✅ <b>Ingreso registrado</b>: ${reason}  ${formatIncomeAmount(amount, currency)}`,
+      `✅ <b>Ingreso registrado</b>: ${escapeHtml(reason)}  ${formatIncomeAmount(amount, currency)}`,
       { parse_mode: "HTML" },
     );
     await ctx.scene.leave();

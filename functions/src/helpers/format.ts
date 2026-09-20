@@ -98,7 +98,7 @@ const MAX_LISTED_NAMES = 15;
  */
 export function buildNameListText(names: string[]): string {
   const visibleNames = names.slice(0, MAX_LISTED_NAMES);
-  const lines = visibleNames.map((name) => `• ${name}`);
+  const lines = visibleNames.map((name) => `• ${escapeHtml(name)}`);
 
   const hiddenCount = names.length - visibleNames.length;
   if (hiddenCount > 0) {

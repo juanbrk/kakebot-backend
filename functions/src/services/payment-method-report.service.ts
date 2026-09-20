@@ -1,6 +1,6 @@
 import { Service, ServiceInstallment, ServicePaymentMethod } from "../types/service.types";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
-import { formatARS, formatDueDateDayMonth, getCurrentMonth } from "../helpers/format";
+import { escapeHtml, formatARS, formatDueDateDayMonth, getCurrentMonth } from "../helpers/format";
 
 const SECTION_LABEL: Record<ServicePaymentMethod, string> = {
   credit_card: "Tarjeta de Crédito",
@@ -22,11 +22,11 @@ interface ServiceWithInstallment {
  */
 function formatServiceLine({ service, currentInstallment }: ServiceWithInstallment): string {
   if (!currentInstallment) {
-    return `  • ${service.name}  $ -`;
+    return `  • ${escapeHtml(service.name)}  $ -`;
   }
   const amountStr = formatARS(currentInstallment.amount);
   const dateStr = formatDueDateDayMonth(currentInstallment.dueDate);
-  return `  • ${service.name}  ${amountStr} (${dateStr})`;
+  return `  • ${escapeHtml(service.name)}  ${amountStr} (${dateStr})`;
 }
 
 /**

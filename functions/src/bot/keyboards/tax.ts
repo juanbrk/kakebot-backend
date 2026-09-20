@@ -1,6 +1,6 @@
 import { Markup } from "telegraf";
 import { Tax, TaxInstallment, BuildTaxInstallmentDetailKeyboardParams, BuildTaxActionKeyboardParams } from "../../types/tax.types";
-import { formatARS, formatDueDateDayMonth, getMonthLabel } from "../../helpers/format";
+import { escapeHtml, formatARS, formatDueDateDayMonth, getMonthLabel } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 
 const TAXES_PER_PAGE = 6;
@@ -343,7 +343,7 @@ export function buildTaxInstallmentDetailText(
     : "<b>Estado</b>: Pendiente";
 
   return (
-    `<b>Cuota: ${installment.taxName}</b>\n\n`
+    `<b>Cuota: ${escapeHtml(installment.taxName)}</b>\n\n`
     + `<b>Monto</b>: ${formatARS(installment.amount)}\n`
     + `<b>Vencimiento</b>: ${formatDueDateDayMonth(installment.dueDate)}\n`
     + statusLine

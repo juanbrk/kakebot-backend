@@ -2,8 +2,9 @@ import { Scenes } from "telegraf";
 import { KakebotContext, CardCreateWizardState } from "../../types/telegraf-context.types";
 import { CreditCardProcessor } from "../../types/index";
 import { log } from "../../helpers/logger";
+import { escapeHtml } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../../helpers/wizard";
 import {
   buildCardProcessorKeyboard,
   buildCardConfirmText,
@@ -38,9 +39,14 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Wizard context
  */
 async function stepHandleBank(ctx: KakebotContext): Promise<void> {
-  const bank = getMessageText(ctx);
-  if (!bank || bank.length === 0) {
+  const raw = getMessageText(ctx);
+  if (!raw || raw.length === 0) {
     await ctx.reply("El nombre del banco no puede estar vacío.");
+    return;
+  }
+  const bank = normalizeUserText(raw);
+  if (bank.length > MAX_ENTITY_NAME_LENGTH) {
+    await ctx.reply(`El nombre del banco no puede superar los ${MAX_ENTITY_NAME_LENGTH} caracteres.`);
     return;
   }
   (ctx.wizard.state as CardCreateWizardState).bank = bank;
@@ -201,7 +207,7 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   const processorLabel = state.processor === "VISA" ? "Visa" : "Master";
   const cardLabel = `${processorLabel} ${state.lastFourDigits} - ${state.bank}`;
 
-  await editOrReply(ctx, `✅ Tarjeta <b>${cardLabel}</b> registrada.`, {
+  await editOrReply(ctx, `✅ Tarjeta <b>${escapeHtml(cardLabel)}</b> registrada.`, {
     parse_mode: "HTML",
   });
   await ctx.scene.leave();

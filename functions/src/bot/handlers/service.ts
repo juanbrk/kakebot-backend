@@ -28,7 +28,7 @@ import {
   PAYMENT_METHOD_LABELS,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { buildNameListText, formatARS, MONTH_NAMES } from "../../helpers/format";
+import { buildNameListText, escapeHtml, formatARS, MONTH_NAMES } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -62,7 +62,7 @@ async function showServiceActionView(
     return;
   }
 
-  let title = `<b>${service.name}</b>`;
+  let title = `<b>${escapeHtml(service.name)}</b>`;
   if (installment) {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
@@ -70,7 +70,7 @@ async function showServiceActionView(
     const dueSuffix = installment.isPaid
       ? "(Pagado) ✅"
       : `(vence ${day}/${mo})`;
-    title = `<b>${service.name}</b> ${formatARS(installment.amount)} ${dueSuffix}`;
+    title = `<b>${escapeHtml(service.name)}</b> ${formatARS(installment.amount)} ${dueSuffix}`;
   }
   if (service.paymentMethod) {
     title += `\n<b>Método de pago</b>: ${PAYMENT_METHOD_LABELS[service.paymentMethod]}`;
@@ -285,7 +285,7 @@ async function handleShowUpcoming(ctx: Context): Promise<void> {
       const day = String(dueDate.getDate()).padStart(2, "0");
       const instMonth = String(dueDate.getMonth() + 1).padStart(2, "0");
       lines.push(
-        `  • ${inst.serviceName}  ${day}/${instMonth}  ${formatARS(inst.amount)}`,
+        `  • ${escapeHtml(inst.serviceName)}  ${day}/${instMonth}  ${formatARS(inst.amount)}`,
       );
     }
     lines.push("");
@@ -345,7 +345,7 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a agregar una nueva cuota para ${service.name}</b>\n` +
+    `<b>Vas a agregar una nueva cuota para ${escapeHtml(service.name)}</b>\n` +
       "<i>Escribí cancelar en cualquier momento para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -375,7 +375,7 @@ async function handleEditService(ctx: Context): Promise<void> {
   const keyboard = buildServiceEditKeyboard(serviceId, serviceName);
   await replyOrEdit(
     ctx,
-    breadcrumb + `¿Qué deseas hacer con <b>${serviceName}</b>?`,
+    breadcrumb + `¿Qué deseas hacer con <b>${escapeHtml(serviceName)}</b>?`,
     {
       parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -420,7 +420,7 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a agregar una nueva cuota para ${serviceName}</b>\n` +
+    `<b>Vas a agregar una nueva cuota para ${escapeHtml(serviceName)}</b>\n` +
       "<i>Escribí cancelar en cualquier momento para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -615,7 +615,7 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    `<b>Vas a cambiar el nombre de ${serviceName || "el servicio"}</b>\n` +
+    `<b>Vas a cambiar el nombre de ${escapeHtml(serviceName || "el servicio")}</b>\n` +
       "<i>Escribí cancelar en cualquier momento para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -643,7 +643,7 @@ async function handleDeleteService(ctx: Context): Promise<void> {
   const keyboard = buildDeleteConfirmKeyboard(serviceId);
   await replyOrEdit(
     ctx,
-    breadcrumb + `<b>¿Eliminar ${serviceName}?</b>\nSe borrarán todas sus cuotas.`,
+    breadcrumb + `<b>¿Eliminar ${escapeHtml(serviceName)}?</b>\nSe borrarán todas sus cuotas.`,
     { parse_mode: "HTML", ...keyboard },
   );
 }
@@ -890,7 +890,7 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
     ? PAYMENT_METHOD_LABELS[service.paymentMethod]
     : "Sin configurar";
 
-  await ctx.reply(`Vas a modificar el método de pago para <b>${service.name}</b>`, {
+  await ctx.reply(`Vas a modificar el método de pago para <b>${escapeHtml(service.name)}</b>`, {
     parse_mode: "HTML",
   });
 

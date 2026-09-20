@@ -7,6 +7,7 @@ import {
 import { CreditCard } from "../../types/index";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
+import { escapeHtml } from "../../helpers/format";
 import { buildCardLabel, buildStatementDocCardPickerKeyboard } from "../keyboards/card";
 import { getCardById, getCardsByUser, getStatementsByCard } from "../../services/card.service";
 import { CARD_STMT_SCENE_ID } from "./card-stmt.scene";
@@ -159,7 +160,7 @@ async function handlePickCard(ctx: KakebotContext): Promise<void> {
   // Recover in place instead of leaving: the user still holds an unfiled PDF and another
   // card may well have room, so the selector comes back rather than dead-ending the flow.
   if (getAvailableMonths(existingMonths).length === 0) {
-    await replyOrEdit(ctx, `<b>Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.</b>`, {
+    await replyOrEdit(ctx, `<b>Ya existen resúmenes para los próximos 3 meses de ${escapeHtml(cardLabel)}.</b>`, {
       parse_mode: "HTML",
     });
     await repromptCardPicker(ctx);
@@ -168,7 +169,7 @@ async function handlePickCard(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a registrar un nuevo resumen para la tarjeta ${cardLabel}</b>\n`
+    `<b>Vas a registrar un nuevo resumen para la tarjeta ${escapeHtml(cardLabel)}</b>\n`
     + "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );

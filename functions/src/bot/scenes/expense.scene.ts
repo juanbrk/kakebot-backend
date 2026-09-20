@@ -2,8 +2,8 @@ import { Scenes, Markup } from "telegraf";
 import { KakebotContext, ExpenseWizardState } from "../../types/telegraf-context.types";
 import { saveExpense } from "../../services/expense.service";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
-import { formatARS, buildBackdatedTimestamp, MONTH_NAMES } from "../../helpers/format";
-import { getMessageText } from "../../helpers/wizard";
+import { escapeHtml, formatARS, buildBackdatedTimestamp, MONTH_NAMES } from "../../helpers/format";
+import { getMessageText, normalizeUserText, MAX_EXPENSE_DESCRIPTION_LENGTH } from "../../helpers/wizard";
 import { log } from "../../helpers/logger";
 
 export const EXPENSE_SCENE_ID = "expense-wizard";
@@ -63,7 +63,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   if (state.description) {
     await ctx.reply(
-      `<b>¿Cuánto gastaste en ${state.description}?</b>\n<i>Escribí cancelar para salir.</i>`,
+      `<b>¿Cuánto gastaste en ${escapeHtml(state.description)}?</b>\n<i>Escribí cancelar para salir.</i>`,
       { parse_mode: "HTML" },
     );
     ctx.wizard.next();
@@ -120,10 +120,14 @@ async function stepHandleInput(ctx: KakebotContext): Promise<void> {
   }
 
   if (state.amount && !state.description) {
-    const description = messageText.trim();
+    const description = normalizeUserText(messageText);
     const isEmptyDescription = description.length === 0;
     if (isEmptyDescription) {
       await ctx.reply("La descripción no puede estar vacía.");
+      return;
+    }
+    if (description.length > MAX_EXPENSE_DESCRIPTION_LENGTH) {
+      await ctx.reply(`La descripción no puede superar los ${MAX_EXPENSE_DESCRIPTION_LENGTH} caracteres.`);
       return;
     }
     state.description = description;
@@ -220,7 +224,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   case 1:
     if (state.description && !state.amount) {
       await ctx.reply(
-        `<b>¿Cuánto gastaste en ${state.description}?</b>\n<i>Escribí cancelar para salir.</i>`,
+        `<b>¿Cuánto gastaste en ${escapeHtml(state.description)}?</b>\n<i>Escribí cancelar para salir.</i>`,
         { parse_mode: "HTML" },
       );
     } else if (state.amount && !state.description) {

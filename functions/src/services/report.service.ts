@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { getDb } from "./db";
-import { formatARS, formatIncomeAmount, formatUSD, MONTH_NAMES } from "../helpers/format";
+import { escapeHtml, formatARS, formatIncomeAmount, formatUSD, MONTH_NAMES } from "../helpers/format";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
 import { getMonthlyIncomes } from "./income.service";
 import { getTaxInstallmentsForMonth, getTaxById } from "./tax.service";
@@ -218,11 +218,11 @@ export async function generateMonthlyReport(
 
     categoryTotals.push({ label: categoryLabel, total: categoryTotal });
 
-    detailLines.push(`<b>${categoryLabel}</b> ${formatARS(categoryTotal)}`);
+    detailLines.push(`<b>${escapeHtml(categoryLabel)}</b> ${formatARS(categoryTotal)}`);
 
     for (const subcategory of Object.values(subcategories)) {
       detailLines.push(
-        `  • ${subcategory.displayName}  ${formatARS(subcategory.total)}`,
+        `  • ${escapeHtml(subcategory.displayName)}  ${formatARS(subcategory.total)}`,
       );
     }
     detailLines.push("");
@@ -251,10 +251,10 @@ export async function generateMonthlyReport(
           "(Pagado) ✅" :
           `(vence ${day}/${mo})`;
         detailLines.push(
-          `  • ${service.name}  ${formatARS(installment.amount)} ${dueSuffix}`,
+          `  • ${escapeHtml(service.name)}  ${formatARS(installment.amount)} ${dueSuffix}`,
         );
       } else {
-        detailLines.push(`  • ${service.name}  $ -`);
+        detailLines.push(`  • ${escapeHtml(service.name)}  $ -`);
       }
     }
     detailLines.push("");
@@ -279,7 +279,7 @@ export async function generateMonthlyReport(
       const day = String(dueDate.getDate()).padStart(2, "0");
       const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
       const dueSuffix = inst.isPaid ? "(Pagado) ✅" : `(vence ${day}/${mo})`;
-      detailLines.push(` • ${inst.taxName}${pmLabel}: ${formatARS(inst.amount)} ${dueSuffix}`);
+      detailLines.push(` • ${escapeHtml(inst.taxName)}${pmLabel}: ${formatARS(inst.amount)} ${dueSuffix}`);
     }
     detailLines.push("");
   }
@@ -335,7 +335,7 @@ export async function generateMonthlyReport(
     const titleUSD = tarjetasTotalUSD > 0 ? ` + ${formatUSD(tarjetasTotalUSD)}` : "";
     detailLines.push(`<b>TARJETAS</b> ${formatARS(tarjetasTotal)}${titleUSD}`);
     for (const { cardLabel, amountText, usdDetail, dueSuffix } of statementLines) {
-      detailLines.push(`  • ${cardLabel}  ${amountText}${usdDetail} ${dueSuffix}`);
+      detailLines.push(`  • ${escapeHtml(cardLabel)}  ${amountText}${usdDetail} ${dueSuffix}`);
     }
     detailLines.push("");
   }
@@ -383,7 +383,7 @@ export async function generateMonthlyReport(
     detailLines.push(`<b>INGRESOS</b> ${formatARS(incomesTotalARS)}${incomesUSD}`);
     for (const group of groupIncomesByReasonAndCurrency(incomes)) {
       detailLines.push(
-        `  • ${group.displayReason}  ${formatIncomeAmount(group.total, group.currency)}`,
+        `  • ${escapeHtml(group.displayReason)}  ${formatIncomeAmount(group.total, group.currency)}`,
       );
     }
     detailLines.push("");
@@ -446,7 +446,7 @@ export async function generateMonthlyReport(
     balanceLines.push(` • Tarjetas  ${formatARS(tarjetasTotal)}`);
   }
   for (const category of categoryTotals) {
-    balanceLines.push(` • ${category.label}  ${formatARS(category.total)}`);
+    balanceLines.push(` • ${escapeHtml(category.label)}  ${formatARS(category.total)}`);
   }
 
   const usdSuffix = buildUsdSuffix(balanceResult, incomesTotalUSD - egresosTotalUSD, true);

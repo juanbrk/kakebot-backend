@@ -10,7 +10,7 @@ import {
   BuildStmtPayARSKeyboardParams,
   BuildStmtUsdCurrencyKeyboardParams,
 } from "../../types/card.types";
-import { formatARS, formatUSD, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
+import { escapeHtml, formatARS, formatUSD, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
 
 const CARDS_PER_PAGE = 6;
 const STATEMENTS_PER_PAGE = 6;
@@ -324,7 +324,7 @@ export function buildCardDetailText(
   const expiryStr = `${String(card.expiryMonth).padStart(2, "0")}/${card.expiryYear}`;
 
   const lines = [
-    `<b>${label}</b>`,
+    `<b>${escapeHtml(label)}</b>`,
     "",
     `<b>Vencimiento tarjeta</b>: ${expiryStr}`,
     `<b>Procesador</b>: ${card.processor}`,
@@ -367,7 +367,7 @@ export function buildCardConfirmText(params: CardConfirmTextParams): string {
   return (
     "<b>Vas a agregar la siguiente tarjeta</b>\n\n" +
     ` • Últimos 4 dígitos: ${digits}\n` +
-    ` • Banco: ${bank}\n` +
+    ` • Banco: ${escapeHtml(bank)}\n` +
     ` • Procesador: ${processor}\n` +
     ` • Vencimiento: ${expiry}`
   );
@@ -489,7 +489,7 @@ export function buildStatementDetailText(
 
   const lines = [
     `<b>Resumen ${monthName}</b>`,
-    ` • <b>Tarjeta</b>: ${cardLabel}`,
+    ` • <b>Tarjeta</b>: ${escapeHtml(cardLabel)}`,
     ` • <b>Consumos en pesos</b>: ${formatARS(statement.amountARS)}`,
   ];
 
@@ -661,7 +661,7 @@ export function buildStmtConfirmText(params: StmtConfirmTextParams): string {
   const lines = [
     "<b>Confirmar datos nuevo resumen</b>",
     "",
-    `<b>Tarjeta</b>: ${cardLabel}`,
+    `<b>Tarjeta</b>: ${escapeHtml(cardLabel)}`,
     `<b>Mes</b>: ${monthLabel}`,
   ];
   if (amountARS > 0) {
@@ -706,7 +706,7 @@ export function buildPaymentSummaryText(statement: CardStatement, cardLabel: str
   const month = yearMonth[1];
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  const lines = [`<b>Resumen ${monthLabel} de ${cardLabel} marcado como pagado</b>`];
+  const lines = [`<b>Resumen ${monthLabel} de ${escapeHtml(cardLabel)} marcado como pagado</b>`];
 
   if (statement.amountUSD > 0) {
     let usdLine = formatUSD(statement.amountUSD);

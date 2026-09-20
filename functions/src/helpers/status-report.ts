@@ -2,7 +2,7 @@ import {
   BuildStatusReportTextParams,
   StatusReportEntry,
 } from "../types/report.types";
-import { formatARS, formatDueDateDayMonth } from "./format";
+import { escapeHtml, formatARS, formatDueDateDayMonth } from "./format";
 
 const UPCOMING_DAYS = 7;
 
@@ -22,7 +22,7 @@ interface BuildSectionParams {
 function formatOverdueLine({ name, installment }: StatusReportEntry): string {
   const amountStr = formatARS(installment!.amount);
   const dateStr = formatDueDateDayMonth(installment!.dueDate);
-  return `• ${name}  ${amountStr} (venció ${dateStr})`;
+  return `• ${escapeHtml(name)}  ${amountStr} (venció ${dateStr})`;
 }
 
 /**
@@ -34,7 +34,7 @@ function formatOverdueLine({ name, installment }: StatusReportEntry): string {
 function formatUpcomingLine({ name, installment }: StatusReportEntry): string {
   const amountStr = formatARS(installment!.amount);
   const dateStr = formatDueDateDayMonth(installment!.dueDate);
-  return `• ${name}  ${amountStr} (vence ${dateStr})`;
+  return `• ${escapeHtml(name)}  ${amountStr} (vence ${dateStr})`;
 }
 
 /**
@@ -44,7 +44,7 @@ function formatUpcomingLine({ name, installment }: StatusReportEntry): string {
  * @return {string} Formatted line, e.g. "• Name  $ X.XXX,XX ✅"
  */
 function formatPaidLine({ name, installment }: StatusReportEntry): string {
-  return `• ${name}  ${formatARS(installment!.amount)} ✅`;
+  return `• ${escapeHtml(name)}  ${formatARS(installment!.amount)} ✅`;
 }
 
 /**
@@ -54,7 +54,7 @@ function formatPaidLine({ name, installment }: StatusReportEntry): string {
  * @return {string} Formatted line, e.g. "• Name  Sin cuota este mes"
  */
 function formatNoInstallmentLine({ name }: StatusReportEntry): string {
-  return `• ${name}  Sin cuota este mes`;
+  return `• ${escapeHtml(name)}  Sin cuota este mes`;
 }
 
 /**

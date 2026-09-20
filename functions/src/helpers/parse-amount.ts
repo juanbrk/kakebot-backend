@@ -1,3 +1,5 @@
+import { normalizeUserText } from "./wizard";
+
 const AMOUNT_PATTERN =
   /([\d]+(?:\.[\d]{3})*,[\d]+|[\d]+[.,][\d]+|[\d]+)/;
 export const AMOUNT_AT_END =
@@ -49,7 +51,7 @@ export function parseExpenseMessage(
   if (amountAtEnd) {
     const amount = parseArgentineAmount(amountAtEnd[2]);
     if (amount !== null && amount > 0) {
-      return { description: amountAtEnd[1].trim(), amount };
+      return { description: normalizeUserText(amountAtEnd[1]), amount };
     }
   }
 
@@ -57,7 +59,7 @@ export function parseExpenseMessage(
   if (amountAtStart) {
     const amount = parseArgentineAmount(amountAtStart[1]);
     if (amount !== null && amount > 0) {
-      return { description: amountAtStart[2].trim(), amount };
+      return { description: normalizeUserText(amountAtStart[2]), amount };
     }
   }
 

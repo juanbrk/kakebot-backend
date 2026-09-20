@@ -4,6 +4,7 @@ import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxInstallment } from "../../types/tax.types";
 import {
   buildNameListText,
+  escapeHtml,
   formatARS,
   formatDueDateDayMonth,
   getDaysInMonth,
@@ -161,7 +162,7 @@ async function handleRegisterInstallment(ctx: KakebotContext): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"])
-      + `<b>Vas a registrar una nueva cuota para ${taxName}.</b>\n<i>Escribí cancelar para salir.</i>`,
+      + `<b>Vas a registrar una nueva cuota para ${escapeHtml(taxName)}.</b>\n<i>Escribí cancelar para salir.</i>`,
     { parse_mode: "HTML" },
   );
   await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName } as TaxWizardState);
@@ -180,7 +181,7 @@ async function handlePaidNo(ctx: Context): Promise<void> {
 
   const [year, month] = installment.dueMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-  const contextText = `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}`;
+  const contextText = `Acá tenés el detalle de ${escapeHtml(installment.taxName)} para ${monthLabel}`;
 
   await replyOrEdit(
     ctx,
@@ -429,7 +430,7 @@ async function handleUnmarkAsPaid(ctx: KakebotContext): Promise<void> {
   if (!installment.receiptUrl) {
     await editOrReply(
       ctx,
-      `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada`,
+      `Marcaste la cuota del mes de ${monthLabel} para ${escapeHtml(installment.taxName)} como no pagada`,
       { parse_mode: "HTML" },
     );
     const { text, extra } = buildTaxInstallmentDetailPayload(installment);
@@ -439,7 +440,7 @@ async function handleUnmarkAsPaid(ctx: KakebotContext): Promise<void> {
 
   await editOrReply(
     ctx,
-    `Estás por invalidar el pago de la cuota del mes ${monthLabel} de ${installment.taxName}`,
+    `Estás por invalidar el pago de la cuota del mes ${monthLabel} de ${escapeHtml(installment.taxName)}`,
     { parse_mode: "HTML" },
   );
 
@@ -652,7 +653,8 @@ async function handleChangePaymentMethod(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     breadcrumb +
-      `<b>Vas a modificar el método de pago para ${taxName}</b>\n<i>Escribí "cancelar" o "salir" para anular.</i>`,
+      `<b>Vas a modificar el método de pago para ${escapeHtml(taxName)}</b>\n` +
+      "<i>Escribí \"cancelar\" o \"salir\" para anular.</i>",
     { parse_mode: "HTML" },
   );
 

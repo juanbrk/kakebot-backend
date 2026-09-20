@@ -1,7 +1,7 @@
 import { Markup } from "telegraf";
 import { Category } from "../../types/index";
 import { BuildExpensePromptTextParams } from "../../types/category.types";
-import { formatARS } from "../../helpers/format";
+import { escapeHtml, formatARS } from "../../helpers/format";
 
 export const CATEGORIES_PER_PAGE = 4;
 
@@ -55,7 +55,7 @@ export function buildExpensePromptText({
   total,
 }: BuildExpensePromptTextParams): string {
   return (
-    `<b>${displayName}</b> ${formatARS(totalAmount)} (${current} de ${total})\n` +
+    `<b>${escapeHtml(displayName)}</b> ${formatARS(totalAmount)} (${current} de ${total})\n` +
     "• Elegí una categoría o creá una nueva\n" +
     "• Escribí \"cancelar\" para salir"
   );

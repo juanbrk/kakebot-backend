@@ -1,7 +1,7 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { getUpcomingDues } from "../../services/upcoming-dues.service";
-import { formatARS, formatUSD } from "../../helpers/format";
+import { escapeHtml, formatARS, formatUSD } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { UpcomingDueItem, UpcomingDuesBucket } from "../../types/upcoming-dues.types";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -25,7 +25,7 @@ function formatDueItemLine(item: UpcomingDueItem): string {
   const day = item.dueDate.getDate().toString().padStart(2, "0");
   const month = (item.dueDate.getMonth() + 1).toString().padStart(2, "0");
   const usdPart = item.amountUSD && item.amountUSD > 0 ? ` y ${formatUSD(item.amountUSD)}` : "";
-  return `• ${item.entityName}  ${formatARS(item.amount)}${usdPart} (${day}/${month})`;
+  return `• ${escapeHtml(item.entityName)}  ${formatARS(item.amount)}${usdPart} (${day}/${month})`;
 }
 
 /**

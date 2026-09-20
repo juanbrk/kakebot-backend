@@ -1,6 +1,7 @@
 import { Telegraf } from "telegraf";
 import { KakebotContext, BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
+import { normalizeUserText } from "../../helpers/wizard";
 import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bulk-parse";
 import { BULK_SCENE_ID } from "../scenes/bulk.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
@@ -55,7 +56,7 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
 
     const isJustText = !/\d/.test(trimmed);
     if (isJustText) {
-      await ctx.scene.enter(EXPENSE_SCENE_ID, { description: trimmed } as ExpenseWizardState);
+      await ctx.scene.enter(EXPENSE_SCENE_ID, { description: normalizeUserText(trimmed) } as ExpenseWizardState);
       return;
     }
 

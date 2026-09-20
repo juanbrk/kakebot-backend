@@ -1,7 +1,7 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, TaxReceiptWizardState } from "../../types/telegraf-context.types";
 import { Tax, TaxInstallment } from "../../types/tax.types";
-import { getMonthLabel } from "../../helpers/format";
+import { escapeHtml, getMonthLabel } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import {
@@ -83,7 +83,7 @@ async function getPendingInstallmentsForTax(
  * @return {string} Markdown prompt
  */
 function buildInstallmentPrompt(taxName: string): string {
-  return `<b>¿A qué cuota de ${taxName} corresponde el comprobante?</b>`;
+  return `<b>¿A qué cuota de ${escapeHtml(taxName)} corresponde el comprobante?</b>`;
 }
 
 /**

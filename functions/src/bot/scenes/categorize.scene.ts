@@ -14,8 +14,8 @@ import {
   buildCategoryKeyboard,
   buildExpensePromptText,
 } from "../keyboards/category";
-import { getMessageText } from "../../helpers/wizard";
-import { formatARS } from "../../helpers/format";
+import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../../helpers/wizard";
+import { escapeHtml, formatARS } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 
 export const CATEGORIZE_SCENE_ID = "categorize-wizard";
@@ -154,12 +154,17 @@ async function stepGuardCategorizing(ctx: KakebotContext): Promise<void> {
  */
 async function stepHandleNewCategoryName(ctx: KakebotContext): Promise<void> {
   const telegramUserId = ctx.from?.id.toString() ?? "";
-  const categoryName = getMessageText(ctx)?.trim();
-
-  if (!categoryName) {
+  const rawCategoryName = getMessageText(ctx);
+  if (!rawCategoryName) {
     await ctx.reply("El nombre no puede estar vacío. Escribí el nombre de la nueva categoría.");
     return;
   }
+  const categoryName = normalizeUserText(rawCategoryName);
+  if (categoryName.length > MAX_ENTITY_NAME_LENGTH) {
+    await ctx.reply(`El nombre no puede superar los ${MAX_ENTITY_NAME_LENGTH} caracteres.`);
+    return;
+  }
+
 
   const state = ctx.wizard.state as CategorizeWizardState;
   const categorizedDisplayName = state.currentDisplayName;
@@ -178,7 +183,8 @@ async function stepHandleNewCategoryName(ctx: KakebotContext): Promise<void> {
   }
 
   await ctx.reply(
-    `✅ Agregaste <b>${categorizedDisplayName}</b> ${formatARS(categorizedAmount)} a <b>${categoryName}</b>.`,
+    `✅ Agregaste <b>${escapeHtml(categorizedDisplayName)}</b> ` +
+    `${formatARS(categorizedAmount)} a <b>${escapeHtml(categoryName)}</b>.`,
     { parse_mode: "HTML" },
   );
 
@@ -272,7 +278,7 @@ async function handleCatNew(ctx: KakebotContext): Promise<void> {
   ]);
   await replyOrEdit(
     ctx,
-    `<b>Nueva categoría para "${state.currentDisplayName}"</b>:\n\n` +
+    `<b>Nueva categoría para "${escapeHtml(state.currentDisplayName)}"</b>:\n\n` +
     "Escribí el nombre de la nueva categoría.\n" +
     "<i>Escribí \"cancelar\" para salir.</i>",
     {
@@ -388,7 +394,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   case 2: {
     const state = ctx.wizard.state as CategorizeWizardState;
     await ctx.reply(
-      `<b>Nueva categoría para "${state.currentDisplayName}"</b>:\n\n` +
+      `<b>Nueva categoría para "${escapeHtml(state.currentDisplayName)}"</b>:\n\n` +
       "Escribí el nombre de la nueva categoría.",
       { parse_mode: "HTML" },
     );

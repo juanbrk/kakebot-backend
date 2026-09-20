@@ -2,6 +2,40 @@
 
 ## Text Formatting in Bot Messages
 
+### HTML Escaping of User-Supplied Text
+
+Every string that originates from user input (entity names, descriptions, reasons, category labels)
+**MUST** be escaped with `escapeHtml()` (`helpers/format.ts`) before interpolation into any template
+literal sent with `parse_mode: "HTML"`. The three characters replaced are `&`, `<`, `>`.
+
+**Rules:**
+
+1. **Escape at the interpolation site (`${escapeHtml(name)}`), never in the variable.** The same
+   local feeds both HTML messages and button labels/filenames — button labels are plain text and
+   would show literal `&amp;` if pre-escaped.
+2. **Only escape in HTML context.** A `ctx.reply(...)` without `parse_mode` treats text as plain —
+   escaping there would show `&amp;` to the user.
+3. **Shared builders escape internally.** `buildBreadcrumb`, `buildNameListText`,
+   `buildStatusReportText`, `buildExpensePromptText`, and `upcoming-dues.ts` already call
+   `escapeHtml` on entity fields. Callers must **not** pre-escape values passed to them.
+4. **`normalizeUserText()` (`helpers/wizard.ts`) at every input entry point.** Strips control
+   characters and collapses whitespace before persisting. Length caps (`MAX_ENTITY_NAME_LENGTH`,
+   `MAX_INCOME_REASON_LENGTH`, `MAX_EXPENSE_DESCRIPTION_LENGTH`) are validated at the same site.
+
+```typescript
+// ❌ WRONG — escaping in the variable
+const safeName = escapeHtml(service.name);
+await replyOrEdit(ctx, `<b>${safeName}</b>`, { parse_mode: "HTML" });
+// button label now shows "Telecentro &amp; Gas" if name has &
+
+// ✅ RIGHT — escaping at interpolation
+await replyOrEdit(ctx, `<b>${escapeHtml(service.name)}</b>`, { parse_mode: "HTML" });
+// button uses the raw name:
+Markup.button.callback(service.name, `svc_pick:${service.id}`)
+```
+
+Enforced by hook `check-escape-html.js` (PreToolUse, Edit/Write on `.ts`).
+
 ### Bullet Character for List Items
 
 **ALWAYS use `•` (U+2022) as the bullet character for list items.** Never use tree characters (`├─`, `└─`) in list formatting.
@@ -251,8 +285,13 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `getCurrentMonth()` | `helpers/format.ts` | Current month as `"YYYY-MM"` — usarlo en vez de rearmar `` `${y}-${m}` `` inline |
 | `formatDueDateDayMonth(dueDate)` | `helpers/format.ts` | Firestore Timestamp → `"dd/mm"` |
 | `buildStatusReportText({ title, entries })` | `helpers/status-report.ts` | Agrupa entradas `{ name, installment }` en las 5 secciones de estado de cuota (Vencidos / Próximos a vencer / Pagados / Pendientes / Sin cuota). Fuente única del umbral de 7 días y del formato de línea — compartido por los reportes de servicios e impuestos |
+| `escapeHtml(text)` | `helpers/format.ts` | Escapes `& < >` for safe HTML interpolation — use at `${...}`, never in the variable |
+| `normalizeUserText(input)` | `helpers/wizard.ts` | Strips control chars, collapses whitespace, trims — use at every input entry point before persisting |
+| `MAX_ENTITY_NAME_LENGTH` | `helpers/wizard.ts` | 60-char cap for service/tax/card/category names |
+| `MAX_INCOME_REASON_LENGTH` | `helpers/wizard.ts` | 30-char cap for income reason |
+| `MAX_EXPENSE_DESCRIPTION_LENGTH` | `helpers/wizard.ts` | 100-char cap for expense description |
 | `parseArgentineAmount(input)` | `helpers/parse-amount.ts` | Argentine-format string → number |
-| `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` |
+| `parseExpenseMessage(input)` | `helpers/parse-amount.ts` | "desc amount" → `{ description, amount }` (normalizes description internally) |
 | `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message when triggered from a callback, else reply. Swallows every edit error, but only the double-tap "not modified" is silent — any other reason is logged as `log.warn`. Use for EVERY cosmetic edit (no preceding write): menu navigation, re-rendering screens, consuming a button. |
 | `editOrReply(ctx, text, extra?)` | `helpers/telegram.ts` | Edit message; on any edit failure other than "not modified", fall back to a fresh reply. Use at write-then-edit sites so a failed edit never abandons a flow after data was persisted. |
 

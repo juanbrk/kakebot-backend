@@ -8,7 +8,7 @@ import {
   BuildInstallmentListKeyboardParams,
   BuildInstallmentDetailKeyboardParams,
 } from "../../types/service.types";
-import { formatARS, MONTH_NAMES } from "../../helpers/format";
+import { escapeHtml, formatARS, MONTH_NAMES } from "../../helpers/format";
 
 export const PAYMENT_METHOD_LABELS: Record<ServicePaymentMethod, string> = {
   credit_card: "Tarjeta de Crédito",
@@ -235,7 +235,7 @@ export function buildInstallmentDetailText(
     : "Estado: Pendiente";
 
   return (
-    `<b>Cuota: ${installment.serviceName}</b>\n\n` +
+    `<b>Cuota: ${escapeHtml(installment.serviceName)}</b>\n\n` +
     `Monto: ${formatARS(installment.amount)}\n` +
     `Vencimiento: ${day}/${month}\n` +
     statusLine

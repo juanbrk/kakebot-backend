@@ -3,7 +3,7 @@ import { KakebotContext, CardStmtWizardState } from "../../types/telegraf-contex
 import { StatementCurrency } from "../../types/index";
 import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { buildDueDate, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
+import { buildDueDate, escapeHtml, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import {
@@ -119,7 +119,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       }
       await editOrReply(
         ctx,
-        `✅ Resumen marcado como pagado.\n<i>${monthLabel} · ${cardLabel}</i>`,
+        `✅ Resumen marcado como pagado.\n<i>${monthLabel} · ${escapeHtml(cardLabel)}</i>`,
         { parse_mode: "HTML" },
       );
       await ctx.reply(
@@ -130,7 +130,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     } else {
       await replyOrEdit(
         ctx,
-        `Estás por marcar como pagado el resumen\n<i>${monthLabel} · ${cardLabel}</i>`,
+        `Estás por marcar como pagado el resumen\n<i>${monthLabel} · ${escapeHtml(cardLabel)}</i>`,
         { parse_mode: "HTML" },
       );
       await ctx.reply(
@@ -180,7 +180,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
   case "receipt_ars": {
     const arsLabel = monthLabelOf(state.statementMonth || "");
     await ctx.reply(
-      `<b>Enviá el comprobante de pago en ARS del resumen ${arsLabel} · ${state.cardLabel || ""}</b>`,
+      `<b>Enviá el comprobante de pago en ARS del resumen ${arsLabel} · ${escapeHtml(state.cardLabel || "")}</b>`,
       { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(RECEIPT_ARS_STEP);
@@ -190,7 +190,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
   case "receipt_usd": {
     const usdLabel = monthLabelOf(state.statementMonth || "");
     await ctx.reply(
-      `<b>Enviá el comprobante de pago en USD del resumen ${usdLabel} · ${state.cardLabel || ""}</b>`,
+      `<b>Enviá el comprobante de pago en USD del resumen ${usdLabel} · ${escapeHtml(state.cardLabel || "")}</b>`,
       { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(RECEIPT_USD_STEP);
@@ -1364,7 +1364,8 @@ async function handlePdfUpload(ctx: KakebotContext, documentFileId: string | nul
     const cardId = state.cardId || "";
     const monthLabel = state.statementMonth ? monthLabelOf(state.statementMonth) : "el mes seleccionado";
     await ctx.reply(
-      `✅ Se subió correctamente el resumen del mes de <b>${monthLabel}</b> de la tarjeta <b>${cardLabel}</b>.`,
+      `✅ Se subió correctamente el resumen del mes de <b>${monthLabel}</b> ` +
+      `de la tarjeta <b>${escapeHtml(cardLabel)}</b>.`,
       { parse_mode: "HTML" },
     );
     await ctx.scene.leave();
@@ -1653,13 +1654,13 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   }
   case RECEIPT_ARS_STEP:
     await ctx.reply(
-      `<b>Enviá el comprobante de pago en ARS del resumen ${monthLabelOf(state.statementMonth || "")} · ${state.cardLabel || ""}</b>`,
+      `<b>Enviá el comprobante de pago en ARS del resumen ${monthLabelOf(state.statementMonth || "")} · ${escapeHtml(state.cardLabel || "")}</b>`,
       { parse_mode: "HTML" },
     );
     break;
   case RECEIPT_USD_STEP:
     await ctx.reply(
-      `<b>Enviá el comprobante de pago en USD del resumen ${monthLabelOf(state.statementMonth || "")} · ${state.cardLabel || ""}</b>`,
+      `<b>Enviá el comprobante de pago en USD del resumen ${monthLabelOf(state.statementMonth || "")} · ${escapeHtml(state.cardLabel || "")}</b>`,
       { parse_mode: "HTML" },
     );
     break;

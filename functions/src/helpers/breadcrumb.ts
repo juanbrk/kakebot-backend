@@ -1,6 +1,10 @@
+import { escapeHtml } from "./format";
+
 /**
- * Builds an italic Markdown breadcrumb string with two trailing blank lines.
+ * Builds an italic HTML breadcrumb string with two trailing blank lines.
  * Abbreviates when more than 3 segments: First / ... / Previous / Current.
+ * Each segment is HTML-escaped so user-supplied names (entity, tax, card)
+ * cannot break the surrounding markup.
  *
  * @param {string[]} segments - Breadcrumb path segments
  * @return {string} Formatted breadcrumb or empty string if no segments
@@ -8,13 +12,15 @@
 export function buildBreadcrumb(segments: string[]): string {
   if (segments.length === 0) return "";
 
+  const escaped = segments.map(escapeHtml);
+
   let path: string;
-  if (segments.length <= 3) {
-    path = segments.join(" / ");
+  if (escaped.length <= 3) {
+    path = escaped.join(" / ");
   } else {
-    const first = segments[0];
-    const previous = segments[segments.length - 2];
-    const current = segments[segments.length - 1];
+    const first = escaped[0];
+    const previous = escaped[escaped.length - 2];
+    const current = escaped[escaped.length - 1];
     path = `${first} / ... / ${previous} / ${current}`;
   }
 

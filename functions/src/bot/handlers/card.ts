@@ -7,6 +7,7 @@ import { replyOrEdit } from "../../helpers/telegram";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import {
   buildNameListText,
+  escapeHtml,
   formatARS,
   formatUSD,
   getCurrentMonth,
@@ -159,7 +160,7 @@ async function handleStartStatement(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}</b>\n` +
+    `<b>Vas a añadir un nuevo resumen para la tarjeta ${escapeHtml(cardLabel)}</b>\n` +
       "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -348,7 +349,7 @@ async function handleAttachStatementPdfFromHistory(
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${cardLabel}</b>\n` +
+    `<b>Vas a adjuntar el PDF del resumen de ${monthLabel} de la tarjeta ${escapeHtml(cardLabel)}</b>\n` +
       "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -407,7 +408,7 @@ async function handleEditArs(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a modificar el monto en pesos para la tarjeta ${cardLabel}</b>\n`
+    `<b>Vas a modificar el monto en pesos para la tarjeta ${escapeHtml(cardLabel)}</b>\n`
     + "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -436,7 +437,7 @@ async function handleEditUsd(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a modificar el monto en dólares para la tarjeta ${cardLabel}</b>\n`
+    `<b>Vas a modificar el monto en dólares para la tarjeta ${escapeHtml(cardLabel)}</b>\n`
     + "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );
@@ -466,7 +467,8 @@ async function handleEditDay(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a modificar el vencimiento para la tarjeta ${cardLabel}</b>\n<i>Enviá la palabra cancelar para salir.</i>`,
+    `<b>Vas a modificar el vencimiento para la tarjeta ${escapeHtml(cardLabel)}</b>\n` +
+    "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );
   await (ctx as unknown as KakebotContext).scene.enter(CARD_STMT_SCENE_ID, {
@@ -521,7 +523,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
 
   for (const card of cards) {
     const stmt = statementByCardId.get(card.id || "");
-    const label = `  • <b>${buildCardLabel(card)}</b>`;
+    const label = `  • <b>${escapeHtml(buildCardLabel(card))}</b>`;
     if (stmt) {
       let cardLine = `${label}: ${formatARS(stmt.amountARS)}`;
       if (stmt.amountUSD > 0) {
@@ -541,7 +543,7 @@ async function handleListAllCards(ctx: Context): Promise<void> {
 
   for (const card of cards) {
     const stmt = statementByCardId.get(card.id || "");
-    const label = `  • <b>${buildCardLabel(card)}</b>`;
+    const label = `  • <b>${escapeHtml(buildCardLabel(card))}</b>`;
     if (stmt) {
       const dueDate = stmt.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
@@ -657,7 +659,7 @@ async function handleStmtReceiptsAttachARS(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<i>${monthLabel} · ${cardLabel} — adjuntando comprobante ARS</i>`,
+    `<i>${monthLabel} · ${escapeHtml(cardLabel)} — adjuntando comprobante ARS</i>`,
     { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
@@ -694,7 +696,7 @@ async function handleAttachReceiptUSD(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<i>${monthLabel} · ${cardLabel} — adjuntando comprobante USD</i>`,
+    `<i>${monthLabel} · ${escapeHtml(cardLabel)} — adjuntando comprobante USD</i>`,
     { parse_mode: "HTML" },
   );
   await ctx.scene.enter(CARD_STMT_SCENE_ID, {
@@ -807,7 +809,7 @@ async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
   if (availableMonths.length === 0) {
     await replyOrEdit(
       ctx,
-      `<b>Ya existen resúmenes para los próximos 3 meses de ${cardLabel}.</b>`,
+      `<b>Ya existen resúmenes para los próximos 3 meses de ${escapeHtml(cardLabel)}.</b>`,
       {
         parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -821,7 +823,7 @@ async function handleAddStatementFromList(ctx: KakebotContext): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `<b>Vas a añadir un nuevo resumen para la tarjeta ${cardLabel}</b>\n` +
+    `<b>Vas a añadir un nuevo resumen para la tarjeta ${escapeHtml(cardLabel)}</b>\n` +
     "<i>Enviá la palabra cancelar para salir.</i>",
     { parse_mode: "HTML" },
   );
