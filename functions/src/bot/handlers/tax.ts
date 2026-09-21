@@ -66,6 +66,7 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^tax_hist_pg:(.+):(\d+)$/, handleTaxHistoryPagination);
   bot.action(/^tax_inst:(.+)$/, handleTaxInstallmentDetail);
   bot.action(/^tax_dl_rec:(.+)$/, handleDownloadTaxReceipt);
+  bot.action(/^tax_replace_rec:(.+)$/, handleReplaceReceipt);
   bot.action(/^tax_back_tax:(.+)$/, handleBackToTaxAction);
   bot.action(/^tax_back_hist:(.+)$/, handleBackToTaxHistory);
   bot.action(/^tax_edit_pm:(.+)$/, handleEditPaymentMethod);
@@ -275,6 +276,40 @@ async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.scene.enter(TAX_SCENE_ID, { installmentId } as TaxWizardState);
 }
 
+/**
+ * Enters the tax scene to replace the receipt on a paid installment.
+ * Fetches the existing receiptUrl and passes it via state so the scene
+ * can delete the old GCS file after the new upload succeeds.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ */
+async function handleReplaceReceipt(ctx: KakebotContext): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installmentId = ((ctx as any).match as string[])[1];
+
+  const installment = await getTaxInstallmentById(installmentId);
+  if (!installment?.receiptUrl) {
+    await ctx.reply("No hay comprobante adjunto para esta cuota.");
+    return;
+  }
+
+  const [year, month] = installment.dueMonth.split("-");
+  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+
+  await replyOrEdit(ctx,
+    `Vas a modificar el comprobante de ${escapeHtml(installment.taxName)} para ${monthLabel}`,
+    { parse_mode: "HTML" },
+  );
+  await ctx.reply("<b>Enviá el nuevo comprobante de pago (foto o PDF).</b>", {
+    parse_mode: "HTML",
+  });
+  await ctx.scene.enter(TAX_SCENE_ID, {
+    installmentId,
+    existingReceiptUrl: installment.receiptUrl,
+  } as TaxWizardState);
+}
+
 async function handleSkipReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
@@ -477,8 +512,13 @@ async function handleDownloadTaxReceipt(ctx: Context): Promise<void> {
     const { buffer, extension } = await downloadFromUrl(installment.receiptUrl);
     const [year, month] = installment.dueMonth.split("-");
     const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+    await replyOrEdit(ctx,
+      `Vas a descargar el comprobante de ${escapeHtml(installment.taxName)} para ${monthLabel}`,
+      { parse_mode: "HTML" },
+    );
     await ctx.reply(
-      `Acá tenés el comprobante de pago de ${monthLabel} para ${installment.taxName}`,
+      `Acá tenés el comprobante de pago de ${monthLabel} para ${escapeHtml(installment.taxName)}`,
+      { parse_mode: "HTML" },
     );
     const filename = `${installment.dueMonth}-comprobante-${installment.taxName}.${extension}`;
     await ctx.replyWithDocument({ source: buffer, filename });

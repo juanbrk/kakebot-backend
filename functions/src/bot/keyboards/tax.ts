@@ -251,7 +251,10 @@ export function buildTaxInstallmentDetailKeyboard({
     rows.push([Markup.button.callback("Adjuntar comprobante", `tax_attach:${installmentId}`)]);
   }
   if (isPaid && hasReceipt) {
-    rows.push([Markup.button.callback("Descargar comprobante", `tax_dl_rec:${installmentId}`)]);
+    rows.push([
+      Markup.button.callback("Descargar comprobante", `tax_dl_rec:${installmentId}`),
+      Markup.button.callback("Modificar comprobante", `tax_replace_rec:${installmentId}`),
+    ]);
   }
   if (isPaid) {
     rows.push([Markup.button.callback("Marcar como no pagada", `tax_unpay:${installmentId}`)]);
