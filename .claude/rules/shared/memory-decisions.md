@@ -1,5 +1,16 @@
 # Decisions Log
 
+## 2026-09-14: El bot migra a `parse_mode: "HTML"` — escapar en Markdown legacy no alcanza
+
+Markdown legacy consume el `\` solo fuera de una entidad — dentro de `*negrita*` la barra queda
+visible. Hay 67 interpolaciones de usuario dentro de entidades + `buildBreadcrumb` (itálica), y HTML
+renderiza los tres casos sin barra. Superficie acotada (solo bold/italic, cero links/code), costo
+real menor al estimado. La migración mecánica sola ya elimina el bug; el escaping posterior cubre
+`& < >`. Bug vivo asociado: slug de categoría con `_` producía `*COMIDA_RAPIDA*` — resuelto en
+lectura con lookup del nombre real. Regla: `escapeHtml` en la interpolación `${...}`, nunca en la
+variable (la misma local alimenta botones/filenames que son texto plano).
+
+
 ## 2026-09-09: Botón "Marcar como pagado" en detalle de tarjeta reutiliza el callback existente, sin replicar el patrón de servicios
 
 El botón se agrega en `buildCardDetailKeyboard` cuando hay un resumen del mes en curso impago,
@@ -189,18 +200,11 @@ Se decidió inglés como idioma del esquema de TICKET.md para este repo pese a q
 - **Decisión**: `handleMarkAsPaid` (`tax.ts`), compartido por el botón directo del submenú y por Historial de cuotas, ahora entra a `TAX_SCENE_ID` al mostrar el prompt Omitir/Adjuntar en vez de un `ctx.reply()` suelto.
 - **Motivo**: sin escena activa, texto libre en esa ventana caía en el parser global de gastos. Mismo patrón ya usado por `handleAttachReceipt` (`wizard-scenes.md §10.3`).
 
-## 2026-07-11: Vencimiento por cuota reemplaza el "día estimado" del impuesto; reportes validados
+## 2026-07-10–11: Vencimiento por cuota reemplaza el "día estimado" del impuesto
 
-- **Decisión**: se elimina `estimatedDueDay` de `Tax`; "Cambiar vencimiento" pasa al detalle de cada cuota (`tax_edit_due:{installmentId}`) y edita su propio `dueDate`, validado contra su mes. El detalle del impuesto y la sección IMPUESTOS del reporte mensual ahora muestran ese vencimiento por cuota, igual que SERVICIOS/TARJETAS.
-- **Motivo**: mantener `estimatedDueDay` como referencia aparte (decisión 07-10) resultó redundante una vez que cada cuota pide su propio día; una investigación (`PERSONA: Investigator`) confirmó además que los reportes ya usaban `dueDate` por cuota, no el campo eliminado, y que solo faltaba mostrarlo en el reporte mensual.
-- **Aplicado en**: `tax.scene.ts` (`stepHandleEditInstallmentDueDay` reemplaza `stepHandleEditDueDay`), `tax.service.ts` (`updateTaxInstallmentDueDay` reemplaza `updateTaxEstimatedDueDay`), `keyboards/tax.ts` (`buildTaxInstallmentDetailKeyboard`; nuevo helper compartido `formatDueDateDayMonth` en `helpers/format.ts`), `handlers/tax.ts` (`handleEditInstallmentDueDay` reemplaza `handleChangeDueDay`; `showTaxActionView` agrega línea de vencimiento), `report.service.ts` (sección IMPUESTOS agrega sufijo `(vence dd/mm)`/`(Pagado) ✅`).
-
-## 2026-07-10: Día de vencimiento por cuota y edición de vencimiento estimado del impuesto
-
-- **Decisión**: al registrar una cuota de impuesto, el día de vencimiento se pide explícitamente al usuario (Mes → Monto → Día → ¿Pagada?) en vez de heredar `estimatedDueDay` del impuesto capado al mes. El `estimatedDueDay` del impuesto ahora solo sirve de referencia inicial, editable por separado.
-- **Motivo**: cada cuota puede vencer un día distinto al estimado (ej. feriados, cambios de fecha del organismo); forzar el `estimatedDueDay` original perdía esa flexibilidad.
-- **Decisión**: la edición de `estimatedDueDay` es una nueva ruta de entrada al `tax.scene.ts` (texto libre 1-31), espejando el patrón `edit_day` ya usado en `service.scene.ts`, en vez de un flujo dedicado nuevo.
-- **Aplicado en**: `tax.scene.ts` (`stepHandleInstallmentDueDay`, `stepHandleEditDueDay`), `tax.service.ts` (`updateTaxEstimatedDueDay`), `handlers/tax.ts` (`handleChangeDueDay`).
+- **Decisión**: se elimina `estimatedDueDay` de `Tax`; cada cuota pide su propio día de vencimiento (Mes → Monto → Día → ¿Pagada?) y "Cambiar vencimiento" pasa al detalle de la cuota (`tax_edit_due:{installmentId}`), validado contra su mes. El detalle del impuesto y la sección IMPUESTOS del reporte mensual muestran el vencimiento por cuota, igual que SERVICIOS/TARJETAS.
+- **Motivo**: cada cuota puede vencer un día distinto al estimado; mantener `estimatedDueDay` como referencia resultó redundante. Los reportes ya usaban `dueDate` por cuota, no el campo eliminado.
+- **Aplicado en**: `tax.scene.ts`, `tax.service.ts`, `keyboards/tax.ts` (nuevo helper `formatDueDateDayMonth` en `helpers/format.ts`), `handlers/tax.ts`, `report.service.ts`.
 
 ## 2026-07-03: Marcar resumen de tarjeta como pagado edita mensajes en lugar de crear nuevos
 
@@ -298,9 +302,8 @@ Reglamento dedicado en `shared/wizard-scenes.md` + hook estructural `check-wizar
 ### Decisiones tomadas
 - **Camino B completado**: flujo de ingresos migrado a `Scenes.WizardScene` nativo como POC; los archivos `wizard.service.ts` y `wizard.types.ts` del custom WizardFlow fueron eliminados
 - **Store Firestore obligatorio**: colección `telegraf_sessions` (separada de `sessions` legacy) — requerido por el runtime stateless de Cloud Functions; `getSessionKey = ctx.from?.id.toString()`
-- **Normativa: asteriscos visibles prohibidos** — cualquier mensaje con `*...*` debe incluir `parse_mode: "Markdown"`
 - **Normativa WizardScene — input inválido**: siempre enviar (1) mensaje de contexto + (2) repetición completa del paso actual (texto + teclado); nunca re-mostrar solo el teclado sin contexto; documentado en `conventions.md`
-- **Camino C pendiente**: migrar flujos restantes una vez validado el POC en webhook
+- Migración masiva completada (9 dominios, junio 2026); `session.service.ts` y `SessionState` eliminados
 
 ---
 
@@ -312,27 +315,6 @@ Reglamento dedicado en `shared/wizard-scenes.md` + hook estructural `check-wizar
 - **TCV requerido si hay USD**: si `amountUSD > 0`, el pago no se registra hasta recibir el TCV (text.ts, Commit 2)
 - **Submenú Comprobantes**: botón dedicado en el detalle del resumen → pantalla separada con Resumen PDF + ARS + USD; mantiene separación entre el PDF bancario y los comprobantes de pago
 - **Comprobantes desde historial vs flujo de pago**: adjuntar desde historial usa `statementAmountUSD: 0` en session para suprimir el prompt USD; adjuntar desde flujo de pago usa el valor real de `amountUSD`
-
----
-
-## 2026-04-15: Patrón UX para Telegraf callback handlers — edit-before-reply
-
-### Patrón correcto establecido
-1. **Respuesta primaria**: `ctx.editMessageText()` — edita el mensaje que contenía el botón presionado
-2. **Follow-up**: `ctx.reply()` — envía el siguiente paso como mensaje nuevo
-3. **Guard clause**: `ctx.reply()` + `return` inmediato — siempre válido para errores/early exit
-4. **Alternativa**: `replyOrEdit()` de `helpers/telegram.ts` — cumple el patrón
-
-### Pendiente
-- Convención documentada en `.claude/rules/shared/telegram-callback-ux.md`
-- Hook PostToolUse advisory `check-callback-pattern.js` — detecta violaciones sin bloquear
-- Registrar en `.claude/settings.json` + `.claude/settings.example.json`
-
----
-
-## 2026-04-14: PostToolUse Hooks migrados a stderr — Visibilidad y consistencia
-
-Los 3 hooks PostToolUse (`env-change-guard.js`, `typecheck-feedback.js`, `lint-feedback.js`) fueron migrados de `console.log()` (stdout) a `process.stderr.write()` (stderr) para consistencia con PreToolUse hooks. Funcionan correctamente pero Claude Code aún no captura stderr de PostToolUse hooks.
 
 ---
 
@@ -363,7 +345,7 @@ Los 3 hooks PostToolUse (`env-change-guard.js`, `typecheck-feedback.js`, `lint-f
 ## 2026-04-06: Never create duplicate helpers — mandatory pre-check rule
 - ALWAYS search `functions/src/helpers/` before writing any new helper
 - Known helpers table in `shared/conventions.md` (must be updated when adding new helpers)
-- Breadcrumb separator is ` / ` (not ` > `), output is `_path_\n\n` (italic Markdown) — requires `parse_mode: "Markdown"`
+- Breadcrumb separator is ` / ` (not ` > `), output is `<i>path</i>\n\n` (italic HTML) — requires `parse_mode: "HTML"`
 
 ## 2026-04-03: Environment secrets automation — .pending-secrets registry + GCS_BUCKET resolution
 - **Registry system**: `scripts/.pending-secrets` lists variable names pending sync (no values)
@@ -373,19 +355,10 @@ Los 3 hooks PostToolUse (`env-change-guard.js`, `typecheck-feedback.js`, `lint-f
 - Hard wall in `core/hard-walls.md`: NEVER forget to update `.pending-secrets` after changing `.env.prod`
 - Workflow step 4 in `shared/workflow.md`: Verify & Sync secrets BEFORE deploy
 
-## 2026-04-02: Type safety — named types and no session: any
+## 2026-04-02: Type safety — named types, no `as` casts except at extraction boundaries
 - All domain literal unions must be exported as named types (never inline)
-- Current named types: `CategoryType`, `PendingFileType`, `CreditCardProcessor`, `StatementCurrency`
-- `SessionState` is a union of flow-specific sub-types (one per feature domain)
-- Type guards exported from `types/index.ts`: `isCardSessionState`, `isServiceSessionState`, etc.
-- `session: any` forbidden — always type as `Session`
 - `as` casts allowed only at extraction boundaries (Telegraf regex match), never at point of use
-
-## 2026-03-30: Session data reuse rule
-- Never re-fetch from Firestore what a previous flow step already knows
-- Entry points fetch + store in session; downstream handlers read from session with Firestore fallback
-- Independent reads must use `Promise.all`, not sequential awaits
-- Pattern applied: `getServiceNameCached()` in service.ts (9 handlers), `Promise.all` in 5 locations
+- (Session/SessionState types and type guards removed — migración a WizardScene completada en junio 2026)
 
 ## 2026-03-08: JSDoc required on all functions
 - JSDoc required on ALL functions (new or modified), not just exported ones

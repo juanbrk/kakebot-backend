@@ -1,6 +1,6 @@
 import { Service, ServiceInstallment, ServicePaymentMethod } from "../types/service.types";
 import { getServicesByUser, getInstallmentsForMonth } from "./service.service";
-import { formatARS, formatDueDateDayMonth, getCurrentMonth } from "../helpers/format";
+import { escapeHtml, formatARS, formatDueDateDayMonth, getCurrentMonth } from "../helpers/format";
 
 const SECTION_LABEL: Record<ServicePaymentMethod, string> = {
   credit_card: "Tarjeta de Crédito",
@@ -22,11 +22,11 @@ interface ServiceWithInstallment {
  */
 function formatServiceLine({ service, currentInstallment }: ServiceWithInstallment): string {
   if (!currentInstallment) {
-    return `  • ${service.name}  $ -`;
+    return `  • ${escapeHtml(service.name)}  $ -`;
   }
   const amountStr = formatARS(currentInstallment.amount);
   const dateStr = formatDueDateDayMonth(currentInstallment.dueDate);
-  return `  • ${service.name}  ${amountStr} (${dateStr})`;
+  return `  • ${escapeHtml(service.name)}  ${amountStr} (${dateStr})`;
 }
 
 /**
@@ -58,7 +58,7 @@ function buildSection(label: string, items: ServiceWithInstallment[]): string {
     return "";
   }
   const lines = sortByDueDateAscending(items).map(formatServiceLine).join("\n");
-  return `*${label}*\n${lines}`;
+  return `<b>${label}</b>\n${lines}`;
 }
 
 /**
@@ -123,5 +123,5 @@ export async function generatePaymentMethodReport(telegramUserId: string): Promi
     return null;
   }
 
-  return `*Métodos de Pago — Servicios*\n\n${sections.join("\n\n")}`;
+  return `<b>Métodos de Pago — Servicios</b>\n\n${sections.join("\n\n")}`;
 }

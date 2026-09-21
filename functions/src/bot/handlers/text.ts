@@ -1,6 +1,7 @@
 import { Telegraf } from "telegraf";
 import { KakebotContext, BulkWizardState, ExpenseWizardState } from "../../types/telegraf-context.types";
 import { parseArgentineAmount, parseExpenseMessage } from "../../helpers/parse-amount";
+import { normalizeUserText, MAX_EXPENSE_DESCRIPTION_LENGTH } from "../../helpers/wizard";
 import { isBulkMessage, parseBulkLines, MAX_BULK_LINES } from "../../helpers/bulk-parse";
 import { BULK_SCENE_ID } from "../scenes/bulk.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
@@ -35,6 +36,12 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
 
     const expense = parseExpenseMessage(messageText);
     if (expense) {
+      if (expense.description.length > MAX_EXPENSE_DESCRIPTION_LENGTH) {
+        await ctx.reply(
+          `La descripción no puede superar los ${MAX_EXPENSE_DESCRIPTION_LENGTH} caracteres.`
+        );
+        return;
+      }
       await ctx.scene.enter(EXPENSE_SCENE_ID, {
         description: expense.description,
         amount: expense.amount,
@@ -55,7 +62,14 @@ export function registerTextHandler(bot: Telegraf<KakebotContext>): void {
 
     const isJustText = !/\d/.test(trimmed);
     if (isJustText) {
-      await ctx.scene.enter(EXPENSE_SCENE_ID, { description: trimmed } as ExpenseWizardState);
+      const normalized = normalizeUserText(trimmed);
+      if (normalized.length > MAX_EXPENSE_DESCRIPTION_LENGTH) {
+        await ctx.reply(
+          `La descripción no puede superar los ${MAX_EXPENSE_DESCRIPTION_LENGTH} caracteres.`
+        );
+        return;
+      }
+      await ctx.scene.enter(EXPENSE_SCENE_ID, { description: normalized } as ExpenseWizardState);
       return;
     }
 

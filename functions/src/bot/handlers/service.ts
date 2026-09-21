@@ -28,7 +28,7 @@ import {
   PAYMENT_METHOD_LABELS,
   INSTALLMENTS_PER_PAGE,
 } from "../keyboards/service";
-import { buildNameListText, formatARS, MONTH_NAMES } from "../../helpers/format";
+import { buildNameListText, escapeHtml, formatARS, MONTH_NAMES } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
@@ -62,7 +62,7 @@ async function showServiceActionView(
     return;
   }
 
-  let title = `*${service.name}*`;
+  let title = `<b>${escapeHtml(service.name)}</b>`;
   if (installment) {
     const dueDate = installment.dueDate.toDate();
     const day = String(dueDate.getDate()).padStart(2, "0");
@@ -70,10 +70,10 @@ async function showServiceActionView(
     const dueSuffix = installment.isPaid
       ? "(Pagado) ✅"
       : `(vence ${day}/${mo})`;
-    title = `*${service.name}* ${formatARS(installment.amount)} ${dueSuffix}`;
+    title = `<b>${escapeHtml(service.name)}</b> ${formatARS(installment.amount)} ${dueSuffix}`;
   }
   if (service.paymentMethod) {
-    title += `\n*Método de pago*: ${PAYMENT_METHOD_LABELS[service.paymentMethod]}`;
+    title += `\n<b>Método de pago</b>: ${PAYMENT_METHOD_LABELS[service.paymentMethod]}`;
   }
 
   const breadcrumb = buildBreadcrumb(["Servicios", service.name]);
@@ -87,7 +87,7 @@ async function showServiceActionView(
 
   const render = isWriteConfirmation ? editOrReply : replyOrEdit;
   await render(ctx, breadcrumb + title, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -146,8 +146,8 @@ async function openServicesMenu(ctx: Context): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Servicios"]);
 
   if (services.length === 0) {
-    await replyOrEdit(ctx, breadcrumb + "No tenés ningún servicio registrado.\n\n*¿Qué querés hacer?*", {
-      parse_mode: "Markdown",
+    await replyOrEdit(ctx, breadcrumb + "No tenés ningún servicio registrado.\n\n<b>¿Qué querés hacer?</b>", {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildServicesEmptyStateKeyboard().reply_markup as any,
     });
@@ -155,8 +155,8 @@ async function openServicesMenu(ctx: Context): Promise<void> {
   }
 
   const serviceList = buildNameListText(services.map((service) => service.name));
-  await replyOrEdit(ctx, breadcrumb + serviceList + "\n\n*¿Qué querés hacer?*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, breadcrumb + serviceList + "\n\n<b>¿Qué querés hacer?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildServicesSubmenuKeyboard().reply_markup as any,
   });
@@ -166,9 +166,9 @@ async function handleAddService(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Vas a crear un nuevo servicio*\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Vas a crear un nuevo servicio</b>\n" +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, { flow: "create" } as ServiceWizardState);
 }
@@ -201,9 +201,9 @@ async function handleViewServices(ctx: Context): Promise<void> {
     await replyOrEdit(
       ctx,
       buildBreadcrumb(["Servicios", "Seleccionar"])
-        + "No tenés ningún servicio registrado.\n\n*¿Qué querés hacer?*",
+        + "No tenés ningún servicio registrado.\n\n<b>¿Qué querés hacer?</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: buildServicesEmptyStateKeyboard().reply_markup as any,
       },
@@ -213,8 +213,8 @@ async function handleViewServices(ctx: Context): Promise<void> {
 
   const breadcrumb = buildBreadcrumb(["Servicios", "Seleccionar"]);
   const keyboard = buildServiceListKeyboard(services, 0, "svc_view_pick");
-  await replyOrEdit(ctx, breadcrumb + "*Seleccioná un servicio:*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, breadcrumb + "<b>Seleccioná un servicio:</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -240,9 +240,9 @@ async function handleShowUpcoming(ctx: Context): Promise<void> {
   if (installments.length === 0) {
     await replyOrEdit(
       ctx,
-      breadcrumb + "*Sin vencimientos en los próximos 7 días*",
+      breadcrumb + "<b>Sin vencimientos en los próximos 7 días</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: backKeyboard.reply_markup as any,
       },
@@ -279,20 +279,20 @@ async function handleShowUpcoming(ctx: Context): Promise<void> {
 
   for (const [days, items] of bands) {
     if (items.length === 0) continue;
-    lines.push(`*Vencimientos en los próximos ${days} días:*`);
+    lines.push(`<b>Vencimientos en los próximos ${days} días:</b>`);
     for (const inst of items) {
       const dueDate = inst.dueDate.toDate();
       const day = String(dueDate.getDate()).padStart(2, "0");
       const instMonth = String(dueDate.getMonth() + 1).padStart(2, "0");
       lines.push(
-        `  • ${inst.serviceName}  ${day}/${instMonth}  ${formatARS(inst.amount)}`,
+        `  • ${escapeHtml(inst.serviceName)}  ${day}/${instMonth}  ${formatARS(inst.amount)}`,
       );
     }
     lines.push("");
   }
 
   await replyOrEdit(ctx, lines.join("\n").trimEnd(), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: backKeyboard.reply_markup as any,
   });
@@ -345,9 +345,9 @@ async function handlePickServiceForInstallment(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a agregar una nueva cuota para ${service.name}*\n` +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a agregar una nueva cuota para ${escapeHtml(service.name)}</b>\n` +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "installment",
@@ -375,9 +375,9 @@ async function handleEditService(ctx: Context): Promise<void> {
   const keyboard = buildServiceEditKeyboard(serviceId, serviceName);
   await replyOrEdit(
     ctx,
-    breadcrumb + `¿Qué deseas hacer con *${serviceName}*?`,
+    breadcrumb + `¿Qué deseas hacer con <b>${escapeHtml(serviceName)}</b>?`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -420,9 +420,9 @@ async function handleRegFromEdit(ctx: Context): Promise<void> {
 
   await replyOrEdit(
     ctx,
-    `*Vas a agregar una nueva cuota para ${serviceName}*\n` +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a agregar una nueva cuota para ${escapeHtml(serviceName)}</b>\n` +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "installment",
@@ -475,7 +475,7 @@ async function handleEditInstallment(ctx: Context): Promise<void> {
     backLabel: `\u2190 Volver a ${serviceName}`,
   });
   await replyOrEdit(ctx, breadcrumb + text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -566,8 +566,8 @@ async function handleAttachReceipt(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Adjuntar comprobante*\n_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Adjuntar comprobante</b>\n<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "receipt",
@@ -589,8 +589,8 @@ async function handleAttachInvoice(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Adjuntar factura*\n_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Adjuntar factura</b>\n<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "invoice",
@@ -615,11 +615,11 @@ async function handleEditServiceName(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    `*Vas a cambiar el nombre de ${serviceName || "el servicio"}*\n` +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    `<b>Vas a cambiar el nombre de ${escapeHtml(serviceName || "el servicio")}</b>\n` +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
-  await ctx.reply("*¿Cuál es el nuevo nombre del servicio?*", { parse_mode: "Markdown" });
+  await ctx.reply("<b>¿Cuál es el nuevo nombre del servicio?</b>", { parse_mode: "HTML" });
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "edit_name",
     serviceId,
@@ -643,8 +643,8 @@ async function handleDeleteService(ctx: Context): Promise<void> {
   const keyboard = buildDeleteConfirmKeyboard(serviceId);
   await replyOrEdit(
     ctx,
-    breadcrumb + `*¿Eliminar ${serviceName}?*\nSe borrarán todas sus cuotas.`,
-    { parse_mode: "Markdown", ...keyboard },
+    breadcrumb + `<b>¿Eliminar ${escapeHtml(serviceName)}?</b>\nSe borrarán todas sus cuotas.`,
+    { parse_mode: "HTML", ...keyboard },
   );
 }
 
@@ -668,11 +668,11 @@ async function handleEditInstallmentAmount(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Modificar monto*\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Modificar monto</b>\n" +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
-  await ctx.reply("*¿Cuál es el nuevo monto?*", { parse_mode: "Markdown" });
+  await ctx.reply("<b>¿Cuál es el nuevo monto?</b>", { parse_mode: "HTML" });
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "edit_amount",
     installmentId,
@@ -687,11 +687,11 @@ async function handleEditInstallmentDay(ctx: Context): Promise<void> {
   const selectedMonth = installment?.dueMonth || "";
   await replyOrEdit(
     ctx,
-    "*Cambiar vencimiento*\n" +
-      "_Escribí cancelar en cualquier momento para salir._",
-    { parse_mode: "Markdown" },
+    "<b>Cambiar vencimiento</b>\n" +
+      "<i>Escribí cancelar en cualquier momento para salir.</i>",
+    { parse_mode: "HTML" },
   );
-  await ctx.reply("*¿Cuál es el nuevo día de vencimiento? (1-31)*", { parse_mode: "Markdown" });
+  await ctx.reply("<b>¿Cuál es el nuevo día de vencimiento? (1-31)</b>", { parse_mode: "HTML" });
   await (ctx as KakebotContext).scene.enter(SERVICE_SCENE_ID, {
     flow: "edit_day",
     installmentId,
@@ -710,8 +710,8 @@ async function handlePagination(ctx: Context): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Servicios", "Selección"]);
   const keyboard = buildServiceListKeyboard(services, page, "svc_view_pick");
 
-  await replyOrEdit(ctx, breadcrumb + "*Seleccioná un servicio:*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, breadcrumb + "<b>Seleccioná un servicio:</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -748,7 +748,7 @@ export async function showInstallmentDetail({
     backLabel,
   });
   await editOrReply(ctx, breadcrumb + text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -818,7 +818,7 @@ async function renderInstallmentsList({
 }: RenderInstallmentsListParams): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Cuotas"]);
   const totalPages = Math.ceil(installments.length / INSTALLMENTS_PER_PAGE);
-  const text = `*Seleccioná la cuota a ver.*\n\n_Página ${page + 1} de ${totalPages}_`;
+  const text = `<b>Seleccioná la cuota a ver.</b>\n\n<i>Página ${page + 1} de ${totalPages}</i>`;
   const keyboard = buildInstallmentListKeyboard({
     installments,
     page,
@@ -827,7 +827,7 @@ async function renderInstallmentsList({
   });
 
   await replyOrEdit(ctx, breadcrumb + text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -864,7 +864,7 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
   });
 
   await replyOrEdit(ctx, breadcrumb + text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -890,15 +890,15 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
     ? PAYMENT_METHOD_LABELS[service.paymentMethod]
     : "Sin configurar";
 
-  await ctx.reply(`Vas a modificar el método de pago para *${service.name}*`, {
-    parse_mode: "Markdown",
+  await ctx.reply(`Vas a modificar el método de pago para <b>${escapeHtml(service.name)}</b>`, {
+    parse_mode: "HTML",
   });
 
   const keyboard = buildPaymentMethodKeyboard(serviceId, "edit");
   await ctx.reply(
-    `Método actual: ${currentLabel}\n\n*Seleccioná el método de pago*`,
+    `Método actual: ${currentLabel}\n\n<b>Seleccioná el método de pago</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },

@@ -3,7 +3,7 @@ import { KakebotContext, CardStmtWizardState } from "../../types/telegraf-contex
 import { StatementCurrency } from "../../types/index";
 import { getMessageText } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { buildDueDate, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
+import { buildDueDate, escapeHtml, getDaysInMonth, MONTH_NAMES, formatARS, formatUSD } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import {
@@ -89,8 +89,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   switch (state.flow) {
   case "create":
-    await ctx.reply("*Seleccioná el mes del resumen*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>Seleccioná el mes del resumen</b>", {
+      parse_mode: "HTML",
       ...buildCardStmtMonthKeyboard(state.cardId || "", state.existingMonths || []),
     });
     ctx.wizard.selectStep(MONTH_STEP);
@@ -119,23 +119,23 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       }
       await editOrReply(
         ctx,
-        `✅ Resumen marcado como pagado.\n_${monthLabel} · ${cardLabel}_`,
-        { parse_mode: "Markdown" },
+        `✅ Resumen marcado como pagado.\n<i>${monthLabel} · ${escapeHtml(cardLabel)}</i>`,
+        { parse_mode: "HTML" },
       );
       await ctx.reply(
-        `*¿Querés adjuntar el comprobante de pago en ARS del resumen ${monthLabel}?*`,
-        { parse_mode: "Markdown", ...buildStmtPayARSKeyboard({ statementId, hasUSD: false }) },
+        `<b>¿Querés adjuntar el comprobante de pago en ARS del resumen ${monthLabel}?</b>`,
+        { parse_mode: "HTML", ...buildStmtPayARSKeyboard({ statementId, hasUSD: false }) },
       );
       ctx.wizard.selectStep(PAY_ARS_STEP);
     } else {
       await replyOrEdit(
         ctx,
-        `Estás por marcar como pagado el resumen\n_${monthLabel} · ${cardLabel}_`,
-        { parse_mode: "Markdown" },
+        `Estás por marcar como pagado el resumen\n<i>${monthLabel} · ${escapeHtml(cardLabel)}</i>`,
+        { parse_mode: "HTML" },
       );
       await ctx.reply(
-        `*El resumen incluye ${formatUSD(amountUSD)} USD.*\n*¿Con qué moneda pagaste los dólares?*`,
-        { parse_mode: "Markdown", ...buildStmtUsdCurrencyKeyboard({ statementId, flow: "pay" }) },
+        `<b>El resumen incluye ${formatUSD(amountUSD)} USD.</b>\n<b>¿Con qué moneda pagaste los dólares?</b>`,
+        { parse_mode: "HTML", ...buildStmtUsdCurrencyKeyboard({ statementId, flow: "pay" }) },
       );
       ctx.wizard.selectStep(PAY_CURRENCY_STEP);
     }
@@ -146,8 +146,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     const stmtArs = await getStatementById(state.statementId || "");
     const currentArs = stmtArs ? formatARS(stmtArs.amountARS) : "—";
     await ctx.reply(
-      `*Monto actual*: ${currentArs}\n*Ingresá el nuevo monto en pesos:*`,
-      { parse_mode: "Markdown" },
+      `<b>Monto actual</b>: ${currentArs}\n<b>Ingresá el nuevo monto en pesos:</b>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(EDIT_ARS_INPUT_STEP);
     break;
@@ -157,8 +157,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     const stmtUsd = await getStatementById(state.statementId || "");
     const currentUsd = stmtUsd && stmtUsd.amountUSD > 0 ? formatUSD(stmtUsd.amountUSD) : "sin monto en dólares";
     await ctx.reply(
-      `*Monto actual*: ${currentUsd}\n*Ingresá el nuevo monto en dólares:*`,
-      { parse_mode: "Markdown" },
+      `<b>Monto actual</b>: ${currentUsd}\n<b>Ingresá el nuevo monto en dólares:</b>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(EDIT_USD_INPUT_STEP);
     break;
@@ -170,8 +170,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
     const maxDayInit = state.statementMonth ? getDaysInMonth(state.statementMonth) : 31;
     const currentDay = stmtDay ? String(stmtDay.dueDate.toDate().getDate()).padStart(2, "0") : "—";
     await ctx.reply(
-      `*Vencimiento actual*: ${currentDay}/${dayMonth || "?"}\n*Ingresá el nuevo día (1-${maxDayInit}):*`,
-      { parse_mode: "Markdown" },
+      `<b>Vencimiento actual</b>: ${currentDay}/${dayMonth || "?"}\n<b>Ingresá el nuevo día (1-${maxDayInit}):</b>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(EDIT_DAY_INPUT_STEP);
     break;
@@ -180,8 +180,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
   case "receipt_ars": {
     const arsLabel = monthLabelOf(state.statementMonth || "");
     await ctx.reply(
-      `*Enviá el comprobante de pago en ARS del resumen ${arsLabel} · ${state.cardLabel || ""}*`,
-      { parse_mode: "Markdown" },
+      `<b>Enviá el comprobante de pago en ARS del resumen ${arsLabel} · ${escapeHtml(state.cardLabel || "")}</b>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(RECEIPT_ARS_STEP);
     break;
@@ -190,8 +190,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
   case "receipt_usd": {
     const usdLabel = monthLabelOf(state.statementMonth || "");
     await ctx.reply(
-      `*Enviá el comprobante de pago en USD del resumen ${usdLabel} · ${state.cardLabel || ""}*`,
-      { parse_mode: "Markdown" },
+      `<b>Enviá el comprobante de pago en USD del resumen ${usdLabel} · ${escapeHtml(state.cardLabel || "")}</b>`,
+      { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(RECEIPT_USD_STEP);
     break;
@@ -219,14 +219,14 @@ async function stepHandleArs(ctx: KakebotContext): Promise<void> {
   state.amountARS = amount;
 
   if (state.statementCurrency === "both") {
-    await ctx.reply("*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el monto de los consumos en dólares</b>", { parse_mode: "HTML" });
     ctx.wizard.selectStep(USD_INPUT_STEP);
     return;
   }
 
   state.amountUSD = 0;
   const maxDay = state.statementMonth ? getDaysInMonth(state.statementMonth) : 31;
-  await ctx.reply(`*¿Qué día vence el resumen?* (1-${maxDay})`, { parse_mode: "Markdown" });
+  await ctx.reply(`<b>¿Qué día vence el resumen?</b> (1-${maxDay})`, { parse_mode: "HTML" });
   ctx.wizard.selectStep(DAY_STEP);
 }
 
@@ -245,7 +245,7 @@ async function stepHandleUsd(ctx: KakebotContext): Promise<void> {
   state.amountUSD = amount;
 
   const maxDay = state.statementMonth ? getDaysInMonth(state.statementMonth) : 31;
-  await ctx.reply(`*¿Qué día vence el resumen?* (1-${maxDay})`, { parse_mode: "Markdown" });
+  await ctx.reply(`<b>¿Qué día vence el resumen?</b> (1-${maxDay})`, { parse_mode: "HTML" });
   ctx.wizard.selectStep(DAY_STEP);
 }
 
@@ -275,7 +275,7 @@ async function stepHandleDay(ctx: KakebotContext): Promise<void> {
       dueDay: day,
       stmtMonth,
     }),
-    { parse_mode: "Markdown", ...buildCardStmtConfirmKeyboard() },
+    { parse_mode: "HTML", ...buildCardStmtConfirmKeyboard() },
   );
   ctx.wizard.next();
 }
@@ -298,7 +298,7 @@ async function stepGuardCreateConfirm(ctx: KakebotContext): Promise<void> {
       dueDay: state.dueDay || 0,
       stmtMonth,
     }),
-    { parse_mode: "Markdown", ...buildCardStmtConfirmKeyboard() },
+    { parse_mode: "HTML", ...buildCardStmtConfirmKeyboard() },
   );
 }
 
@@ -323,8 +323,8 @@ async function stepGuardCreatePdf(ctx: KakebotContext): Promise<void> {
  */
 async function stepGuardCurrency(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
-  await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿El resumen tiene consumos en pesos, dólares o ambos?</b>", {
+    parse_mode: "HTML",
     ...buildCardCurrencyKeyboard(),
   });
 }
@@ -337,8 +337,8 @@ async function stepGuardCurrency(ctx: KakebotContext): Promise<void> {
 async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para anular.");
-  await ctx.reply("*Seleccioná el mes del resumen*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el mes del resumen</b>", {
+    parse_mode: "HTML",
     ...buildCardStmtMonthKeyboard(state.cardId || "", state.existingMonths || []),
   });
 }
@@ -361,8 +361,8 @@ async function stepGuardPayCurrency(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
   await ctx.reply(
-    "*¿Con qué moneda pagaste los dólares?*",
-    { parse_mode: "Markdown", ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "pay" }) },
+    "<b>¿Con qué moneda pagaste los dólares?</b>",
+    { parse_mode: "HTML", ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "pay" }) },
   );
 }
 
@@ -396,8 +396,8 @@ async function stepHandlePayRate(ctx: KakebotContext): Promise<void> {
     + ` Total: ${formatARS(amountUSD * rate)}`,
   );
   await ctx.reply(
-    "*¿Querés adjuntar el comprobante de pago en ARS?*",
-    { parse_mode: "Markdown", ...buildStmtPayARSKeyboard({ statementId, hasUSD: amountUSD > 0 }) },
+    "<b>¿Querés adjuntar el comprobante de pago en ARS?</b>",
+    { parse_mode: "HTML", ...buildStmtPayARSKeyboard({ statementId, hasUSD: amountUSD > 0 }) },
   );
   ctx.wizard.selectStep(PAY_ARS_STEP);
 }
@@ -411,9 +411,9 @@ async function stepGuardPayArs(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   await ctx.reply("Adjuntá el comprobante o usá los botones para omitir.");
   await ctx.reply(
-    "*¿Querés adjuntar el comprobante de pago en ARS?*",
+    "<b>¿Querés adjuntar el comprobante de pago en ARS?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildStmtPayARSKeyboard({ statementId: state.statementId || "", hasUSD: (state.statementAmountUSD ?? 0) > 0 }),
     },
   );
@@ -437,8 +437,8 @@ async function stepGuardPayUsd(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   await ctx.reply("Adjuntá el comprobante o usá los botones para omitir.");
   await ctx.reply(
-    "*¿Querés adjuntar el comprobante de pago en USD?*",
-    { parse_mode: "Markdown", ...buildStmtPayUSDKeyboard(state.statementId || "") },
+    "<b>¿Querés adjuntar el comprobante de pago en USD?</b>",
+    { parse_mode: "HTML", ...buildStmtPayUSDKeyboard(state.statementId || "") },
   );
 }
 
@@ -472,9 +472,10 @@ async function stepHandleEditArsInput(ctx: KakebotContext): Promise<void> {
   const currentLabel = stmt ? formatARS(stmt.amountARS) : "—";
 
   await ctx.reply(
-    `*Monto ARS actual*: ${currentLabel}\n*Nuevo monto*: ${formatARS(amount)}\n\n*¿Confirmar el cambio?*`,
+    `<b>Monto ARS actual</b>: ${currentLabel}\n<b>Nuevo monto</b>: ${formatARS(amount)}\n\n`
+    + "<b>¿Confirmar el cambio?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -495,9 +496,9 @@ async function stepGuardEditArsConfirm(ctx: KakebotContext): Promise<void> {
   const amount = state.pendingEditValue || 0;
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para salir.");
   await ctx.reply(
-    `*Nuevo monto*: ${formatARS(amount)}\n\n*¿Confirmar el cambio?*`,
+    `<b>Nuevo monto</b>: ${formatARS(amount)}\n\n<b>¿Confirmar el cambio?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -527,9 +528,9 @@ async function stepHandleEditUsdInput(ctx: KakebotContext): Promise<void> {
 
   if (state.isPaid) {
     await ctx.reply(
-      `*Nuevo monto U$S*: ${formatUSD(amount)}\n*¿Con qué moneda pagaste los dólares?*`,
+      `<b>Nuevo monto U$S</b>: ${formatUSD(amount)}\n<b>¿Con qué moneda pagaste los dólares?</b>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "edit" }),
       },
     );
@@ -541,9 +542,10 @@ async function stepHandleEditUsdInput(ctx: KakebotContext): Promise<void> {
   const currentLabel = stmt && stmt.amountUSD > 0 ? formatUSD(stmt.amountUSD) : "sin monto en dólares";
 
   await ctx.reply(
-    `*Monto U$S actual*: ${currentLabel}\n*Nuevo monto*: ${formatUSD(amount)}\n\n*¿Confirmar el cambio?*`,
+    `<b>Monto U$S actual</b>: ${currentLabel}\n<b>Nuevo monto</b>: ${formatUSD(amount)}\n\n`
+    + "<b>¿Confirmar el cambio?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -563,9 +565,9 @@ async function stepGuardEditUsdCurrency(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para salir.");
   await ctx.reply(
-    `*Nuevo monto U$S*: ${formatUSD(state.pendingEditUSD || 0)}\n*¿Con qué moneda pagaste los dólares?*`,
+    `<b>Nuevo monto U$S</b>: ${formatUSD(state.pendingEditUSD || 0)}\n<b>¿Con qué moneda pagaste los dólares?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "edit" }),
     },
   );
@@ -591,13 +593,13 @@ async function stepHandleEditTcvInput(ctx: KakebotContext): Promise<void> {
   const currentLabel = stmt && stmt.amountUSD > 0 ? formatUSD(stmt.amountUSD) : "sin monto en dólares";
 
   await ctx.reply(
-    `*Monto U$S actual*: ${currentLabel}\n`
-    + `*Nuevo monto*: ${formatUSD(pendingUSD)}\n`
-    + `*Tipo de cambio*: ${formatARS(rate)}\n`
-    + `*Total*: ${formatARS(pendingUSD * rate)}\n\n`
-    + "*¿Confirmar el cambio?*",
+    `<b>Monto U$S actual</b>: ${currentLabel}\n`
+    + `<b>Nuevo monto</b>: ${formatUSD(pendingUSD)}\n`
+    + `<b>Tipo de cambio</b>: ${formatARS(rate)}\n`
+    + `<b>Total</b>: ${formatARS(pendingUSD * rate)}\n\n`
+    + "<b>¿Confirmar el cambio?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -618,17 +620,17 @@ async function stepGuardEditUsdConfirm(ctx: KakebotContext): Promise<void> {
   const pendingUSD = state.pendingEditUSD || 0;
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para salir.");
 
-  const lines: string[] = [`*Nuevo monto*: ${formatUSD(pendingUSD)}`];
+  const lines: string[] = [`<b>Nuevo monto</b>: ${formatUSD(pendingUSD)}`];
   if (state.exchangeRate) {
-    lines.push(`*Tipo de cambio*: ${formatARS(state.exchangeRate)}`);
-    lines.push(`*Total*: ${formatARS(pendingUSD * state.exchangeRate)}`);
+    lines.push(`<b>Tipo de cambio</b>: ${formatARS(state.exchangeRate)}`);
+    lines.push(`<b>Total</b>: ${formatARS(pendingUSD * state.exchangeRate)}`);
   }
-  lines.push("\n*¿Confirmar el cambio?*");
+  lines.push("\n<b>¿Confirmar el cambio?</b>");
 
   await ctx.reply(
     lines.join("\n"),
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -667,9 +669,9 @@ async function stepHandleEditDayInput(ctx: KakebotContext): Promise<void> {
   const monthNum = month || "?";
 
   await ctx.reply(
-    `*Vencimiento actual*: ${currentDay}/${monthNum}\n*Nuevo vencimiento*: ${String(day).padStart(2, "0")}/${monthNum}\n\n*¿Confirmar el cambio?*`,
+    `<b>Vencimiento actual</b>: ${currentDay}/${monthNum}\n<b>Nuevo vencimiento</b>: ${String(day).padStart(2, "0")}/${monthNum}\n\n<b>¿Confirmar el cambio?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -691,9 +693,9 @@ async function stepGuardEditDayConfirm(ctx: KakebotContext): Promise<void> {
   const day = state.dueDay || 0;
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para salir.");
   await ctx.reply(
-    `*Nuevo vencimiento*: ${String(day).padStart(2, "0")}/${month || "?"}\n\n*¿Confirmar el cambio?*`,
+    `<b>Nuevo vencimiento</b>: ${String(day).padStart(2, "0")}/${month || "?"}\n\n<b>¿Confirmar el cambio?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -836,9 +838,9 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as CardStmtWizardState;
   state.statementMonth = match[2];
 
-  await replyOrEdit(ctx, `*Seleccionaste ${monthLabelOf(match[2])}*`, { parse_mode: "Markdown" });
-  await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, `<b>Seleccionaste ${monthLabelOf(match[2])}</b>`, { parse_mode: "HTML" });
+  await ctx.reply("<b>¿El resumen tiene consumos en pesos, dólares o ambos?</b>", {
+    parse_mode: "HTML",
     ...buildCardCurrencyKeyboard(),
   });
   ctx.wizard.selectStep(CURRENCY_STEP);
@@ -859,12 +861,12 @@ async function handleCurrencySelected(ctx: KakebotContext): Promise<void> {
 
   if (currency === "usd") {
     state.amountARS = 0;
-    await replyOrEdit(ctx, "*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
+    await replyOrEdit(ctx, "<b>Ingresá el monto de los consumos en dólares</b>", { parse_mode: "HTML" });
     ctx.wizard.selectStep(USD_INPUT_STEP);
     return;
   }
 
-  await replyOrEdit(ctx, "*Ingresá el monto de los consumos en pesos*", { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, "<b>Ingresá el monto de los consumos en pesos</b>", { parse_mode: "HTML" });
   ctx.wizard.selectStep(ARS_INPUT_STEP);
 }
 
@@ -944,12 +946,12 @@ async function handleCancel(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   const state = ctx.wizard.state as CardStmtWizardState;
   const cardId = state.cardId || "";
-  await replyOrEdit(ctx, "*Cancelaste la subida del resumen.*", { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, "<b>Cancelaste la subida del resumen.</b>", { parse_mode: "HTML" });
   await ctx.scene.leave();
   // Post-leave re-engagement: show the card's statement list as next navigation point.
   if (cardId) {
-    await ctx.reply("*¿Qué querés hacer?*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>¿Qué querés hacer?</b>", {
+      parse_mode: "HTML",
       ...Markup.inlineKeyboard([[Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`)]]),
     });
   }
@@ -964,7 +966,7 @@ async function handleCancel(ctx: KakebotContext): Promise<void> {
  */
 async function handleAttachPdf(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
-  await replyOrEdit(ctx, "*Enviá la foto o PDF del resumen.*", { parse_mode: "Markdown" });
+  await replyOrEdit(ctx, "<b>Enviá la foto o PDF del resumen.</b>", { parse_mode: "HTML" });
 }
 
 /**
@@ -981,8 +983,8 @@ async function handleSkipPdf(ctx: KakebotContext): Promise<void> {
   await ctx.scene.leave();
   // Post-leave re-engagement: show the card's statement list as next navigation point.
   if (cardId) {
-    await ctx.reply("*¿Qué querés hacer?*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>¿Qué querés hacer?</b>", {
+      parse_mode: "HTML",
       ...Markup.inlineKeyboard([[Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`)]]),
     });
   }
@@ -1014,8 +1016,8 @@ async function handlePayCurrencyUSD(ctx: KakebotContext): Promise<void> {
     "Recordá descontar el item correspondiente a la percepción RG 5617 del total a pagar en pesos, correspondiente al 30% de tus gastos en dolares alcanzados por la Resolución General",
   );
   await ctx.reply(
-    "*¿Querés adjuntar el comprobante de pago en ARS?*",
-    { parse_mode: "Markdown", ...buildStmtPayARSKeyboard({ statementId, hasUSD: true }) },
+    "<b>¿Querés adjuntar el comprobante de pago en ARS?</b>",
+    { parse_mode: "HTML", ...buildStmtPayARSKeyboard({ statementId, hasUSD: true }) },
   );
   ctx.wizard.selectStep(PAY_ARS_STEP);
 }
@@ -1030,8 +1032,8 @@ async function handlePayCurrencyARS(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*Ingresá el tipo de cambio al que pagaste los dólares*",
-    { parse_mode: "Markdown" },
+    "<b>Ingresá el tipo de cambio al que pagaste los dólares</b>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.selectStep(PAY_RATE_STEP);
 }
@@ -1065,8 +1067,8 @@ async function handlePaySkipARS(ctx: KakebotContext): Promise<void> {
 
   if ((state.statementAmountUSD ?? 0) > 0) {
     await ctx.reply(
-      "*¿Querés adjuntar el comprobante de pago en USD?*",
-      { parse_mode: "Markdown", ...buildStmtPayUSDKeyboard(statementId) },
+      "<b>¿Querés adjuntar el comprobante de pago en USD?</b>",
+      { parse_mode: "HTML", ...buildStmtPayUSDKeyboard(statementId) },
     );
     ctx.wizard.selectStep(PAY_USD_STEP);
     return;
@@ -1075,7 +1077,7 @@ async function handlePaySkipARS(ctx: KakebotContext): Promise<void> {
   try {
     const statement = await getStatementById(statementId);
     if (statement) {
-      await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "Markdown" });
+      await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "HTML" });
     }
   } catch (error) {
     log.error("Error fetching statement for summary", error, { module: "card-stmt.scene", userId: ctx.from?.id.toString() ?? "" });
@@ -1113,7 +1115,7 @@ async function handlePaySkipUSD(ctx: KakebotContext): Promise<void> {
   try {
     const statement = await getStatementById(statementId);
     if (statement) {
-      await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "Markdown" });
+      await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "HTML" });
     }
   } catch (error) {
     log.error("Error fetching statement for summary", error, { module: "card-stmt.scene", userId: ctx.from?.id.toString() ?? "" });
@@ -1137,9 +1139,9 @@ async function handleEditUsdCurrencyUSD(ctx: KakebotContext): Promise<void> {
   const pendingUSD = state.pendingEditUSD || 0;
   await replyOrEdit(
     ctx,
-    `*Vas a cambiar el monto en dólares a ${formatUSD(pendingUSD)}. ¿Confirmás?*`,
+    `<b>Vas a cambiar el monto en dólares a ${formatUSD(pendingUSD)}. ¿Confirmás?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: Markup.inlineKeyboard([[
         Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -1164,8 +1166,8 @@ async function handleEditUsdCurrencyARS(ctx: KakebotContext): Promise<void> {
   const pendingUSD = state.pendingEditUSD || 0;
   await replyOrEdit(
     ctx,
-    `*Monto en USD*: ${formatUSD(pendingUSD)}\n*Ingresá el tipo de cambio al que pagaste los dólares*`,
-    { parse_mode: "Markdown" },
+    `<b>Monto en USD</b>: ${formatUSD(pendingUSD)}\n<b>Ingresá el tipo de cambio al que pagaste los dólares</b>`,
+    { parse_mode: "HTML" },
   );
   ctx.wizard.selectStep(EDIT_USD_TCV_STEP);
 }
@@ -1199,7 +1201,7 @@ async function handleConfirmEditArs(ctx: KakebotContext): Promise<void> {
     await ctx.reply(
       buildStatementDetailText(updatedStatement, state.cardLabel || ""),
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: buildStatementDetailKeyboard({
           statementId,
@@ -1245,7 +1247,7 @@ async function handleConfirmEditUsd(ctx: KakebotContext): Promise<void> {
     await ctx.reply(
       buildStatementDetailText(updatedStatement, state.cardLabel || ""),
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: buildStatementDetailKeyboard({
           statementId,
@@ -1290,7 +1292,7 @@ async function handleConfirmEditDay(ctx: KakebotContext): Promise<void> {
     await ctx.reply(
       buildStatementDetailText(updatedStatement, state.cardLabel || ""),
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: buildStatementDetailKeyboard({
           statementId,
@@ -1362,13 +1364,14 @@ async function handlePdfUpload(ctx: KakebotContext, documentFileId: string | nul
     const cardId = state.cardId || "";
     const monthLabel = state.statementMonth ? monthLabelOf(state.statementMonth) : "el mes seleccionado";
     await ctx.reply(
-      `✅ Se subió correctamente el resumen del mes de *${monthLabel}* de la tarjeta *${cardLabel}*.`,
-      { parse_mode: "Markdown" },
+      `✅ Se subió correctamente el resumen del mes de <b>${monthLabel}</b> ` +
+      `de la tarjeta <b>${escapeHtml(cardLabel)}</b>.`,
+      { parse_mode: "HTML" },
     );
     await ctx.scene.leave();
     if (cardId) {
-      await ctx.reply("*¿Qué querés hacer?*", {
-        parse_mode: "Markdown",
+      await ctx.reply("<b>¿Qué querés hacer?</b>", {
+        parse_mode: "HTML",
         ...Markup.inlineKeyboard([[Markup.button.callback("Ver resúmenes", `card_stmts:${cardId}`)]]),
       });
     }
@@ -1425,14 +1428,14 @@ async function handlePayARSReceiptUpload(ctx: KakebotContext, documentFileId: st
 
     if ((state.statementAmountUSD ?? 0) > 0) {
       await ctx.reply(
-        "*¿Querés adjuntar el comprobante de pago en USD?*",
-        { parse_mode: "Markdown", ...buildStmtPayUSDKeyboard(statementId) },
+        "<b>¿Querés adjuntar el comprobante de pago en USD?</b>",
+        { parse_mode: "HTML", ...buildStmtPayUSDKeyboard(statementId) },
       );
       ctx.wizard.selectStep(PAY_USD_STEP);
     } else {
       const statement = await getStatementById(statementId);
       if (statement) {
-        await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "Markdown" });
+        await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "HTML" });
       }
       await ctx.scene.leave();
     }
@@ -1485,7 +1488,7 @@ async function handlePayUSDReceiptUpload(ctx: KakebotContext, documentFileId: st
 
     const statement = await getStatementById(statementId);
     if (statement) {
-      await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "Markdown" });
+      await ctx.reply(buildPaymentSummaryText(statement, state.cardLabel || ""), { parse_mode: "HTML" });
     }
     await ctx.scene.leave();
   } catch (error) {
@@ -1505,14 +1508,14 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
 
   switch (ctx.wizard.cursor) {
   case 1:
-    await ctx.reply("*Ingresá el monto de los consumos en pesos*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el monto de los consumos en pesos</b>", { parse_mode: "HTML" });
     break;
   case 2:
-    await ctx.reply("*Ingresá el monto de los consumos en dólares*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el monto de los consumos en dólares</b>", { parse_mode: "HTML" });
     break;
   case DAY_STEP: {
     const maxDay = state.statementMonth ? getDaysInMonth(state.statementMonth) : 31;
-    await ctx.reply(`*¿Qué día vence el resumen?* (1-${maxDay})`, { parse_mode: "Markdown" });
+    await ctx.reply(`<b>¿Qué día vence el resumen?</b> (1-${maxDay})`, { parse_mode: "HTML" });
     break;
   }
   case 4: {
@@ -1526,36 +1529,36 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
         dueDay: state.dueDay || 0,
         stmtMonth,
       }),
-      { parse_mode: "Markdown", ...buildCardStmtConfirmKeyboard() },
+      { parse_mode: "HTML", ...buildCardStmtConfirmKeyboard() },
     );
     break;
   }
   case CURRENCY_STEP:
-    await ctx.reply("*¿El resumen tiene consumos en pesos, dólares o ambos?*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>¿El resumen tiene consumos en pesos, dólares o ambos?</b>", {
+      parse_mode: "HTML",
       ...buildCardCurrencyKeyboard(),
     });
     break;
   case MONTH_STEP:
-    await ctx.reply("*Seleccioná el mes del resumen*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>Seleccioná el mes del resumen</b>", {
+      parse_mode: "HTML",
       ...buildCardStmtMonthKeyboard(state.cardId || "", state.existingMonths || []),
     });
     break;
   case PAY_CURRENCY_STEP:
     await ctx.reply(
-      "*¿Con qué moneda pagaste los dólares?*",
-      { parse_mode: "Markdown", ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "pay" }) },
+      "<b>¿Con qué moneda pagaste los dólares?</b>",
+      { parse_mode: "HTML", ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "pay" }) },
     );
     break;
   case PAY_RATE_STEP:
-    await ctx.reply("*Ingresá el tipo de cambio al que pagaste los dólares*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el tipo de cambio al que pagaste los dólares</b>", { parse_mode: "HTML" });
     break;
   case PAY_ARS_STEP:
     await ctx.reply(
-      "*¿Querés adjuntar el comprobante de pago en ARS?*",
+      "<b>¿Querés adjuntar el comprobante de pago en ARS?</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         ...buildStmtPayARSKeyboard({ statementId: state.statementId || "", hasUSD: (state.statementAmountUSD ?? 0) > 0 }),
       },
     );
@@ -1565,22 +1568,22 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     break;
   case PAY_USD_STEP:
     await ctx.reply(
-      "*¿Querés adjuntar el comprobante de pago en USD?*",
-      { parse_mode: "Markdown", ...buildStmtPayUSDKeyboard(state.statementId || "") },
+      "<b>¿Querés adjuntar el comprobante de pago en USD?</b>",
+      { parse_mode: "HTML", ...buildStmtPayUSDKeyboard(state.statementId || "") },
     );
     break;
   case PAY_USD_UPLOAD_STEP:
     await ctx.reply("Enviá la foto o PDF del comprobante en Dólares.");
     break;
   case EDIT_ARS_INPUT_STEP:
-    await ctx.reply("*Ingresá el nuevo monto en pesos:*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el nuevo monto en pesos:</b>", { parse_mode: "HTML" });
     break;
   case EDIT_ARS_CONFIRM_STEP: {
     const arsAmount = (state as CardStmtWizardState).pendingEditValue || 0;
     await ctx.reply(
-      `*Nuevo monto*: ${formatARS(arsAmount)}\n\n*¿Confirmar el cambio?*`,
+      `<b>Nuevo monto</b>: ${formatARS(arsAmount)}\n\n<b>¿Confirmar el cambio?</b>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: Markup.inlineKeyboard([[
           Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -1591,34 +1594,34 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     break;
   }
   case EDIT_USD_INPUT_STEP:
-    await ctx.reply("*Ingresá el nuevo monto en dólares:*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el nuevo monto en dólares:</b>", { parse_mode: "HTML" });
     break;
   case EDIT_USD_CURRENCY_STEP:
     await ctx.reply(
-      `*Nuevo monto U$S*: ${formatUSD((state as CardStmtWizardState).pendingEditUSD || 0)}\n`
-      + "*¿Con qué moneda pagaste los dólares?*",
+      `<b>Nuevo monto U$S</b>: ${formatUSD((state as CardStmtWizardState).pendingEditUSD || 0)}\n`
+      + "<b>¿Con qué moneda pagaste los dólares?</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         ...buildStmtUsdCurrencyKeyboard({ statementId: state.statementId || "", flow: "edit" }),
       },
     );
     break;
   case EDIT_USD_TCV_STEP:
-    await ctx.reply("*Ingresá el tipo de cambio al que pagaste los dólares*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>Ingresá el tipo de cambio al que pagaste los dólares</b>", { parse_mode: "HTML" });
     break;
   case EDIT_USD_CONFIRM_STEP: {
     const usdAmount = (state as CardStmtWizardState).pendingEditUSD || 0;
-    const usdLines: string[] = [`*Nuevo monto*: ${formatUSD(usdAmount)}`];
+    const usdLines: string[] = [`<b>Nuevo monto</b>: ${formatUSD(usdAmount)}`];
     const rate = (state as CardStmtWizardState).exchangeRate;
     if (rate) {
-      usdLines.push(`*Tipo de cambio*: ${formatARS(rate)}`);
-      usdLines.push(`*Total*: ${formatARS(usdAmount * rate)}`);
+      usdLines.push(`<b>Tipo de cambio</b>: ${formatARS(rate)}`);
+      usdLines.push(`<b>Total</b>: ${formatARS(usdAmount * rate)}`);
     }
-    usdLines.push("\n*¿Confirmar el cambio?*");
+    usdLines.push("\n<b>¿Confirmar el cambio?</b>");
     await ctx.reply(
       usdLines.join("\n"),
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: Markup.inlineKeyboard([[
           Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -1630,16 +1633,16 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   }
   case EDIT_DAY_INPUT_STEP: {
     const dayMax = state.statementMonth ? getDaysInMonth(state.statementMonth) : 31;
-    await ctx.reply(`*Ingresá el nuevo día (1-${dayMax}):*`, { parse_mode: "Markdown" });
+    await ctx.reply(`<b>Ingresá el nuevo día (1-${dayMax}):</b>`, { parse_mode: "HTML" });
     break;
   }
   case EDIT_DAY_CONFIRM_STEP: {
     const [, mon] = (state.statementMonth || "").split("-");
     const pendingDay = (state as CardStmtWizardState).dueDay || 0;
     await ctx.reply(
-      `*Nuevo vencimiento*: ${String(pendingDay).padStart(2, "0")}/${mon || "?"}\n\n*¿Confirmar el cambio?*`,
+      `<b>Nuevo vencimiento</b>: ${String(pendingDay).padStart(2, "0")}/${mon || "?"}\n\n<b>¿Confirmar el cambio?</b>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: Markup.inlineKeyboard([[
           Markup.button.callback("Cancelar", "card_stmt_edit_cancel"),
@@ -1651,14 +1654,14 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   }
   case RECEIPT_ARS_STEP:
     await ctx.reply(
-      `*Enviá el comprobante de pago en ARS del resumen ${monthLabelOf(state.statementMonth || "")} · ${state.cardLabel || ""}*`,
-      { parse_mode: "Markdown" },
+      `<b>Enviá el comprobante de pago en ARS del resumen ${monthLabelOf(state.statementMonth || "")} · ${escapeHtml(state.cardLabel || "")}</b>`,
+      { parse_mode: "HTML" },
     );
     break;
   case RECEIPT_USD_STEP:
     await ctx.reply(
-      `*Enviá el comprobante de pago en USD del resumen ${monthLabelOf(state.statementMonth || "")} · ${state.cardLabel || ""}*`,
-      { parse_mode: "Markdown" },
+      `<b>Enviá el comprobante de pago en USD del resumen ${monthLabelOf(state.statementMonth || "")} · ${escapeHtml(state.cardLabel || "")}</b>`,
+      { parse_mode: "HTML" },
     );
     break;
   default:

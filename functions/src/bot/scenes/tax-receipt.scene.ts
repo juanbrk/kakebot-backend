@@ -1,7 +1,7 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, TaxReceiptWizardState } from "../../types/telegraf-context.types";
 import { Tax, TaxInstallment } from "../../types/tax.types";
-import { getMonthLabel } from "../../helpers/format";
+import { escapeHtml, getMonthLabel } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
 import {
@@ -27,7 +27,7 @@ const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
 const TAX_GUARD_STEP = 1;
 const INSTALLMENT_GUARD_STEP = 2;
 
-const TAX_PROMPT = "*¿A qué impuesto corresponde el comprobante?*";
+const TAX_PROMPT = "<b>¿A qué impuesto corresponde el comprobante?</b>";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ async function getPendingInstallmentsForTax(
  * @return {string} Markdown prompt
  */
 function buildInstallmentPrompt(taxName: string): string {
-  return `*¿A qué cuota de ${taxName} corresponde el comprobante?*`;
+  return `<b>¿A qué cuota de ${escapeHtml(taxName)} corresponde el comprobante?</b>`;
 }
 
 /**
@@ -101,7 +101,7 @@ async function repromptTaxPicker(ctx: KakebotContext): Promise<void> {
       0,
     );
     await ctx.reply(TAX_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -127,7 +127,7 @@ async function repromptInstallmentPicker(ctx: KakebotContext): Promise<void> {
     const installments = await getPendingInstallmentsForTax(telegramUserId, taxId);
     const keyboard = buildTaxReceiptInstallmentPickerKeyboard(installments, 0, taxId);
     await ctx.reply(buildInstallmentPrompt(state.taxName ?? ""), {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -176,7 +176,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       0,
     );
     await ctx.reply(TAX_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -242,7 +242,7 @@ async function handlePickTax(ctx: KakebotContext): Promise<void> {
 
     const keyboard = buildTaxReceiptInstallmentPickerKeyboard(installments, 0, taxId);
     await replyOrEdit(ctx, buildInstallmentPrompt(state.taxName), {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -274,7 +274,7 @@ async function handleTaxPagination(ctx: KakebotContext): Promise<void> {
       page,
     );
     await replyOrEdit(ctx, TAX_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -304,7 +304,7 @@ async function handleInstallmentPagination(ctx: KakebotContext): Promise<void> {
     const installments = await getPendingInstallmentsForTax(telegramUserId, taxId);
     const keyboard = buildTaxReceiptInstallmentPickerKeyboard(installments, page, taxId);
     await replyOrEdit(ctx, buildInstallmentPrompt(state.taxName ?? ""), {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });

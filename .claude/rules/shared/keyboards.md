@@ -69,7 +69,7 @@ Rules:
 
 1. **The handler queries for data before rendering**, then branches on `length === 0`.
 2. **Empty state uses a dedicated keyboard builder** that omits the actions that require data — it keeps only the create action and the back button. Do NOT reuse the full submenu keyboard and let the user tap into an empty list.
-3. **The empty-state text goes in plain text** (no `*...*`) between the breadcrumb and the bold action prompt. It is a descriptive status line, not an action prompt (see "Action Prompt Text — Always Bold" and `user-preferences.md`).
+3. **The empty-state text goes in plain text** (no `<b>...</b>`) between the breadcrumb and the bold action prompt. It is a descriptive status line, not an action prompt (see "Action Prompt Text — Always Bold" and `user-preferences.md`).
 
 ### Pattern
 
@@ -89,7 +89,7 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
 
   if (taxes.length === 0) {
     await replyOrEdit(ctx, breadcrumb + "No tenés ningún impuesto registrado.\n\n*¿Qué querés hacer?*", {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: buildTaxesEmptyStateKeyboard().reply_markup as any,
     });
     return;
@@ -126,7 +126,7 @@ Reglas:
 ```typescript
 const taxList = buildNameListText(taxes.map((tax) => tax.name));
 await replyOrEdit(ctx, breadcrumb + taxList + "\n\n*¿Qué querés hacer?*", {
-  parse_mode: "Markdown",
+  parse_mode: "HTML",
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reply_markup: buildTaxesSubmenuKeyboard().reply_markup as any,
 });
@@ -145,12 +145,12 @@ await replyOrEdit(ctx, breadcrumb + taxList + "\n\n*¿Qué querés hacer?*", {
 
 ## Action Prompt Text — Always Bold
 
-Any text that asks the user to take an action or make a choice **must be wrapped in `*...*`** (Markdown bold) and the message must include `parse_mode: "Markdown"`.
+Any text that asks the user to take an action or make a choice **must be wrapped in `<b>...</b>`** (HTML bold) and the message must include `parse_mode: "HTML"`.
 
 This applies to:
-- Questions: `*¿Qué querés hacer?*`, `*¿Deseás marcar la cuota como pagada?*`
-- Instructions to the user: `*Enviá la foto o PDF del comprobante de pago.*`
-- Prompts for input: `*¿Cuál es el monto de la cuota para Abril 2026?*`
+- Questions: `<b>¿Qué querés hacer?</b>`, `<b>¿Deseás marcar la cuota como pagada?</b>`
+- Instructions to the user: `<b>Enviá la foto o PDF del comprobante de pago.</b>`
+- Prompts for input: `<b>¿Cuál es el monto de la cuota para Abril 2026?</b>`
 
 ### ❌ WRONG
 ```typescript
@@ -159,8 +159,8 @@ await ctx.reply("¿Qué querés hacer?", { reply_markup: keyboard.reply_markup }
 
 ### ✅ RIGHT
 ```typescript
-await ctx.reply("*¿Qué querés hacer?*", {
-  parse_mode: "Markdown",
+await ctx.reply("<b>¿Qué querés hacer?</b>", {
+  parse_mode: "HTML",
   reply_markup: keyboard.reply_markup as any,
 });
 ```

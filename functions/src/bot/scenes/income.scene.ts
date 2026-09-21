@@ -1,8 +1,8 @@
 import { Scenes } from "telegraf";
 import { KakebotContext, IncomeWizardState } from "../../types/telegraf-context.types";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_INCOME_REASON_LENGTH } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { formatIncomeAmount, buildBackdatedTimestamp } from "../../helpers/format";
+import { escapeHtml, formatIncomeAmount, buildBackdatedTimestamp } from "../../helpers/format";
 import { log } from "../../helpers/logger";
 import {
   buildIncomeConfirmKeyboard,
@@ -19,9 +19,9 @@ const CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i;
 
 const REASON_STEP = 3;
 
-const CURRENCY_PROMPT = "*¿En qué moneda percibiste el ingreso?*";
+const CURRENCY_PROMPT = "<b>¿En qué moneda percibiste el ingreso?</b>";
 
-const REASON_PROMPT = "*Ingresá el motivo (30 caracteres max)*\n_Escribí cancelar o salir para anular._";
+const REASON_PROMPT = "<b>Ingresá el motivo (30 caracteres max)</b>\n<i>Escribí cancelar o salir para anular.</i>";
 
 
 /**
@@ -31,8 +31,8 @@ const REASON_PROMPT = "*Ingresá el motivo (30 caracteres max)*\n_Escribí cance
  */
 async function stepInit(ctx: KakebotContext): Promise<void> {
   await ctx.reply(
-    "*Ingresá el monto percibido*\n_Escribí cancelar o salir para anular._",
-    { parse_mode: "Markdown" },
+    "<b>Ingresá el monto percibido</b>\n<i>Escribí cancelar o salir para anular.</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -58,7 +58,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
   state.amount = amount;
 
   await ctx.reply(CURRENCY_PROMPT, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildIncomeCurrencyKeyboard(),
   });
   ctx.wizard.next();
@@ -72,7 +72,7 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
 async function stepGuardCurrency(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
   await ctx.reply(CURRENCY_PROMPT, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildIncomeCurrencyKeyboard(),
   });
 }
@@ -84,18 +84,19 @@ async function stepGuardCurrency(ctx: KakebotContext): Promise<void> {
  */
 async function stepHandleReason(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as IncomeWizardState;
-  const reason = getMessageText(ctx);
+  const raw = getMessageText(ctx);
 
-  const isReasonEmpty = !reason || reason.length === 0;
+  const isReasonEmpty = !raw || raw.length === 0;
   if (isReasonEmpty) {
     await ctx.reply("El motivo no puede estar vacío.");
     return;
   }
 
-  const isReasonTooLong = reason.length > 30;
+  const reason = normalizeUserText(raw);
+  const isReasonTooLong = reason.length > MAX_INCOME_REASON_LENGTH;
   if (isReasonTooLong) {
     await ctx.reply(
-      "El motivo no puede superar los 30 caracteres. Ingresalo de nuevo.",
+      `El motivo no puede superar los ${MAX_INCOME_REASON_LENGTH} caracteres. Ingresalo de nuevo.`,
     );
     return;
   }
@@ -138,7 +139,7 @@ async function handleCurrencySelected(ctx: KakebotContext): Promise<void> {
   state.currency = currency;
 
   await replyOrEdit(ctx, `Moneda: ${currency === "usd" ? "Dólares" : "Pesos"}`);
-  await ctx.reply(REASON_PROMPT, { parse_mode: "Markdown" });
+  await ctx.reply(REASON_PROMPT, { parse_mode: "HTML" });
   ctx.wizard.selectStep(REASON_STEP);
 }
 
@@ -168,8 +169,8 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
     await saveIncome({ telegramUserId, amount, currency, reason, date: incomeDate });
     await editOrReply(
       ctx,
-      `✅ *Ingreso registrado*: ${reason}  ${formatIncomeAmount(amount, currency)}`,
-      { parse_mode: "Markdown" },
+      `✅ <b>Ingreso registrado</b>: ${escapeHtml(reason)}  ${formatIncomeAmount(amount, currency)}`,
+      { parse_mode: "HTML" },
     );
     await ctx.scene.leave();
   } catch (error) {
@@ -200,18 +201,18 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   switch (ctx.wizard.cursor) {
   case 1:
     await ctx.reply(
-      "*Ingresá el monto percibido*\n_Escribí cancelar o salir para anular._",
-      { parse_mode: "Markdown" },
+      "<b>Ingresá el monto percibido</b>\n<i>Escribí cancelar o salir para anular.</i>",
+      { parse_mode: "HTML" },
     );
     break;
   case 2:
     await ctx.reply(CURRENCY_PROMPT, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildIncomeCurrencyKeyboard(),
     });
     break;
   case REASON_STEP:
-    await ctx.reply(REASON_PROMPT, { parse_mode: "Markdown" });
+    await ctx.reply(REASON_PROMPT, { parse_mode: "HTML" });
     break;
   case 4:
     await ctx.reply(

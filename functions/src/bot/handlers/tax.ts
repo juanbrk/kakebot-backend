@@ -4,6 +4,7 @@ import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxInstallment } from "../../types/tax.types";
 import {
   buildNameListText,
+  escapeHtml,
   formatARS,
   formatDueDateDayMonth,
   getDaysInMonth,
@@ -87,8 +88,8 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
   const breadcrumb = buildBreadcrumb(["Impuestos"]);
 
   if (taxes.length === 0) {
-    await replyOrEdit(ctx, breadcrumb + "No tenés ningún impuesto registrado.\n\n*¿Qué querés hacer?*", {
-      parse_mode: "Markdown",
+    await replyOrEdit(ctx, breadcrumb + "No tenés ningún impuesto registrado.\n\n<b>¿Qué querés hacer?</b>", {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildTaxesEmptyStateKeyboard().reply_markup as any,
     });
@@ -96,8 +97,8 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
   }
 
   const taxList = buildNameListText(taxes.map((tax) => tax.name));
-  await replyOrEdit(ctx, breadcrumb + taxList + "\n\n*¿Qué querés hacer?*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, breadcrumb + taxList + "\n\n<b>¿Qué querés hacer?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildTaxesSubmenuKeyboard().reply_markup as any,
   });
@@ -108,8 +109,8 @@ async function handleAddTax(ctx: KakebotContext): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Impuestos", "Registrar impuesto"])
-      + "*Vas a registrar un nuevo impuesto.*\n_Escribí cancelar para salir._",
-    { parse_mode: "Markdown" },
+      + "<b>Vas a registrar un nuevo impuesto.</b>\n<i>Escribí cancelar para salir.</i>",
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(TAX_SCENE_ID);
 }
@@ -123,9 +124,9 @@ async function handleViewTaxes(ctx: Context): Promise<void> {
     await replyOrEdit(
       ctx,
       buildBreadcrumb(["Impuestos", "Seleccionar"]) +
-        "*No tenés impuestos registrados. Usá 'Registrar impuesto' para crear uno.*",
+        "<b>No tenés impuestos registrados. Usá 'Registrar impuesto' para crear uno.</b>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: buildTaxesEmptyStateKeyboard().reply_markup as any,
       },
@@ -135,10 +136,10 @@ async function handleViewTaxes(ctx: Context): Promise<void> {
 
   const text =
     buildBreadcrumb(["Impuestos", "Seleccionar"]) +
-    "*Seleccioná un impuesto*:";
+    "<b>Seleccioná un impuesto</b>:";
   const keyboard = buildTaxListKeyboard(taxes, 0, "tax_pick");
   await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -161,8 +162,8 @@ async function handleRegisterInstallment(ctx: KakebotContext): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"])
-      + `*Vas a registrar una nueva cuota para ${taxName}.*\n_Escribí cancelar para salir._`,
-    { parse_mode: "Markdown" },
+      + `<b>Vas a registrar una nueva cuota para ${escapeHtml(taxName)}.</b>\n<i>Escribí cancelar para salir.</i>`,
+    { parse_mode: "HTML" },
   );
   await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName } as TaxWizardState);
 }
@@ -180,20 +181,20 @@ async function handlePaidNo(ctx: Context): Promise<void> {
 
   const [year, month] = installment.dueMonth.split("-");
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
-  const contextText = `Acá tenés el detalle de ${installment.taxName} para ${monthLabel}`;
+  const contextText = `Acá tenés el detalle de ${escapeHtml(installment.taxName)} para ${monthLabel}`;
 
   await replyOrEdit(
     ctx,
     contextText + "\n\n" + buildTaxInstallmentDetailText(installment),
-    { parse_mode: "Markdown" },
+    { parse_mode: "HTML" },
   );
 
   const keyboard = buildTaxActionKeyboard({ taxId: installment.taxId });
   await ctx.reply(
     buildBreadcrumb(["Impuestos", installment.taxName]) +
-      "*¿Qué querés hacer?*",
+      "<b>¿Qué querés hacer?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -207,12 +208,12 @@ async function handlePaidYes(ctx: Context): Promise<void> {
   await markTaxInstallmentAsPaid(installmentId);
 
   await editOrReply(ctx, "✅ Cuota marcada como pagada.", {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
   });
 
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás adjuntar un comprobante?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Deseás adjuntar un comprobante?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -244,18 +245,18 @@ async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
     await editOrReply(
       ctx,
       "✅ Cuota marcada como pagada. Ya tenías un comprobante cargado para esta cuota.",
-      { parse_mode: "Markdown" },
+      { parse_mode: "HTML" },
     );
     return;
   }
 
   await editOrReply(ctx, "✅ Cuota marcada como pagada.", {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
   });
 
   const keyboard = buildTaxReceiptPromptKeyboard(installmentId);
-  await ctx.reply("*¿Deseás adjuntar un comprobante?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Deseás adjuntar un comprobante?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -268,8 +269,8 @@ async function handleAttachReceipt(ctx: KakebotContext): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const installmentId = ((ctx as any).match as string[])[1];
 
-  await replyOrEdit(ctx, "*Enviá la foto o PDF del comprobante de pago.*", {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, "<b>Enviá la foto o PDF del comprobante de pago.</b>", {
+    parse_mode: "HTML",
   });
   await ctx.scene.enter(TAX_SCENE_ID, { installmentId } as TaxWizardState);
 }
@@ -291,10 +292,10 @@ async function handlePagination(ctx: Context): Promise<void> {
   const taxes = await getTaxesByUser(telegramUserId);
   const text =
     buildBreadcrumb(["Impuestos", "Seleccionar"]) +
-    "*Seleccioná un impuesto*:";
+    "<b>Seleccioná un impuesto</b>:";
   const keyboard = buildTaxListKeyboard(taxes, page, "tax_pick");
   await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -320,7 +321,7 @@ async function handleTaxHistory(ctx: Context): Promise<void> {
       buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
         "No hay cuotas registradas para este impuesto.",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         reply_markup: buildTaxInstallmentHistoryKeyboard(installments, 0, taxId)
           .reply_markup as any,
@@ -331,9 +332,9 @@ async function handleTaxHistory(ctx: Context): Promise<void> {
 
   const text =
     buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
-    "*Seleccioná una cuota:*";
+    "<b>Seleccioná una cuota:</b>";
   await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildTaxInstallmentHistoryKeyboard(installments, 0, taxId)
       .reply_markup as any,
@@ -358,9 +359,9 @@ async function handleTaxHistoryPagination(ctx: Context): Promise<void> {
   const installments = await getTaxInstallmentsByTaxId(taxId);
   const text =
     buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
-    "*Seleccioná una cuota:*";
+    "<b>Seleccioná una cuota:</b>";
   await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildTaxInstallmentHistoryKeyboard(installments, page, taxId)
       .reply_markup as any,
@@ -429,8 +430,8 @@ async function handleUnmarkAsPaid(ctx: KakebotContext): Promise<void> {
   if (!installment.receiptUrl) {
     await editOrReply(
       ctx,
-      `Marcaste la cuota del mes de ${monthLabel} para ${installment.taxName} como no pagada`,
-      { parse_mode: "Markdown" },
+      `Marcaste la cuota del mes de ${monthLabel} para ${escapeHtml(installment.taxName)} como no pagada`,
+      { parse_mode: "HTML" },
     );
     const { text, extra } = buildTaxInstallmentDetailPayload(installment);
     await ctx.reply(text, extra);
@@ -439,15 +440,15 @@ async function handleUnmarkAsPaid(ctx: KakebotContext): Promise<void> {
 
   await editOrReply(
     ctx,
-    `Estás por invalidar el pago de la cuota del mes ${monthLabel} de ${installment.taxName}`,
-    { parse_mode: "Markdown" },
+    `Estás por invalidar el pago de la cuota del mes ${monthLabel} de ${escapeHtml(installment.taxName)}`,
+    { parse_mode: "HTML" },
   );
 
   const keyboard = buildUnpayReceiptDecisionKeyboard(installmentId);
   await ctx.reply(
-    "El impuesto figuraba como pagado con un comprobante de pago\n*¿Qué deseas hacer con el comprobante?*",
+    "El impuesto figuraba como pagado con un comprobante de pago\n<b>¿Qué deseas hacer con el comprobante?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -518,10 +519,10 @@ async function handleBackToTaxHistory(ctx: Context): Promise<void> {
   const text =
     buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
     (installments.length > 0
-      ? "*Seleccioná una cuota:*"
+      ? "<b>Seleccioná una cuota:</b>"
       : "No hay cuotas registradas.");
   await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildTaxInstallmentHistoryKeyboard(installments, 0, taxId)
       .reply_markup as any,
@@ -565,24 +566,24 @@ async function showTaxActionView(
   let estadoLine: string | null;
   let dueDateLine: string;
   if (!installment) {
-    cuotaLine = `• *Cuota ${monthLabel}*: Sin registrar`;
+    cuotaLine = `• <b>Cuota ${monthLabel}</b>: Sin registrar`;
     estadoLine = null;
-    dueDateLine = "• *Vencimiento*: No disponible";
+    dueDateLine = "• <b>Vencimiento</b>: No disponible";
   } else if (installment.isPaid) {
-    cuotaLine = `• *Cuota ${monthLabel}*: ${formatARS(installment.amount)}`;
-    estadoLine = "• *Estado*: ✅ Pagado";
-    dueDateLine = `• *Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}`;
+    cuotaLine = `• <b>Cuota ${monthLabel}</b>: ${formatARS(installment.amount)}`;
+    estadoLine = "• <b>Estado</b>: ✅ Pagado";
+    dueDateLine = `• <b>Vencimiento</b>: ${formatDueDateDayMonth(installment.dueDate)}`;
   } else {
-    cuotaLine = `• *Cuota ${monthLabel}*: ${formatARS(installment.amount)}`;
-    estadoLine = "• *Estado*: Pendiente";
-    dueDateLine = `• *Vencimiento*: ${formatDueDateDayMonth(installment.dueDate)}`;
+    cuotaLine = `• <b>Cuota ${monthLabel}</b>: ${formatARS(installment.amount)}`;
+    estadoLine = "• <b>Estado</b>: Pendiente";
+    dueDateLine = `• <b>Vencimiento</b>: ${formatDueDateDayMonth(installment.dueDate)}`;
   }
 
   const details = [
     cuotaLine,
     estadoLine,
     dueDateLine,
-    `• *Medio de pago*: ${pmLabel}`,
+    `• <b>Medio de pago</b>: ${pmLabel}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -590,14 +591,14 @@ async function showTaxActionView(
   const text =
     buildBreadcrumb(["Impuestos", tax.name]) +
     details +
-    "\n\n*¿Qué querés hacer?*";
+    "\n\n<b>¿Qué querés hacer?</b>";
   const payableInstallmentId =
     installment && !installment.isPaid ? installment.id : undefined;
   const keyboard = buildTaxActionKeyboard({ taxId, payableInstallmentId });
 
   const render = isWriteConfirmation ? editOrReply : replyOrEdit;
   await render(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -620,9 +621,9 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Impuestos", taxName, "Modificar"]) +
-      "*¿Qué querés modificar?*",
+      "<b>¿Qué querés modificar?</b>",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     },
@@ -652,16 +653,17 @@ async function handleChangePaymentMethod(ctx: Context): Promise<void> {
   await replyOrEdit(
     ctx,
     breadcrumb +
-      `*Vas a modificar el método de pago para ${taxName}*\n_Escribí "cancelar" o "salir" para anular._`,
-    { parse_mode: "Markdown" },
+      `<b>Vas a modificar el método de pago para ${escapeHtml(taxName)}</b>\n` +
+      "<i>Escribí \"cancelar\" o \"salir\" para anular.</i>",
+    { parse_mode: "HTML" },
   );
 
   const keyboard = buildPaymentMethodKeyboard({
     callbackPrefix: `tax_update_pm:${taxId}`,
   });
 
-  await ctx.reply("*¿Con qué medio de pago abonás este impuesto?*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>¿Con qué medio de pago abonás este impuesto?</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -708,12 +710,12 @@ async function handleEditInstallmentDueDay(ctx: KakebotContext): Promise<void> {
   await replyOrEdit(
     ctx,
     buildBreadcrumb(["Impuestos", taxName, "Historial", monthLabel]) +
-      `*Vas a modificar el vencimiento de la cuota de ${monthLabel}*\n_Escribí "cancelar" para anular._`,
-    { parse_mode: "Markdown" },
+      `<b>Vas a modificar el vencimiento de la cuota de ${monthLabel}</b>\n<i>Escribí "cancelar" para anular.</i>`,
+    { parse_mode: "HTML" },
   );
   await ctx.reply(
-    `*¿Cuál es el nuevo día de vencimiento? (1-${maxDay})*`,
-    { parse_mode: "Markdown" },
+    `<b>¿Cuál es el nuevo día de vencimiento? (1-${maxDay})</b>`,
+    { parse_mode: "HTML" },
   );
 
   await ctx.scene.enter(TAX_SCENE_ID, {

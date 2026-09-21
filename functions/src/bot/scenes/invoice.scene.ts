@@ -167,8 +167,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
     if (services.length === 0) {
       await ctx.reply(
-        "*¿Cómo se llama el servicio?*\n_Ej: Expensas, Gas, Flow, Netflix_\n_Enviá \"cancelar\" para salir._",
-        { parse_mode: "Markdown" },
+        "<b>¿Cómo se llama el servicio?</b>\n<i>Ej: Expensas, Gas, Flow, Netflix</i>\n<i>Enviá \"cancelar\" para salir.</i>",
+        { parse_mode: "HTML" },
       );
       ctx.wizard.next();
       return;
@@ -176,9 +176,9 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
     const keyboard = buildServicePickerKeyboard(services);
     await ctx.reply(
-      `*¿A qué servicio corresponde ${flowLabel(state.flow)}?*`,
+      `<b>¿A qué servicio corresponde ${flowLabel(state.flow)}?</b>`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
     );
     ctx.wizard.selectStep(PICKER_GUARD_STEP);
   } catch (error) {
@@ -217,9 +217,9 @@ async function stepHandleName(ctx: KakebotContext): Promise<void> {
 
     const keyboard = buildMonthKeyboard(serviceId);
     await ctx.reply(
-      `*¿A qué mes corresponde ${flowLabel(state.flow)}?*`,
+      `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
     );
     ctx.wizard.selectStep(MONTH_GUARD_STEP);
   } catch (error) {
@@ -245,9 +245,9 @@ async function stepGuardPicker(ctx: KakebotContext): Promise<void> {
     const services = await getServicesByUser(telegramUserId);
     const keyboard = buildServicePickerKeyboard(services);
     await ctx.reply(
-      `*¿A qué servicio corresponde ${flowLabel(state.flow)}?*`,
+      `<b>¿A qué servicio corresponde ${flowLabel(state.flow)}?</b>`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
     );
   } catch (error) {
     log.error("Error rebuilding picker in invoice scene guard", error, {
@@ -268,9 +268,9 @@ async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para salir.");
   const keyboard = buildMonthKeyboard(state.serviceId ?? "");
   await ctx.reply(
-    `*¿A qué mes corresponde ${flowLabel(state.flow)}?*`,
+    `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -293,8 +293,8 @@ async function stepHandleDay(ctx: KakebotContext): Promise<void> {
 
   state.partialDescription = dayStr;
   await ctx.reply(
-    "*¿Cuál es el monto de la cuota?*\n_Ej: 5000 o 14.819,50_",
-    { parse_mode: "Markdown" },
+    "<b>¿Cuál es el monto de la cuota?</b>\n<i>Ej: 5000 o 14.819,50</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -396,9 +396,9 @@ async function handlePickService(ctx: KakebotContext): Promise<void> {
     const keyboard = buildMonthKeyboard(serviceId);
     await replyOrEdit(
       ctx,
-      `*¿A qué mes corresponde ${flowLabel(state.flow)}?*`,
+      `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
     );
     ctx.wizard.selectStep(MONTH_GUARD_STEP);
   } catch (error) {
@@ -420,8 +420,8 @@ async function handleNewService(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   await replyOrEdit(
     ctx,
-    "*¿Cómo se llama el servicio?*\n_Ej: Expensas, Gas, Flow, Netflix_\n_Enviá \"cancelar\" para salir._",
-    { parse_mode: "Markdown" },
+    "<b>¿Cómo se llama el servicio?</b>\n<i>Ej: Expensas, Gas, Flow, Netflix</i>\n<i>Enviá \"cancelar\" para salir.</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.selectStep(NAME_STEP);
 }
@@ -467,8 +467,9 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
     const maxDay = getDaysInMonth(dueMonth);
     await replyOrEdit(
       ctx,
-      `*¿Qué día vence la cuota de ${getMonthLabel(dueMonth, true)}? (1-${maxDay})*\n_Enviá "cancelar" para salir._`,
-      { parse_mode: "Markdown" },
+      `<b>¿Qué día vence la cuota de ${getMonthLabel(dueMonth, true)}? (1-${maxDay})</b>\n`
+      + "<i>Enviá \"cancelar\" para salir.</i>",
+      { parse_mode: "HTML" },
     );
     ctx.wizard.selectStep(DAY_STEP);
   } catch (error) {
@@ -520,16 +521,16 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     await ctx.reply(`Enviá la foto o PDF de ${flowLabel(state.flow)}.`);
     break;
   case NAME_STEP:
-    await ctx.reply("*¿Cómo se llama el servicio?*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>¿Cómo se llama el servicio?</b>", { parse_mode: "HTML" });
     break;
   case PICKER_GUARD_STEP:
     try {
       const services = await getServicesByUser(telegramUserId);
       const keyboard = buildServicePickerKeyboard(services);
       await ctx.reply(
-        `*¿A qué servicio corresponde ${flowLabel(state.flow)}?*`,
+        `<b>¿A qué servicio corresponde ${flowLabel(state.flow)}?</b>`,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+        { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
       );
     } catch (_e) {
       await ctx.reply("Elegí un servicio del teclado.");
@@ -538,21 +539,21 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   case MONTH_GUARD_STEP: {
     const keyboard = buildMonthKeyboard(state.serviceId ?? "");
     await ctx.reply(
-      `*¿A qué mes corresponde ${flowLabel(state.flow)}?*`,
+      `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
     );
     break;
   }
   case DAY_STEP: {
     const maxDay = state.selectedMonth ? getDaysInMonth(state.selectedMonth) : 31;
-    await ctx.reply(`*¿Qué día vence? (1-${maxDay})*`, { parse_mode: "Markdown" });
+    await ctx.reply(`<b>¿Qué día vence? (1-${maxDay})</b>`, { parse_mode: "HTML" });
     break;
   }
   case AMOUNT_STEP:
     await ctx.reply(
-      "*¿Cuál es el monto de la cuota?*\n_Ej: 5000 o 14.819,50_",
-      { parse_mode: "Markdown" },
+      "<b>¿Cuál es el monto de la cuota?</b>\n<i>Ej: 5000 o 14.819,50</i>",
+      { parse_mode: "HTML" },
     );
     break;
   default:

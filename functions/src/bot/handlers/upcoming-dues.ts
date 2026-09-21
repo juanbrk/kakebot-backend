@@ -1,7 +1,7 @@
 import { Telegraf, Markup, Context } from "telegraf";
 import { KakebotContext } from "../../types/telegraf-context.types";
 import { getUpcomingDues } from "../../services/upcoming-dues.service";
-import { formatARS, formatUSD } from "../../helpers/format";
+import { escapeHtml, formatARS, formatUSD } from "../../helpers/format";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { UpcomingDueItem, UpcomingDuesBucket } from "../../types/upcoming-dues.types";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -25,7 +25,7 @@ function formatDueItemLine(item: UpcomingDueItem): string {
   const day = item.dueDate.getDate().toString().padStart(2, "0");
   const month = (item.dueDate.getMonth() + 1).toString().padStart(2, "0");
   const usdPart = item.amountUSD && item.amountUSD > 0 ? ` y ${formatUSD(item.amountUSD)}` : "";
-  return `• ${item.entityName}  ${formatARS(item.amount)}${usdPart} (${day}/${month})`;
+  return `• ${escapeHtml(item.entityName)}  ${formatARS(item.amount)}${usdPart} (${day}/${month})`;
 }
 
 /**
@@ -37,7 +37,7 @@ function formatDueItemLine(item: UpcomingDueItem): string {
 function formatBucket(bucket: UpcomingDuesBucket): string {
   const totalUSD = bucket.items.reduce((sum, item) => sum + (item.amountUSD ?? 0), 0);
   const usdPart = totalUSD > 0 ? ` y ${formatUSD(totalUSD)}` : "";
-  const header = `*${bucket.label}: ${formatARS(bucket.subtotal)}${usdPart}*`;
+  const header = `<b>${bucket.label}: ${formatARS(bucket.subtotal)}${usdPart}</b>`;
   const lines = bucket.items.map(formatDueItemLine);
   return [header, ...lines].join("\n");
 }
@@ -66,13 +66,13 @@ async function handleUpcomingDues(ctx: Context): Promise<void> {
     text = breadcrumb + "No hay vencimientos hoy ni en los próximos 7 días.";
   } else {
     const sections = result.buckets.map(formatBucket).join("\n\n");
-    text = breadcrumb + "*PRÓXIMOS VENCIMIENTOS*\n\n" + sections;
+    text = breadcrumb + "<b>PRÓXIMOS VENCIMIENTOS</b>\n\n" + sections;
   }
 
   await replyOrEdit(
     ctx,
     text,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: keyboard.reply_markup as any }
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any }
   );
 }

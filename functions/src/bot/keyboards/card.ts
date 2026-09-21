@@ -10,7 +10,7 @@ import {
   BuildStmtPayARSKeyboardParams,
   BuildStmtUsdCurrencyKeyboardParams,
 } from "../../types/card.types";
-import { formatARS, formatUSD, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
+import { escapeHtml, formatARS, formatUSD, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
 
 const CARDS_PER_PAGE = 6;
 const STATEMENTS_PER_PAGE = 6;
@@ -324,10 +324,10 @@ export function buildCardDetailText(
   const expiryStr = `${String(card.expiryMonth).padStart(2, "0")}/${card.expiryYear}`;
 
   const lines = [
-    `*${label}*`,
+    `<b>${escapeHtml(label)}</b>`,
     "",
-    `*Vencimiento tarjeta*: ${expiryStr}`,
-    `*Procesador*: ${card.processor}`,
+    `<b>Vencimiento tarjeta</b>: ${expiryStr}`,
+    `<b>Procesador</b>: ${card.processor}`,
   ];
 
   const monthLabel = getMonthLabel(currentMonth);
@@ -338,7 +338,7 @@ export function buildCardDetailText(
     const mo = String(dueDate.getMonth() + 1).padStart(2, "0");
 
     lines.push("");
-    lines.push(`*Resumen ${monthLabel}:*`);
+    lines.push(`<b>Resumen ${monthLabel}:</b>`);
     lines.push(` • Monto: ${formatARS(statement.amountARS)}`);
     if (statement.amountUSD > 0) {
       lines.push(` • Dólares: ${formatUSD(statement.amountUSD)}`);
@@ -365,9 +365,9 @@ export function buildCardConfirmText(params: CardConfirmTextParams): string {
   const { digits, bank, processor, expiry } = params;
 
   return (
-    "*Vas a agregar la siguiente tarjeta*\n\n" +
+    "<b>Vas a agregar la siguiente tarjeta</b>\n\n" +
     ` • Últimos 4 dígitos: ${digits}\n` +
-    ` • Banco: ${bank}\n` +
+    ` • Banco: ${escapeHtml(bank)}\n` +
     ` • Procesador: ${processor}\n` +
     ` • Vencimiento: ${expiry}`
   );
@@ -488,20 +488,20 @@ export function buildStatementDetailText(
   const day = String(dueDate.getDate()).padStart(2, "0");
 
   const lines = [
-    `*Resumen ${monthName}*`,
-    ` • *Tarjeta*: ${cardLabel}`,
-    ` • *Consumos en pesos*: ${formatARS(statement.amountARS)}`,
+    `<b>Resumen ${monthName}</b>`,
+    ` • <b>Tarjeta</b>: ${escapeHtml(cardLabel)}`,
+    ` • <b>Consumos en pesos</b>: ${formatARS(statement.amountARS)}`,
   ];
 
   if (statement.amountUSD > 0) {
-    lines.push(` • *Consumos en dólares*: ${formatUSD(statement.amountUSD)}`);
+    lines.push(` • <b>Consumos en dólares</b>: ${formatUSD(statement.amountUSD)}`);
   }
 
-  lines.push(` • *Vencimiento*: ${day}/${month}`);
-  lines.push(` • *Estado*: ${statement.isPaid ? "✅ Pagado" : "Pendiente"}`);
+  lines.push(` • <b>Vencimiento</b>: ${day}/${month}`);
+  lines.push(` • <b>Estado</b>: ${statement.isPaid ? "✅ Pagado" : "Pendiente"}`);
 
   if (statement.isPaid && statement.amountUSD > 0 && statement.exchangeRate) {
-    lines.push(` • *Tipo de cambio USD*: ${formatARS(statement.exchangeRate)}`);
+    lines.push(` • <b>Tipo de cambio USD</b>: ${formatARS(statement.exchangeRate)}`);
   }
 
   return lines.join("\n");
@@ -659,18 +659,18 @@ export function buildStmtConfirmText(params: StmtConfirmTextParams): string {
   const dueDateStr = `${String(dueDay).padStart(2, "0")}/${monthNum}`;
 
   const lines = [
-    "*Confirmar datos nuevo resumen*",
+    "<b>Confirmar datos nuevo resumen</b>",
     "",
-    `*Tarjeta*: ${cardLabel}`,
-    `*Mes*: ${monthLabel}`,
+    `<b>Tarjeta</b>: ${escapeHtml(cardLabel)}`,
+    `<b>Mes</b>: ${monthLabel}`,
   ];
   if (amountARS > 0) {
-    lines.push(`*Consumos en pesos*: ${formatARS(amountARS)}`);
+    lines.push(`<b>Consumos en pesos</b>: ${formatARS(amountARS)}`);
   }
   if (amountUSD > 0) {
-    lines.push(`*Consumos en dólares*: ${formatUSD(amountUSD)}`);
+    lines.push(`<b>Consumos en dólares</b>: ${formatUSD(amountUSD)}`);
   }
-  lines.push(`*Vencimiento*: ${dueDateStr}`);
+  lines.push(`<b>Vencimiento</b>: ${dueDateStr}`);
 
   return lines.join("\n");
 }
@@ -706,7 +706,7 @@ export function buildPaymentSummaryText(statement: CardStatement, cardLabel: str
   const month = yearMonth[1];
   const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
 
-  const lines = [`*Resumen ${monthLabel} de ${cardLabel} marcado como pagado*`];
+  const lines = [`<b>Resumen ${monthLabel} de ${escapeHtml(cardLabel)} marcado como pagado</b>`];
 
   if (statement.amountUSD > 0) {
     let usdLine = formatUSD(statement.amountUSD);
@@ -715,10 +715,10 @@ export function buildPaymentSummaryText(statement: CardStatement, cardLabel: str
       const rateFormatted = formatARS(statement.exchangeRate);
       usdLine += ` (${arsEquiv} | ${rateFormatted})`;
     }
-    lines.push(` • *Monto en Dólares*: ${usdLine}`);
+    lines.push(` • <b>Monto en Dólares</b>: ${usdLine}`);
   }
 
-  lines.push(` • *Monto en Pesos*: ${formatARS(statement.amountARS)}`);
+  lines.push(` • <b>Monto en Pesos</b>: ${formatARS(statement.amountARS)}`);
 
   return lines.join("\n");
 }

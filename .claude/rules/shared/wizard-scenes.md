@@ -1,27 +1,25 @@
-# WizardScene — Reglamento de migración y creación
+# WizardScene — Terse Reference
 
-Este reglamento define el estándar único para crear y migrar `Scenes.WizardScene` de Telegraf en KakeBot. Toda escena nueva o migrada debe cumplir cada sección. Las violaciones detectables estructuralmente las bloquea el hook `check-wizard-scene.js` (PreToolUse); el resto se valida con el checklist al final de este documento.
+Standard for creating and migrating `Scenes.WizardScene` in KakeBot. Hook `check-wizard-scene.js` enforces structural checks; the checklist (§16) covers the rest.
 
-**Escena de referencia (gold standard estructural):** `functions/src/bot/scenes/tax.scene.ts`.
-**Excepción:** los breadcrumbs internos de `tax.scene` son deuda técnica (decisión #8) — no los repliques.
+**Gold standard:** `tax.scene.ts`. **Exception:** its internal breadcrumbs are tech debt — don't replicate.
+**Code examples & deep dives:** `wizard-scenes-rationale.md` (same §numbers).
 
 ---
 
 ## 1. Anatomía de un scene file
 
-Orden canónico del archivo (no negociable):
+Orden canónico (no negociable):
 
-1. Imports.
-2. Constantes (`SCENE_ID`, `CANCEL_REGEX`, constantes de salto directo si aplica).
-3. Helpers privados (funciones puras locales al scene, e.g. `getAvailableMonthsForTax`).
-4. Step functions (en orden: `stepInit`, luego `stepHandleX` y `stepGuardX` en el orden del wizard).
-5. Action handlers (`handleX` — independientes del cursor).
-6. `repromptCurrentStep`.
-7. `handleCancelWord`.
-8. Export del scene (`new Scenes.WizardScene<KakebotContext>(SCENE_ID, ...steps)`).
-9. Registro de event handlers (`scene.hears`, `scene.action`, `scene.on`).
-
-Referencia: `tax.scene.ts:1-666` cumple este orden.
+1. Imports
+2. Constantes (`SCENE_ID`, `CANCEL_REGEX`, `*_STEP`)
+3. Helpers privados
+4. Step functions (`stepInit` → `stepHandleX` / `stepGuardX` en orden)
+5. Action handlers (`handleX`)
+6. `repromptCurrentStep`
+7. `handleCancelWord`
+8. Export del scene (`new Scenes.WizardScene<KakebotContext>(...)`)
+9. Event handlers (`scene.hears`, `scene.action`, `scene.on`)
 
 ---
 
@@ -29,317 +27,102 @@ Referencia: `tax.scene.ts:1-666` cumple este orden.
 
 ### 2.1 Constantes
 
-- `[DOMAIN]_SCENE_ID = "[domain]-wizard"` — UPPER_SNAKE_CASE, valor kebab-case con sufijo `-wizard`, **exportado**.
-  ```typescript
-  export const TAX_SCENE_ID = "tax-wizard";
-  ```
-- `CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i` — copia textual obligatoria, sin variaciones.
-- Constantes de salto directo (cuando hay `selectStep`): UPPER_SNAKE_CASE, sufijo `_STEP` (e.g., `AMOUNT_STEP = 5`).
+- `export const [DOMAIN]_SCENE_ID = "[domain]-wizard"` — UPPER_SNAKE_CASE, kebab value, `-wizard` suffix
+- `CANCEL_REGEX = /^\s*(salir|cancelar|terminar|stop)\s*$/i` — copia textual exacta
+- Jump constants: UPPER_SNAKE_CASE, `_STEP` suffix (e.g. `AMOUNT_STEP = 5`)
 
 ### 2.2 Step functions
 
-Toda función registrada como step del WizardScene debe llevar prefijo `step`:
-
 | Patrón | Cuándo usar |
 |---|---|
-| `stepInit` | Step 0, siempre. Recibe la entrada al scene y rutea según `entryArgs`. |
-| `stepHandle[Field]` | Step que procesa input del usuario (texto, número, monto). Ejemplos: `stepHandleName`, `stepHandleDay`, `stepHandleAmount`. |
-| `stepGuard[Field]` | Step que muestra teclado y espera callback. Su única función es re-presentar el teclado si el usuario manda texto en su lugar. Ejemplos: `stepGuardPaymentMethod`, `stepGuardMonth`. |
+| `stepInit` | Step 0 — entrada y routing por `entryArgs` |
+| `stepHandle[Field]` | Procesa input del usuario (texto, número, monto) |
+| `stepGuard[Field]` | Re-presenta teclado si el usuario manda texto en vez de tocar un botón |
 
-### 2.3 Action handlers (callbacks)
+### 2.3 Action handlers
 
-Funciones invocadas por `scene.action(...)` llevan prefijo `handle`:
-
-```typescript
-async function handlePaymentMethod(ctx: KakebotContext): Promise<void> { ... }
-async function handleMonthSelected(ctx: KakebotContext): Promise<void> { ... }
-async function handleConfirm(ctx: KakebotContext): Promise<void> { ... }
-async function handleCancel(ctx: KakebotContext): Promise<void> { ... }
-```
+Prefijo `handle`: `handlePaymentMethod`, `handleMonthSelected`, `handleConfirm`, `handleCancel`.
 
 ### 2.4 Callback strings
 
-- Formato: `[domain]_[action]` o `[domain]_[action]:[param]`.
-- Cuando hay parámetro, registrar con regex en `scene.action()`:
-  ```typescript
-  scene.action(/^tax_pm:(credit_card|auto_debit|manual)$/, handlePaymentMethod);
-  scene.action(/^tax_month:(.+):(\d{4}-\d{2})$/, handleMonthSelected);
-  ```
-- Callbacks sin parámetro: string literal (`scene.action("tax_skip_receipt", ...)`).
+- Formato: `[domain]_[action]` o `[domain]_[action]:[param]`
+- Con parámetro: regex en `scene.action(/^tax_pm:(credit_card|auto_debit|manual)$/, handler)`
+- Sin parámetro: string literal `scene.action("tax_skip_receipt", handler)`
 
-### 2.5 Export del scene
+### 2.5 Export
 
-```typescript
-export const [domain]Scene = new Scenes.WizardScene<KakebotContext>(
-  [DOMAIN]_SCENE_ID,
-  stepInit,
-  // ...steps in order
-);
-```
+`export const [domain]Scene = new Scenes.WizardScene<KakebotContext>(SCENE_ID, ...steps)` — camelCase + `Scene`.
 
-Naming: camelCase del dominio + sufijo `Scene`. Ejemplos: `taxScene`, `incomeScene`, `invoiceScene`.
+### 2.6 WizardState
 
-### 2.6 WizardState type
-
-Toda escena define su WizardState en `functions/src/types/telegraf-context.types.ts`:
-
-```typescript
-export interface TaxWizardState {
-  taxName?: string;
-  estimatedDueDay?: number;
-  paymentMethod?: ServicePaymentMethod;
-  taxId?: string;
-  selectedMonth?: string;
-  installmentId?: string;
-}
-```
-
-Reglas:
-- Naming: `[Domain]WizardState`.
-- Todos los campos son optional (`?`) — se llenan progresivamente paso a paso.
-- Cast en cada step: `const state = ctx.wizard.state as [Domain]WizardState;`.
+- Definir en `types/telegraf-context.types.ts` como `[Domain]WizardState`
+- Todos los campos `optional` (`?`)
+- Cast en cada step: `const state = ctx.wizard.state as [Domain]WizardState`
 
 ---
 
 ## 3. Steps y cursor guards
 
-### 3.1 Regla
+Todo step que muestra un teclado inline y espera callback DEBE tener un `stepGuardX` dedicado a continuación. Prohibido el guard inline dentro del `stepHandle` previo.
 
-Todo step que termina mostrando un teclado inline y espera un callback DEBE tener un step de guarda dedicado a continuación. El step de guarda es una función separada con prefijo `stepGuard`. **Está prohibido implementar el cursor guard inline dentro del `stepHandle` previo** (patrón legacy de `income.scene` — deuda técnica).
+- El callback del botón se matchea por `scene.action()` (independiente del cursor) y decide si llamar `next()` o `selectStep(N)`.
+- Si el usuario manda texto mientras el teclado está activo, el step de guarda re-presenta el teclado. El cursor no avanza.
 
-### 3.2 Estructura canónica
-
-```typescript
-// Step N: procesa input y muestra el siguiente teclado.
-async function stepHandlePaymentName(ctx: KakebotContext): Promise<void> {
-  const name = getMessageText(ctx);
-  if (!name) {
-    await ctx.reply("El nombre no puede estar vacío.");
-    return;  // NO avanza el cursor — el step se repite con el próximo update.
-  }
-  (ctx.wizard.state as MyWizardState).name = name;
-
-  const keyboard = buildPaymentMethodKeyboard({ callbackPrefix: "domain_pm" });
-  await ctx.reply("*Seleccioná el método de pago*", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-  ctx.wizard.next();  // Avanza al step de guarda.
-}
-
-// Step N+1: cursor guard — solo se ejecuta si el usuario manda texto en lugar de tocar un botón.
-async function stepGuardPaymentMethod(ctx: KakebotContext): Promise<void> {
-  await ctx.reply("Elegí un método de pago del teclado, o escribí \"cancelar\" para anular.");
-  const keyboard = buildPaymentMethodKeyboard({ callbackPrefix: "domain_pm" });
-  await ctx.reply("*Seleccioná el método de pago*", {
-    parse_mode: "Markdown",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: keyboard.reply_markup as any,
-  });
-  // NO llama next() — el callback del botón lo hace.
-}
-```
-
-### 3.3 Cómo avanza el cursor en flujos con guarda
-
-- El callback del botón se matchea por `scene.action()` (independiente del cursor). El handler del callback decide si llamar `ctx.wizard.next()` o `ctx.wizard.selectStep(N)` para mover el cursor.
-- Si el usuario manda texto/foto/documento mientras el teclado está activo, el step de guarda corre y re-presenta el teclado. El cursor **no avanza**.
-
-Ejemplo canónico: `tax.scene.ts:159-167` (`stepGuardPaymentMethod`), `tax.scene.ts:174-193` (`stepGuardMonth`).
+> Code example: `wizard-scenes-rationale.md` §3
 
 ---
 
 ## 4. Entry points y `entryArgs`
 
-### 4.1 Una sola escena, múltiples rutas
+- `ctx.scene.enter(SCENE_ID, { ...preState } as WizardState)` — pre-populate state
+- `stepInit` inspecciona state y rutea (receipt-only → `selectStep`, month-entry → show keyboard, full creation → `next()`)
+- `ctx.wizard.next()`: avanza linealmente. `ctx.wizard.selectStep(N)`: salta directo
+- Jump constants: `const AMOUNT_STEP = 5` — UPPER_SNAKE_CASE, `_STEP` suffix
 
-Un scene puede ser invocado con state pre-poblado vía el segundo argumento de `ctx.scene.enter`:
-
-```typescript
-// Handler externo (e.g., bot/handlers/tax.ts)
-await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName } as TaxWizardState);
-```
-
-`stepInit` debe inspeccionar el state y rutear:
-
-```typescript
-async function stepInit(ctx: KakebotContext): Promise<void> {
-  const state = ctx.wizard.state as TaxWizardState;
-
-  // Ruta 1: receipt-only entry — saltar al step de receipt guard.
-  if (state.installmentId && !state.selectedMonth) {
-    ctx.wizard.selectStep(RECEIPT_GUARD_STEP);
-    return;
-  }
-
-  // Ruta 2: installment-month entry — mostrar selector de meses.
-  if (state.taxId && !state.selectedMonth && !state.installmentId) {
-    // ...mostrar teclado, cursor permanece en 0 esperando callback.
-    return;
-  }
-
-  // Ruta 3: full creation — avanzar al primer step normal.
-  await ctx.reply("*¿Cómo se llama el impuesto?*", { parse_mode: "Markdown" });
-  ctx.wizard.next();
-}
-```
-
-Referencia: `tax.scene.ts:64-105`.
-
-### 4.2 `selectStep` vs `next`
-
-- `ctx.wizard.next()`: avanza al step siguiente. Default para flujo lineal.
-- `ctx.wizard.selectStep(N)`: salta directo al step N. Usar cuando:
-  - Una entry route necesita brincar pasos iniciales (receipt-only).
-  - Un action handler debe saltar al step que procesa input específico (ej. tras seleccionar mes, ir directo al step de monto: `tax.scene.ts:382`).
-
-### 4.3 Constantes de salto
-
-Cuando el scene usa `selectStep(N)`, declarar `N` como constante UPPER_SNAKE_CASE con sufijo `_STEP`:
-
-```typescript
-const AMOUNT_STEP = 5;
-const RECEIPT_GUARD_STEP = 7;
-```
-
-Esto documenta visualmente cuáles son los step-indices con significado.
+> Code example: `wizard-scenes-rationale.md` §4
 
 ---
 
 ## 5. Invalid input handling
 
-Cuando un step recibe input inválido (texto vacío, monto malformateado, número fuera de rango):
+1. `ctx.reply()` con mensaje de error breve
+2. `return` sin `ctx.wizard.next()` — el step se repite con el próximo update
 
-1. Enviar un **mensaje de error breve** explicando qué se esperaba.
-2. **Retornar sin avanzar el cursor** (`return` sin `ctx.wizard.next()`). El step se reejecuta con el próximo update.
-
-```typescript
-async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
-  const messageText = getMessageText(ctx);
-  const amount = messageText ? parseArgentineAmount(messageText) : null;
-  const isValidAmount = amount !== null && amount > 0;
-  if (!isValidAmount) {
-    await ctx.reply("No entendí el monto. Ingresá solo el número:\nEj: 5000 o 53.136,74");
-    return;
-  }
-  // ...continuar.
-}
-```
-
-**Prohibido**: re-presentar solo el teclado de un step previo sin texto contextual. El usuario debe saber qué está pasando.
+Prohibido: re-presentar solo el teclado sin texto contextual.
 
 ---
 
 ## 6. `repromptCurrentStep`
 
-### 6.1 Cuándo se llama
+- Se llama cuando el scene recibe un evento inesperado (foto/documento en step que espera texto/callback)
+- Primera línea: `await ctx.reply("No esperaba un archivo aquí.")`
+- `switch (ctx.wizard.cursor)` con un `case` por cada step que espera input del usuario
+- Si `stepInit` tiene routing condicional, el case 0 replica esa lógica
+- Default case: vacío (`break`)
 
-Cuando el scene recibe un evento que no encaja con el cursor actual (típicamente: foto o documento llegando en un step que espera texto o callback). Los handlers `scene.on("photo", ...)` y `scene.on("document", ...)` delegan acá.
-
-### 6.2 Estructura obligatoria
-
-```typescript
-async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
-  const state = ctx.wizard.state as MyWizardState;
-  await ctx.reply("No esperaba un archivo aquí.");
-
-  switch (ctx.wizard.cursor) {
-  case 0:
-    // Re-presentar el prompt/teclado del step 0.
-    break;
-  case 1:
-    // Re-presentar el prompt del step 1.
-    break;
-  // ...un case por cada step que espera input del usuario.
-  default:
-    break;
-  }
-}
-```
-
-### 6.3 Reglas
-
-- El mensaje `"No esperaba un archivo aquí."` es la primera línea, siempre.
-- El switch cubre **todos los steps** del wizard que esperan input directo del usuario (excluye steps que solo configuran state).
-- Cada case re-envía el prompt **completo** del step (texto + teclado si aplica).
-- Cuando el step 0 (`stepInit`) tiene routing condicional, el case 0 del switch replica la lógica relevante (e.g., `tax.scene.ts:469-484`).
-- Default case: vacío (`break`).
+> Code example: `wizard-scenes-rationale.md` §6
 
 ---
 
 ## 7. Event handlers obligatorios
 
-Todo scene debe registrar (después del `export`):
-
-```typescript
-[domain]Scene.hears(CANCEL_REGEX, handleCancelWord);
-[domain]Scene.action(...);  // Cero o más callbacks específicos del flujo.
-[domain]Scene.on("photo", [photoHandler]);
-[domain]Scene.on("document", [documentHandler]);
-```
+Todo scene registra (después del `export`): `scene.hears(CANCEL_REGEX, handleCancelWord)`, `scene.action(...)`, `scene.on("photo", ...)`, `scene.on("document", ...)`.
 
 ### 7.1 `scene.hears(CANCEL_REGEX, ...)`
 
-Captura `salir|cancelar|terminar|stop` en cualquier step. Handler:
-
-```typescript
-async function handleCancelWord(ctx: KakebotContext): Promise<void> {
-  await ctx.scene.leave();
-  await ctx.reply("Operación cancelada.");
-}
-```
+Captura `salir|cancelar|terminar|stop` en cualquier step. Handler: `leave()` + reply "Operación cancelada."
 
 ### 7.2 `scene.action(...)`
 
-Toda función registrada con `scene.action(...)` DEBE empezar con `await ctx.answerCbQuery();` — sin condiciones, sin try/catch alrededor de esa llamada. Es la primera línea siempre:
+Todo action handler DEBE empezar con `await ctx.answerCbQuery()` — primera línea, sin condiciones. Omitirlo deja el botón "girando".
 
-```typescript
-async function handlePaidYes(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  // resto del handler.
-}
-```
+### 7.3 `scene.on("photo"/"document")`
 
-Omitirlo causa que el botón se vea "girando" en el cliente de Telegram.
+**Siempre presentes**, aunque el flujo no acepte archivos. Sin archivos: ambos delegan a `repromptCurrentStep`. Con archivos: handlers dedicados que validan cursor y caen a `repromptCurrentStep` fuera del rango válido.
 
-### 7.3 `scene.on("photo", ...)` y `scene.on("document", ...)`
+**Archivos como input primario** (ej. `doc-router.scene.ts`): si el cursor está en rango válido, actualizar state y re-presentar el prompt sin texto de error. El rango debe incluir el cursor de entrada (0), porque `scene.enter()` corre el composer **antes** que el step runner sobre el mismo update.
 
-**Siempre presentes**, aunque el flujo no acepte archivos. Cuando no se aceptan archivos: ambos handlers son `repromptCurrentStep`. Cuando sí se aceptan (e.g., receipt upload): handlers dedicados que validan el cursor y caen a `repromptCurrentStep` si no es el momento.
-
-```typescript
-// Flujo sin archivos:
-[domain]Scene.on("photo", repromptCurrentStep);
-[domain]Scene.on("document", repromptCurrentStep);
-
-// Flujo con archivos:
-[domain]Scene.on("photo", handleReceiptPhoto);
-[domain]Scene.on("document", handleReceiptDocument);
-// donde cada uno valida cursor y delega a repromptCurrentStep cuando no aplica.
-```
-
-Patrón de delegación cuando el archivo llega fuera del momento esperado: `tax.scene.ts:547-551`.
-
-**Flujos que procesan archivos como input primario.** Aplica cuando el archivo en sí ES lo que se está recolectando, válido en varias posiciones de cursor (no en un único step designado) — ej. `doc-router.scene.ts`, donde los cursores 0 y 1 son ambos "esperando archivo o elección de tipo". A diferencia del caso anterior, recibir un archivo acá no es un error: es el input principal del flujo. Si el cursor está dentro del rango válido, el handler actualiza `state.pendingFileId`/`pendingFileType` (o equivalente) directamente y re-presenta el mismo prompt/teclado, sin texto de error. Solo se delega a `repromptCurrentStep` cuando el cursor está fuera de ese rango.
-
-```typescript
-async function handlePhotoWhileWaiting(ctx: KakebotContext): Promise<void> {
-  if (ctx.wizard.cursor !== 0 && ctx.wizard.cursor !== TYPE_GUARD_STEP) {
-    await repromptCurrentStep(ctx);
-    return;
-  }
-  const state = ctx.wizard.state as [Domain]WizardState;
-  // extraer file_id de ctx.message y asignarlo a state.pendingFileId/pendingFileType
-  await ctx.reply(
-    "¿Qué tipo de documento es?\nEscribí \"cancelar\" para anular la carga.",
-    buildDocTypeKeyboard(),
-  ); // mismo prompt que stepInit — sin mensaje de error
-}
-```
-
-Implementación canónica: `doc-router.scene.ts:63-85` (`handlePhotoWhileWaiting`) y `doc-router.scene.ts:87-109` (`handleDocumentWhileWaiting`).
-
-**Por qué el rango de cursor válido debe incluir el cursor de entrada, no solo los de reemplazo.** `ctx.scene.enter(...)` corre el composer de la escena (`scene.on`/`scene.action`/`scene.hears`) sobre el **mismo update** que disparó la entrada, y ese composer se ejecuta **antes** que el step runner. Consecuencia concreta: cuando el archivo que dispara la entrada a la escena (`entryArgs` ya trae su `pendingFileId`) llega en el mismo update, es `scene.on("photo"/"document")` — no `stepInit` — quien lo atiende primero; `stepInit` recién corre si después llega un segundo update (texto) con el cursor en 0. Si el handler de archivo no distingue "es la entrada" de "es un reemplazo", termina emitiendo el aviso de reemplazo (o un error) ante el primer archivo, que nunca fue reemplazado. La corrección correcta es comparar contra el `pendingFileId` ya cargado en `entryArgs`/state: el aviso solo sale si el archivo entrante desplaza a uno **distinto** del que ya estaba.
+> Deep dive & gotcha del composer: `wizard-scenes-rationale.md` §7
 
 ---
 
@@ -347,210 +130,81 @@ Implementación canónica: `doc-router.scene.ts:63-85` (`handlePhotoWhileWaiting
 
 ### 8.1 Breadcrumbs
 
-**Prohibidos dentro de los steps del wizard.** Una vez que el usuario entra al scene ya se comprometió al flujo; la única salida es escribir `cancelar`. Mostrar `Impuestos / Monotributo / Nueva cuota` en cada paso es ruido visual sin valor de navegación. Los breadcrumbs son para árboles de decisión jerárquicos **antes** de un commit a un flujo, no dentro de uno.
-
-**Excepción permitida — mensaje de entrada al scene.** El handler externo que invoca `ctx.scene.enter(...)` puede usar `replyOrEdit` con breadcrumb + contexto justo antes de entrar:
-
-```typescript
-// bot/handlers/tax.ts
-async function handleRegisterInstallment(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  await replyOrEdit(
-    ctx,
-    buildBreadcrumb(["Impuestos", taxName, "Nueva cuota"])
-      + `Vas a registrar una nueva cuota para ${taxName}`,
-    { parse_mode: "Markdown" },
-  );
-  await ctx.scene.enter(TAX_SCENE_ID, { taxId, taxName } as TaxWizardState);
-}
-```
-
-Esto cierra el árbol de menús del que viene el usuario y abre el flujo. Una vez dentro del scene, todos los prompts van sin breadcrumb.
+**Prohibidos dentro del scene.** El handler externo que llama `ctx.scene.enter(...)` puede usar breadcrumb justo antes de entrar.
 
 ### 8.2 Prompts con bold
 
-Todo prompt que pide acción al usuario (`¿…?` o `*Ingresá…*`) se envía con `*...*` y `parse_mode: "Markdown"`:
+Todo prompt de acción va con `<b>...</b>` y `parse_mode: "HTML"`.
 
-```typescript
-await ctx.reply("*¿Cuál es el monto de la cuota?*\n_Ej: 5000 o 53.136,74_", {
-  parse_mode: "Markdown",
-});
-```
+### 8.3 Orden de botones
 
-### 8.3 Order de botones
-
-En cada fila de keyboard con cancelar/volver y confirmar/siguiente:
-- **Izquierda:** acción negativa o dismissive (Cancelar, Volver, Omitir).
-- **Derecha:** acción positiva o afirmativa (Confirmar, Continuar, Siguiente, Adjuntar).
+Izquierda: negativa (Cancelar, Volver, Omitir). Derecha: positiva (Confirmar, Continuar, Adjuntar).
 
 ### 8.4 Emojis
 
-- ✅ solo en confirmaciones de éxito.
-- ❌ solo en mensajes de error.
-- Nunca en labels de botón ni en prompts.
+✅ solo en confirmaciones de éxito. ❌ solo en errores. Nunca en labels de botón ni en prompts.
 
-### 8.5 Teclados con opciones condicionales — funnel único + guard en el handler
+### 8.5 Teclados con opciones condicionales
 
-Cuando un botón aparece o desaparece según el state (ej. "Resumen" solo si el archivo pendiente
-es un PDF), hacen falta **las dos cosas**:
+Dos requisitos simultáneos: (1) **funnel único** al builder que lee el state en cada llamada, y (2) **guard en el action handler** que re-valida la condición contra el state actual — los botones de mensajes anteriores siguen clickeables.
 
-1. **Un solo funnel hacia el builder.** Todas las re-presentaciones del teclado pasan por un
-   helper que lee el state en cada llamada, en vez de que cada call-site le pase el flag por su
-   cuenta. Así, si el state cambia a mitad del flujo, el teclado siguiente se recalcula solo.
-
-   ```typescript
-   async function repromptDocType(ctx: KakebotContext): Promise<void> {
-     const { pendingFileType } = ctx.wizard.state as DocRouterWizardState;
-     await ctx.reply(DOC_TYPE_PROMPT, buildDocTypeKeyboard(pendingFileType));
-   }
-   ```
-
-2. **Un guard en el action handler.** Ocultar el botón no lo desactiva: **los mensajes anteriores
-   siguen en el chat y sus botones siguen siendo clickeables**. Si el usuario mandó un PDF, no
-   tocó nada, y después mandó una foto, el teclado viejo con "Resumen" sigue ahí. El handler
-   tiene que re-validar la condición contra el state actual y recuperarse re-presentando el
-   teclado vigente — nunca asumir que fue invocado desde el teclado que corresponde al state de
-   ahora.
-
-Referencia: `doc-router.scene.ts` — `repromptDocType` y `handleDocTypeStatement`.
+> Code example: `wizard-scenes-rationale.md` §8
 
 ---
 
 ## 9. Ediciones de mensaje — regla de tres vías
 
-Una sola opción por caso; `ctx.editMessageText` pelado está **prohibido** en `bot/handlers/` y `bot/scenes/` (enforceado por el hook `check-raw-edit-message.js`):
+`ctx.editMessageText` pelado **prohibido** en `bot/handlers/` y `bot/scenes/` (hook `check-raw-edit-message.js`):
 
-| Caso | Usar | Semántica ante fallo de edición |
+| Caso | Usar | Semántica ante fallo |
 |---|---|---|
-| Edición cosmética en un action handler (navegar/re-mostrar pantalla, consumir el botón; **sin** write previo) | `replyOrEdit(ctx, text, extra?)` | En contexto callback edita y traga *cualquier* error, pero solo el doble-tap "message is not modified" es silencioso: cualquier otro motivo queda como `log.warn`. Sin callback, responde con mensaje nuevo |
-| Confirmación **después** de una escritura (Firestore/GCS) | `editOrReply(ctx, text, extra?)` | Edita; traga solo "not modified"; ante cualquier otro fallo loguea warning y cae a `ctx.reply` — la confirmación nunca se pierde (§9.4) |
-| `ctx.editMessageText` pelado | **Prohibido** | Tira ante cualquier fallo, incluido el no-op del doble-tap — ese era el bug-pattern que motivó la regla |
+| Edit cosmético (sin write previo) | `replyOrEdit` | Traga errores; solo "not modified" es silencioso, resto → `log.warn` |
+| Confirmación post-write (Firestore/GCS) | `editOrReply` | Traga "not modified"; otro fallo → `log.warn` + fallback a `ctx.reply` |
+| `ctx.editMessageText` pelado | **Prohibido** | Tira ante cualquier fallo |
 
-Excepción única: el loop de categorización (`services/category.service.ts`) usa el low-level `ctx.telegram.editMessageText` apuntando por `chatId`/`messageId` guardados y corre también en contextos sin callback — no es migrable y vive fuera de los paths guardeados por el hook.
+Excepción: loop de categorización (`services/category.service.ts`) usa `ctx.telegram.editMessageText` low-level.
 
-### 9.1 Dentro de un step (handler que procesa input del usuario)
+### 9.1 Dentro de un step
 
-Usar siempre `ctx.reply()`. El usuario acaba de escribir; estás respondiendo con un nuevo mensaje. No hay nada que editar.
+Siempre `ctx.reply()`. El usuario escribió; no hay nada que editar.
 
-### 9.2 Dentro de un action handler (callback de botón)
+### 9.2 Dentro de un action handler
 
-Patrón canónico edit-then-reply:
+Patrón: `replyOrEdit(ctx, ...)` (consume el botón) → `ctx.reply(...)` (siguiente prompt/teclado).
 
-1. `replyOrEdit(ctx, ...)` — edita el mensaje que contenía el botón presionado (lo "consume" visualmente); un fallo de esa edición cosmética no aborta el flujo.
-2. `ctx.reply(...)` — envía el siguiente prompt o teclado.
+### 9.3 `replyOrEdit` — traga errores pero loguea
 
-```typescript
-async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  // ...extraer match, setear state.
-  await replyOrEdit(ctx, `*Vas a registrar la cuota para ${monthLabel}*`, {
-    parse_mode: "Markdown",
-  });
-  await ctx.reply(`*¿Cuál es el monto?*`, { parse_mode: "Markdown" });
-  ctx.wizard.selectStep(AMOUNT_STEP);
-}
-```
+Dual-context: desde callback edita, desde texto responde. Traga todo error de edición — solo apto para cosméticas. Si el edit falla y después se mueve el cursor, el wizard queda esperando un teclado nunca entregado (`log.warn` es la única señal).
 
-Referencia: `tax.scene.ts` (`handleMonthSelected`).
+### 9.4 `editOrReply` — write-then-edit
 
-### 9.3 Semántica de `replyOrEdit` — qué cubre y qué no
+Regla: **write-then-edit → `editOrReply`**. Si la edición falla, cae a `ctx.reply` — la confirmación nunca se pierde.
 
-`replyOrEdit` (de `helpers/telegram.ts`) también cubre el caso dual-context: si el handler llega desde un callback edita, y si llega desde un mensaje de texto responde (útil en `handleConfirm`/`handleCancel` que aceptan ambas vías). Tener presente que en callback **traga cualquier error de edición**, no solo "not modified" — por eso solo es apto para ediciones cosméticas: si el mensaje editado confirma un dato ya persistido, corresponde `editOrReply` (§9.4), cuyo fallback a `reply` garantiza que la confirmación llegue.
+### 9.5 Premisa: entrada al scene siempre por callback
 
-Tragar no significa perder el rastro: desde 2026-07-22 `replyOrEdit` distingue el motivo igual que `editOrReply`. Solo `"message is not modified"` (el doble-tap) se ignora en silencio; cualquier otro fallo — Markdown roto por un nombre interpolado, mensaje demasiado viejo para editar, 429 — sale como `log.warn` con `module: "helpers/telegram"`, `userId` y `reason`. La diferencia con `editOrReply` sigue siendo el **fallback**, no el logging: `replyOrEdit` no reintenta con `ctx.reply`, así que la pantalla puede no actualizarse nunca. Consecuencia a tener presente al escribir un action handler: si después del `replyOrEdit` se mueve el cursor (`ctx.wizard.selectStep`/`next`), un edit fallido deja el wizard esperando un callback de un teclado que nunca se entregó — el `log.warn` es hoy la única señal de que eso pasó.
+`CARD_STMT_SCENE_ID`, `SERVICE_SCENE_ID`, `TAX_SCENE_ID` se entran solo desde `bot.action(...)`. Si se agrega una ruta por texto, `replyOrEdit`/`editOrReply` en `stepInit` mandarán un mensaje nuevo en vez de editar → dos teclados simultáneos. Neutralizar el teclado anterior antes de entrar.
 
-### 9.4 Confirmación después de una escritura — usar `editOrReply`
-
-Cuando un action handler primero **persiste** algo (write a Firestore: `markInstallmentAsPaid`, `createTax`, `deleteService`, etc.) y recién después edita el mensaje para confirmar, la edición NO debe ser un `ctx.editMessageText` pelado. Si esa edición tira ("message can't be edited", "message to edit not found", o el step se entró desde un contexto sin callback), el throw aborta el resto del flujo **después** de que el dato ya se guardó: el usuario queda con el cambio persistido pero sin confirmación ni el teclado del próximo paso.
-
-Usar `editOrReply(ctx, text, extra?)` (de `helpers/telegram.ts`) en su lugar. Edita igual que antes en el happy path; si la edición falla por cualquier motivo que no sea "message is not modified", manda el texto como un `ctx.reply` nuevo y el flujo continúa.
-
-```typescript
-async function handleConfirmDelete(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  await deleteService(serviceId);          // write ya commiteado
-  await editOrReply(ctx, `✅ Servicio '${serviceName}' eliminado.`, {
-    parse_mode: "Markdown",
-  });                                       // si el edit falla, cae a reply — el flujo no muere
-}
-```
-
-Regla: **write-then-edit → `editOrReply`**. Edición cosmética sin write previo → `replyOrEdit`. `ctx.editMessageText` pelado → prohibido (ver tabla al inicio de §9). Referencias: `tax.ts` (`handleMarkAsPaid`), `service.ts` (`handleConfirmDelete`), `card-stmt.scene.ts` (`stepInit` case `pay`).
-
-### 9.5 Premisa asumida por `stepInit`: la entrada al scene siempre llega por callback
-
-Varios `stepInit` (ej. `card-stmt.scene.ts` case `pay`) llaman `replyOrEdit`/`editOrReply` para editar el mensaje que disparó el `ctx.scene.enter(...)`. Esto solo edita en el sentido esperado — el mensaje con el botón que el usuario tocó — porque **hoy toda entrada a `CARD_STMT_SCENE_ID`, `SERVICE_SCENE_ID` y `TAX_SCENE_ID` ocurre desde un `bot.action(...)` (callback)**, nunca desde `bot.on("text", ...)`. Verificado: `bot/handlers/text.ts` solo entra a `BULK_SCENE_ID` y `EXPENSE_SCENE_ID`; ningún camino de texto llama `ctx.scene.enter` para las otras tres escenas.
-
-Esta premisa no está impuesta por ningún tipo, test ni hook — es un invariante de hecho, no de diseño. Si una ruta futura entrara a una de esas escenas desde un handler de texto, el mismo `ctx` no tendría `ctx.callbackQuery`, y `replyOrEdit`/`editOrReply` caerían a su rama `ctx.reply(...)` (mensaje nuevo) en lugar de editar. Consecuencia: el mensaje anterior (con su teclado) queda activo en Telegram **además** del mensaje nuevo — dos teclados simultáneos, justo lo que la decisión del 2026-07-03 ("nunca dos mensajes con botones activos") prohíbe.
-
-**Al agregar una nueva ruta de entrada a estas escenas**: si entra desde `bot.on("text", ...)` o cualquier handler sin `callbackQuery`, no asumir que `replyOrEdit`/`editOrReply` en `stepInit` van a editar algo — van a mandar un mensaje nuevo. Si el paso previo dejó un teclado activo, hay que neutralizarlo explícitamente (editarlo aparte, o rediseñar el entry point) antes de mostrar el prompt del scene.
+> Deep dives: `wizard-scenes-rationale.md` §9
 
 ---
 
 ## 10. `ctx.scene.leave()` ordering
 
-### 10.1 Orden canónico (salida normal)
+### 10.1 Salida normal
 
-```typescript
-// 1. Enviar mensaje final (éxito o cancelación) primero.
-await ctx.reply("✅ *Cuota registrada*: …", { parse_mode: "Markdown" });
-// 2. Luego dejar la escena.
-await ctx.scene.leave();
-```
+Mensaje final **antes** del `leave()`.
 
-Razón: el `leave()` solo libera el state de Telegraf. No tiene impacto visual. Mandar el mensaje primero asegura que el usuario lo vea como parte del flujo activo, no como una notificación posterior a un cambio de estado.
+### 10.2 State corrupto
 
-### 10.2 Excepción: state corrupto detectado
+`reply` + `leave` + `return`. Ambos órdenes aceptables; ser consistente dentro del scene.
 
-Cuando el handler detecta que el state es incompleto o inconsistente (no se debe continuar):
+### 10.3 Nunca `leave()` con teclado activo
 
-```typescript
-if (!hasRequiredData) {
-  await ctx.reply("Error: datos de sesión incompletos.");
-  await ctx.scene.leave();
-  return;
-}
-```
+Si el último output muestra un teclado o prompt de archivo, el scene debe seguir activo. Opciones: (A) `selectStep(GUARD_STEP)` dentro del scene; (B) entrar al scene desde el handler global en vez de mostrar el prompt suelto.
 
-Ambos órdenes son aceptables acá (no hay UX downstream). El patrón debe ser consistente dentro de un mismo scene.
+**Señal de alarma**: teclado + `scene.leave()` en la misma función = siguiente input sin capturar.
 
-### 10.3 Nunca llamar `scene.leave()` si el usuario todavía tiene que responder a un teclado
-
-Si la última acción de un step o action handler es mostrar un teclado (inline keyboard con callbacks, o un prompt de archivo), el scene debe permanecer activo para capturar la respuesta. **Llamar `scene.leave()` antes de recibir la respuesta hace que el próximo input del usuario caiga al handler global**, con resultados impredecibles (expense parser, doc-router, card handler, etc.).
-
-**Opción A — step dentro del scene que muestra teclado de archivo:** usar `selectStep(GUARD_STEP)` en lugar de `scene.leave()`.
-
-```typescript
-// ❌ INCORRECTO — scene deja activo antes de recibir la foto
-await ctx.reply("*Enviá la foto del comprobante.*", { parse_mode: "Markdown", reply_markup: ... });
-await ctx.scene.leave();   // El próximo mensaje del usuario ya no está en el scene.
-
-// ✅ CORRECTO — cursor queda en el guard de comprobante
-await ctx.reply("*Enviá la foto del comprobante.*", { parse_mode: "Markdown", reply_markup: ... });
-ctx.wizard.selectStep(RECEIPT_STEP);
-```
-
-**Opción B — action handler global que muestra teclado de archivo:** entrar al scene en lugar de mostrar el prompt suelto.
-
-```typescript
-// ❌ INCORRECTO — muestra teclado fuera del scene; la foto no la captura nadie
-async function handleMarkAsPaid(ctx: Context): Promise<void> {
-  await markInstallmentAsPaid(installmentId);
-  await ctx.editMessageText("✅ Cuota marcada como pagada.");
-  await ctx.reply("*Enviá la foto del comprobante.*", { reply_markup: ... });
-  // La foto siguiente va a photo.ts → doc-router.
-}
-
-// ✅ CORRECTO — scene entra y captura el archivo
-async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
-  await markInstallmentAsPaid(installmentId);
-  await ctx.editMessageText("✅ Cuota marcada como pagada.");
-  await ctx.scene.enter(SERVICE_SCENE_ID, { flow: "receipt", installmentId } as ServiceWizardState);
-  // stepInit muestra el prompt; scene.on("photo"/"document") lo captura.
-}
-```
-
-**Señal de alarma**: si un step o handler muestra un teclado o prompt de archivo y en la misma función llama `scene.leave()` (o no mueve el cursor con `selectStep`), es casi seguro que el siguiente input queda sin capturar.
+> Code examples: `wizard-scenes-rationale.md` §10
 
 ---
 
@@ -558,112 +212,53 @@ async function handleMarkAsPaid(ctx: KakebotContext): Promise<void> {
 
 ### 11.1 Try/catch obligatorio
 
-En toda operación I/O que puede fallar:
-- Firestore writes (`saveTax`, `markTaxInstallmentAsPaid`).
-- GCS uploads (`uploadTaxReceipt`).
-- Descarga de archivos (`downloadFile`, `ctx.telegram.getFileLink`).
-- Llamadas a servicios externos.
+En toda operación I/O: Firestore writes, GCS uploads, descargas de archivo, servicios externos.
 
 ### 11.2 Logger estructurado
 
-Usar `log.error` de `helpers/logger.ts` con metadata:
-
-```typescript
-try {
-  // operación I/O
-} catch (error) {
-  log.error("Error uploading tax receipt", error, {
-    module: "tax.scene",
-    userId: telegramUserId,
-  });
-  await ctx.reply("Error al guardar el comprobante. Intentá de nuevo.");
-}
-```
-
-- `module`: nombre del archivo sin extensión (e.g., `"tax.scene"`, `"income.scene"`).
-- `userId`: `ctx.from?.id.toString() ?? ""`.
-- Otros campos relevantes (e.g., `installmentId`, `taxId`) opcionales.
+`log.error(message, error, { module: "[domain].scene", userId })`. Campos adicionales opcionales.
 
 ### 11.3 En el catch
 
-- Enviar `ctx.reply()` con mensaje amigable.
-- **No** llamar `ctx.scene.leave()` — el usuario debe poder reintentar dentro del mismo scene.
-- **No** propagar el error.
-
-Referencia: `tax.scene.ts:569-580`, `tax.scene.ts:613-628`.
+- `ctx.reply()` con mensaje amigable
+- **No** llamar `scene.leave()` — permitir reintento
+- **No** propagar el error
 
 ---
 
 ## 12. Helpers compartidos obligatorios
 
-Importar de los módulos canónicos. No redefinir versiones locales.
-
 | Helper | Origen | Cuándo usar |
 |---|---|---|
-| `getMessageText(ctx)` | `helpers/wizard.ts` | Extraer el texto trimmed del mensaje entrante. Único método permitido — pero solo aplica a escenas que **leen** texto. Una escena 100% teclado/archivo (`doc-router.scene.ts`, `bulk.scene.ts`, `tax-receipt.scene.ts`) no debe importarlo: la regla prohíbe extraer texto a mano, no impone un import ceremonial. |
-| `parseArgentineAmount(str)` | `helpers/parse-amount.ts` | Parsear montos de input del usuario. |
-| `formatARS(amount)` | `helpers/format.ts` | Mostrar montos al usuario. |
-| `MONTH_NAMES` | `helpers/format.ts` | Nombre de mes en castellano (índice 0-based). |
-| `getDaysInMonth("YYYY-MM")` | `helpers/format.ts` | Validar día contra el mes seleccionado. |
-| `buildBackdatedTimestamp("YYYY-MM")` | `helpers/format.ts` | Crear Firestore Timestamp para registro retroactivo. |
-| `buildBreadcrumb([...])` | `helpers/breadcrumb.ts` | **Solo en handlers externos al scene** (sección 8.1). Nunca dentro del scene. |
-| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Toda edición cosmética en action handlers (§9); también cubre handlers dual-context (callback o texto). |
-| `editOrReply(ctx, text, extra?)` | `helpers/telegram.ts` | Confirmación después de una escritura — write-then-edit (§9.4). |
-| `buildPaymentMethodKeyboard({callbackPrefix})` | `helpers/payment-method.ts` | Teclado de método de pago con prefijo de callback variable. |
-| `log.info`, `log.warn`, `log.error` | `helpers/logger.ts` | Logging estructurado. |
+| `getMessageText(ctx)` | `helpers/wizard.ts` | Extraer texto — solo en escenas que leen texto; no importar en escenas 100% teclado/archivo |
+| `parseArgentineAmount(str)` | `helpers/parse-amount.ts` | Parsear montos |
+| `formatARS(amount)` | `helpers/format.ts` | Mostrar montos |
+| `MONTH_NAMES` | `helpers/format.ts` | Nombre de mes en castellano (0-based) |
+| `getDaysInMonth("YYYY-MM")` | `helpers/format.ts` | Validar día contra mes |
+| `buildBackdatedTimestamp("YYYY-MM")` | `helpers/format.ts` | Timestamp para registro retroactivo |
+| `buildBreadcrumb([...])` | `helpers/breadcrumb.ts` | **Solo en handlers externos** (§8.1) |
+| `replyOrEdit(ctx, text, extra?)` | `helpers/telegram.ts` | Edit cosmético en action handlers (§9) |
+| `editOrReply(ctx, text, extra?)` | `helpers/telegram.ts` | Confirmación post-write (§9.4) |
+| `buildPaymentMethodKeyboard({callbackPrefix})` | `helpers/payment-method.ts` | Teclado de método de pago |
+| `log.info`, `log.warn`, `log.error` | `helpers/logger.ts` | Logging estructurado |
 
 ---
 
 ## 13. Patrón seguro de `ctx.from?.id`
 
-Siempre con optional chaining y nullish coalescing:
-
-```typescript
-const telegramUserId = ctx.from?.id.toString() ?? "";
-```
-
-**Prohibido**: `ctx.from!.id` (non-null assertion). Si `ctx.from` es undefined, el comportamiento debe ser silencioso (string vacío que falla en validaciones downstream), no un crash.
+`const telegramUserId = ctx.from?.id.toString() ?? ""` — siempre optional chaining + nullish coalescing. **Prohibido**: `ctx.from!.id`.
 
 ---
 
 ## 14. Extracción de regex match
 
-Telegraf populates `ctx.match` con el resultado del regex del `scene.action()`. El tipo no está expuesto en `KakebotContext`, así que el patrón canónico es:
-
-```typescript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const match = (ctx as any).match as string[];
-const installmentId = match[1];
-```
-
-O en una sola expresión cuando solo se necesita un capture group:
-
-```typescript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const installmentId = ((ctx as any).match as string[])[1];
-```
-
-Reglas:
-- El `eslint-disable-next-line` va en la línea inmediatamente anterior.
-- El cast se hace **una sola vez** por handler — no en cada uso del match.
-- Solo en handlers de `scene.action()` con regex. Otros usos están prohibidos.
+Cast una vez por handler: `const match = (ctx as any).match as string[]` con `eslint-disable-next-line` en la línea anterior. Solo en handlers de `scene.action()` con regex.
 
 ---
 
 ## 15. Registro en el Stage
 
-El scene se importa en `functions/src/bot/telegram.ts` y se agrega al array del `Scenes.Stage`:
-
-```typescript
-import { incomeScene } from "./scenes/income.scene";
-import { taxScene } from "./scenes/tax.scene";
-// import { [newScene] } from "./scenes/[new].scene";
-
-const stage = new Scenes.Stage<KakebotContext>([incomeScene, taxScene /*, [newScene]*/]);
-telegramBot.use(stage.middleware());
-```
-
-El orden en el array no afecta el comportamiento (cada scene tiene su SCENE_ID único).
+Importar el scene en `bot/telegram.ts` y agregarlo al array de `Scenes.Stage`. El orden en el array no afecta el comportamiento.
 
 ---
 
@@ -705,7 +300,7 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 
 ### UX
 - [ ] **Cero llamadas a `buildBreadcrumb` dentro del scene file.**
-- [ ] Todo prompt con `*...*` incluye `parse_mode: "Markdown"`.
+- [ ] Todo prompt con `<b>...</b>` incluye `parse_mode: "HTML"`.
 - [ ] Botones: cancelar izquierda, confirmar derecha.
 - [ ] Emojis solo en `✅`/`❌`.
 - [ ] Teclados con opciones condicionales pasan por un funnel único que lee el state en cada llamada, y el action handler re-valida la condición contra el state actual (§8.5).
@@ -755,66 +350,6 @@ Antes de abrir un PR que crea o modifica un `*.scene.ts`, verificar **cada ítem
 
 ## 17. Patrón bridge — handoff a handlers legacy
 
-Algunos scenes actúan como un puente temporal: al terminar, escriben estado a la sesión de Firestore y llaman `scene.leave()` para que un handler global (ya registrado con `bot.action(...)`) continúe el flujo desde donde el scene lo dejó.
+Un scene puede escribir a la sesión Firestore y llamar `leave()` para que un handler global continúe. Campos escritos deben permanecer en `Session` hasta que el handler legacy se migre. Al migrar, el bridge se vuelve obsoleto.
 
-### Cuándo aplica
-
-Cuando el scene reemplaza solo la primera parte de un flujo (ej. selección de tipo de documento), pero los pasos siguientes aún viven en handlers legacy que leen de la sesión Firestore.
-
-### Patrón canónico
-
-```typescript
-async function handleDocTypeInvoice(ctx: KakebotContext): Promise<void> {
-  await ctx.answerCbQuery();
-  const telegramUserId = ctx.from?.id.toString() ?? "";
-  const { pendingFileId, pendingFileType } = ctx.wizard.state as DocRouterWizardState;
-
-  // 1. Escribe al store Firestore para que el handler legacy pueda leerlo.
-  await setSession(telegramUserId, {
-    ...(existing ?? emptySessionForPartial(telegramUserId)),
-    state: "invoice_awaiting_service",   // estado que espera el handler global
-    pendingFileId,
-    pendingFileType,
-  });
-
-  // 2. Muestra el teclado / mensaje que inicia el flujo legacy.
-  await replyOrEdit(ctx, "...", { reply_markup: keyboard.reply_markup as any });
-
-  // 3. Sale del scene — el handler legacy toma el control desde aquí.
-  await ctx.scene.leave();
-}
-```
-
-Referencia: `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` / `handleDocTypeReceipt`.
-
-### Reglas del patrón bridge
-
-- Los campos escritos a Firestore (ej. `pendingFileId`, `pendingFileType`) deben **permanecer en la interfaz `Session`** mientras el handler legacy los use. Eliminarlos antes rompe el handoff.
-- Al migrar el handler legacy a su propio WizardScene (Oleada B/C), el bridge se vuelve obsoleto: el flujo completo queda en el nuevo scene y la escritura a Firestore ya no es necesaria.
-- Documentar en el TICKET.md o en el comentario del bridge qué campos son temporales y cuándo se eliminarán.
-
----
-
-## Referencias canónicas
-
-| Patrón | Archivo y líneas |
-|---|---|
-| Orden completo de archivo | `tax.scene.ts:1-666` |
-| `stepInit` con routing por entryArgs | `tax.scene.ts:64-105` |
-| `stepHandleX` con validación + avance | `tax.scene.ts:200-262` |
-| `stepGuardX` separado | `tax.scene.ts:159-167`, `tax.scene.ts:174-193` |
-| `repromptCurrentStep` con switch exhaustivo | `tax.scene.ts:464-533` |
-| Action handler con `answerCbQuery` y edit-then-reply | `tax.scene.ts:358-383` |
-| `selectStep` en action handler | `tax.scene.ts:382` |
-| Try/catch + `log.error` estructurado | `tax.scene.ts:569-580` |
-| Photo/document handlers con cursor check | `tax.scene.ts:540-581` |
-| Archivo como input primario (photo/document handlers) | `doc-router.scene.ts` — `handlePhotoWhileWaiting` / `handleDocumentWhileWaiting` |
-| Escena de selección pura (sin steps de texto, dos selectores encadenados) | `tax-receipt.scene.ts` |
-| Escena de un solo selector que rehidrata un flujo existente | `card-statement-doc.scene.ts` — elige la tarjeta y entra a `card-stmt.scene` con `flow: "create"` ya poblado |
-| Ruteo a otra escena según elección del usuario | `doc-router.scene.ts` — `handleEntityService` / `handleEntityTax` / `handleDocTypeStatement` |
-| Teclado que depende del state (opción condicional) | `doc-router.scene.ts` — `repromptDocType` como funnel único a `buildDocTypeKeyboard` |
-| Cancel word handler | `tax.scene.ts:636-639` |
-| Registro de event handlers | `tax.scene.ts:653-665` |
-| `WizardState` interface | `types/telegraf-context.types.ts` (buscar `[Domain]WizardState`) |
-| `getMessageText` helper | `helpers/wizard.ts` |
-| Patrón bridge (handoff a handler legacy) | `bot/scenes/doc-router.scene.ts` — `handleDocTypeInvoice` |
+> Code example & rules: `wizard-scenes-rationale.md` §17

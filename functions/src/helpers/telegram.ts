@@ -14,10 +14,55 @@ function getTelegramErrorText(error: unknown): string {
 }
 
 /**
+ * True when Telegram rejected the payload because it could not parse its
+ * formatting entities - an unescaped `<` under parse_mode "HTML", an unbalanced
+ * `_` under "Markdown". The text itself is deliverable; only the markup is bad,
+ * so the same payload sent without parse_mode goes through.
+ *
+ * @param {string} reason - Lowercased error text from getTelegramErrorText
+ * @return {boolean} True when the failure was a markup parse failure
+ */
+function isParseEntitiesError(reason: string): boolean {
+  return reason.includes("can't parse entities");
+}
+
+/**
+ * Retries an edit that Telegram rejected for malformed markup, with the
+ * formatting stripped. Showing the screen unformatted beats not showing it at
+ * all: every escaping gap in the codebase degrades to a cosmetic defect instead
+ * of a dead screen. Never throws - the caller is a cosmetic edit path.
+ *
+ * @param {Context} ctx - Telegraf context
+ * @param {string} text - Message text from the rejected edit
+ * @param {object} extra - Extra parameters from the rejected edit
+ * @return {Promise<void>} Resolves once the retry lands or the failure is logged.
+ */
+async function retryEditWithoutFormatting(
+  ctx: Context,
+  text: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extra?: Record<string, any>
+): Promise<void> {
+  const plainExtra = { ...(extra ?? {}) };
+  delete plainExtra.parse_mode;
+
+  try {
+    await ctx.editMessageText(text, plainExtra);
+  } catch (error) {
+    log.warn("Plain-text retry of a malformed-markup edit also failed", {
+      module: "helpers/telegram",
+      userId: ctx.from?.id.toString() ?? "",
+      reason: getTelegramErrorText(error),
+    });
+  }
+}
+
+/**
  * Edits the current message if triggered from a callback query,
  * otherwise sends a new message. A failed edit never aborts the caller:
- * "message is not modified" (the double-tap no-op) is ignored silently,
- * and any other reason is logged as a warning before being swallowed.
+ * "message is not modified" (the double-tap no-op) is ignored silently, a
+ * markup parse failure is retried once with the formatting stripped, and any
+ * other reason is logged as a warning before being swallowed.
  * Use for cosmetic edits only; for confirmations after a write use
  * `editOrReply`, whose reply fallback guarantees delivery.
  *
@@ -44,6 +89,15 @@ export async function replyOrEdit(
     if (reason.includes("message is not modified")) {
       return;
     }
+    if (isParseEntitiesError(reason)) {
+      log.warn("Edit rejected for malformed markup; retrying unformatted", {
+        module: "helpers/telegram",
+        userId: ctx.from?.id.toString() ?? "",
+        reason,
+      });
+      await retryEditWithoutFormatting(ctx, text, extra);
+      return;
+    }
     log.warn("Cosmetic editMessageText failed; screen not updated", {
       module: "helpers/telegram",
       userId: ctx.from?.id.toString() ?? "",
@@ -56,7 +110,7 @@ export async function replyOrEdit(
  * Delivers `text` as a new message after an edit already failed, degrading the
  * payload instead of repeating it verbatim: first as-is, then — if Telegram
  * rejects it again — stripped of `parse_mode`, because a malformed-markup
- * payload (an unescaped `_` or `*` in a user-supplied name) fails identically
+ * payload (an unescaped `<` in a user-supplied name) fails identically
  * on every retry. Losing the formatting beats losing the message.
  * Never throws: the caller already persisted data, so an undelivered
  * confirmation must not abort the rest of the flow.

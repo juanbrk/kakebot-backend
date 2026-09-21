@@ -24,12 +24,12 @@ const CONFIRM_STEP = 3;
 const MIN_PLAUSIBLE_EXCHANGE_RATE = 100;
 
 const AMOUNT_USD_PROMPT
-  = "*Ingresá el monto en dólares a vender*\n"
-  + "_Ingresá el número sin puntos de mil. Ej: 500 o 1250,50_\n"
-  + "_Escribí cancelar o salir para anular._";
+  = "<b>Ingresá el monto en dólares a vender</b>\n"
+  + "<i>Ingresá el número sin puntos de mil. Ej: 500 o 1250,50</i>\n"
+  + "<i>Escribí cancelar o salir para anular.</i>";
 
 const EXCHANGE_RATE_PROMPT
-  = "*¿A qué cotización vendiste?*\n_Ingresá el número sin puntos de mil. Ej: 1400 o 1400,50_";
+  = "<b>¿A qué cotización vendiste?</b>\n<i>Ingresá el número sin puntos de mil. Ej: 1400 o 1400,50</i>";
 
 /**
  * Step 0: prompts for the USD amount to sell. Runs on scene entry.
@@ -37,7 +37,7 @@ const EXCHANGE_RATE_PROMPT
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function stepInit(ctx: KakebotContext): Promise<void> {
-  await ctx.reply(AMOUNT_USD_PROMPT, { parse_mode: "Markdown" });
+  await ctx.reply(AMOUNT_USD_PROMPT, { parse_mode: "HTML" });
   ctx.wizard.next();
 }
 
@@ -53,8 +53,8 @@ async function stepHandleAmountUSD(ctx: KakebotContext): Promise<void> {
   const isValidAmount = amountUSD !== null && amountUSD > 0;
   if (!isValidAmount) {
     await ctx.reply(
-      "*No entendí el monto.*\nIngresá solo el número sin puntos de mil:\n_Ej: 500 o 1250,50_",
-      { parse_mode: "Markdown" }
+      "<b>No entendí el monto.</b>\nIngresá solo el número sin puntos de mil:\n<i>Ej: 500 o 1250,50</i>",
+      { parse_mode: "HTML" }
     );
     return;
   }
@@ -62,7 +62,7 @@ async function stepHandleAmountUSD(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as UsdSaleWizardState;
   state.amountUSD = amountUSD;
 
-  await ctx.reply(EXCHANGE_RATE_PROMPT, { parse_mode: "Markdown" });
+  await ctx.reply(EXCHANGE_RATE_PROMPT, { parse_mode: "HTML" });
   ctx.wizard.next();
 }
 
@@ -79,8 +79,8 @@ async function stepHandleExchangeRate(ctx: KakebotContext): Promise<void> {
   const isValidRate = exchangeRate !== null && exchangeRate > 0;
   if (!isValidRate) {
     await ctx.reply(
-      "*No entendí la cotización.*\nIngresá solo el número:\n_Ej: 1400 o 1400,50_",
-      { parse_mode: "Markdown" }
+      "<b>No entendí la cotización.</b>\nIngresá solo el número:\n<i>Ej: 1400 o 1400,50</i>",
+      { parse_mode: "HTML" }
     );
     return;
   }
@@ -88,8 +88,8 @@ async function stepHandleExchangeRate(ctx: KakebotContext): Promise<void> {
   const isRateImplausiblyLow = exchangeRate < MIN_PLAUSIBLE_EXCHANGE_RATE;
   if (isRateImplausiblyLow) {
     await ctx.reply(
-      "*La cotización parece demasiado baja.*\nIngresala sin puntos de mil.\n_Ej: 1400 o 1400,50_",
-      { parse_mode: "Markdown" }
+      "<b>La cotización parece demasiado baja.</b>\nIngresala sin puntos de mil.\n<i>Ej: 1400 o 1400,50</i>",
+      { parse_mode: "HTML" }
     );
     return;
   }
@@ -98,7 +98,7 @@ async function stepHandleExchangeRate(ctx: KakebotContext): Promise<void> {
   state.exchangeRate = exchangeRate;
 
   await ctx.reply(buildUsdSaleConfirmText(state.amountUSD ?? 0, exchangeRate), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildUsdSaleConfirmKeyboard(),
   });
   ctx.wizard.next();
@@ -113,7 +113,7 @@ async function stepGuardConfirm(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as UsdSaleWizardState;
   await ctx.reply("Usá los botones para confirmar o cancelar.");
   await ctx.reply(buildUsdSaleConfirmText(state.amountUSD ?? 0, state.exchangeRate ?? 0), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     ...buildUsdSaleConfirmKeyboard(),
   });
 }
@@ -143,8 +143,8 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
     const amountARS = amountUSD * exchangeRate;
     await editOrReply(
       ctx,
-      `✅ *Venta registrada*: ${formatUSD(amountUSD)} → ${formatARS(amountARS)}`,
-      { parse_mode: "Markdown" }
+      `✅ <b>Venta registrada</b>: ${formatUSD(amountUSD)} → ${formatARS(amountARS)}`,
+      { parse_mode: "HTML" }
     );
     await ctx.scene.leave();
   } catch (error) {
@@ -174,14 +174,14 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   await ctx.reply("No esperaba un archivo aquí.");
   switch (ctx.wizard.cursor) {
   case 1:
-    await ctx.reply(AMOUNT_USD_PROMPT, { parse_mode: "Markdown" });
+    await ctx.reply(AMOUNT_USD_PROMPT, { parse_mode: "HTML" });
     break;
   case 2:
-    await ctx.reply(EXCHANGE_RATE_PROMPT, { parse_mode: "Markdown" });
+    await ctx.reply(EXCHANGE_RATE_PROMPT, { parse_mode: "HTML" });
     break;
   case CONFIRM_STEP:
     await ctx.reply(buildUsdSaleConfirmText(state.amountUSD ?? 0, state.exchangeRate ?? 0), {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       ...buildUsdSaleConfirmKeyboard(),
     });
     break;

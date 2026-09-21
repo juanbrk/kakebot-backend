@@ -1,9 +1,9 @@
 import { Scenes, Markup } from "telegraf";
 import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../../helpers/wizard";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
-import { buildDueDate, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
+import { buildDueDate, escapeHtml, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
 import {
@@ -51,8 +51,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   switch (state.flow) {
   case "create":
-    await ctx.reply("*¿Cómo se llama el servicio?*\nEj: Expensas, Gas, Flow, Netflix", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>¿Cómo se llama el servicio?</b>\nEj: Expensas, Gas, Flow, Netflix", {
+      parse_mode: "HTML",
     });
     ctx.wizard.next();
     break;
@@ -69,8 +69,8 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
       return;
     }
     const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
-    await ctx.reply(`*Seleccioná el mes para ${state.serviceName || "el servicio"}:*`, {
-      parse_mode: "Markdown",
+    await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -92,9 +92,9 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   case "receipt":
     await ctx.reply(
-      "*Enviá la foto o PDF del comprobante.*\nO tocá el botón si no querés adjuntarlo ahora.",
+      "<b>Enviá la foto o PDF del comprobante.</b>\nO tocá el botón si no querés adjuntarlo ahora.",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: Markup.inlineKeyboard([
           [Markup.button.callback("Omitir comprobante", "svc_scene_skip_receipt")],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -106,9 +106,9 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
   case "invoice":
     await ctx.reply(
-      "*Enviá la foto o PDF de la factura.*\nO tocá el botón si no querés adjuntarla ahora.",
+      "<b>Enviá la foto o PDF de la factura.</b>\nO tocá el botón si no querés adjuntarla ahora.",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: Markup.inlineKeyboard([
           [Markup.button.callback("Omitir factura", "svc_scene_skip_invoice")],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,9 +130,14 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Wizard context
  */
 async function stepHandleName(ctx: KakebotContext): Promise<void> {
-  const name = getMessageText(ctx);
-  if (!name) {
+  const raw = getMessageText(ctx);
+  if (!raw) {
     await ctx.reply("El nombre no puede estar vacío.");
+    return;
+  }
+  const name = normalizeUserText(raw);
+  if (name.length > MAX_ENTITY_NAME_LENGTH) {
+    await ctx.reply(`El nombre no puede superar los ${MAX_ENTITY_NAME_LENGTH} caracteres.`);
     return;
   }
   const telegramUserId = ctx.from?.id.toString() ?? "";
@@ -141,8 +146,8 @@ async function stepHandleName(ctx: KakebotContext): Promise<void> {
   state.serviceId = serviceId;
   state.serviceName = name;
   const keyboard = buildPaymentMethodKeyboard(serviceId, "new");
-  await ctx.reply("*Seleccioná el método de pago*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el método de pago</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -159,8 +164,8 @@ async function stepGuardPaymentMethod(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Elegí el método de pago del teclado, o escribí \"cancelar\" para anular.");
   const state = ctx.wizard.state as ServiceWizardState;
   const keyboard = buildPaymentMethodKeyboard(state.serviceId || "", "new");
-  await ctx.reply("*Seleccioná el método de pago*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el método de pago</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -177,8 +182,8 @@ async function stepGuardInstallmentChoice(ctx: KakebotContext): Promise<void> {
   const serviceName = state.serviceName || "el servicio";
   const serviceId = state.serviceId || "";
   await ctx.reply("Elegí una opción del teclado, o escribí \"cancelar\" para anular.");
-  await ctx.reply(`✅ Servicio '${serviceName}' creado.\n\n*¿Deseas agregar una cuota ahora?*`, {
-    parse_mode: "Markdown",
+  await ctx.reply(`✅ Servicio '${escapeHtml(serviceName)}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`, {
+    parse_mode: "HTML",
     reply_markup: Markup.inlineKeyboard([
       [
         Markup.button.callback("Cancelar", "svc_no_cuota"),
@@ -199,8 +204,8 @@ async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
   const state = ctx.wizard.state as ServiceWizardState;
   await ctx.reply("Elegí el mes del teclado, o escribí \"cancelar\" para anular.");
   const keyboard = buildFilteredMonthKeyboard(state.availableMonths || [], state.serviceId || "");
-  await ctx.reply(`*Seleccioná el mes para ${state.serviceName || "el servicio"}:*`, {
-    parse_mode: "Markdown",
+  await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -223,7 +228,7 @@ async function stepHandleDay(ctx: KakebotContext): Promise<void> {
     return;
   }
   state.dueDay = day;
-  await ctx.reply("*¿Cuál es el monto de la cuota?*", { parse_mode: "Markdown" });
+  await ctx.reply("<b>¿Cuál es el monto de la cuota?</b>", { parse_mode: "HTML" });
   ctx.wizard.next();
 }
 
@@ -268,9 +273,9 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
     const month2 = String(dueDate.getMonth() + 1).padStart(2, "0");
     await ctx.reply(`✅ Cuota registrada: ${serviceName} ${formatARS(amount)} (vence ${day2}/${month2})`);
     await ctx.reply(
-      "*Enviá la foto o PDF de la factura.*\nO tocá el botón si no querés adjuntarla ahora.",
+      "<b>Enviá la foto o PDF de la factura.</b>\nO tocá el botón si no querés adjuntarla ahora.",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: Markup.inlineKeyboard([
           [Markup.button.callback("Omitir factura", "svc_scene_skip_invoice")],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -367,9 +372,9 @@ async function stepHandleEditDay(ctx: KakebotContext): Promise<void> {
 async function stepGuardReceipt(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Esperaba una foto o PDF. Enviá el comprobante.");
   await ctx.reply(
-    "*Enviá la foto o PDF del comprobante.*\nO tocá el botón si no querés adjuntarlo ahora.",
+    "<b>Enviá la foto o PDF del comprobante.</b>\nO tocá el botón si no querés adjuntarlo ahora.",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: Markup.inlineKeyboard([
         [Markup.button.callback("Omitir comprobante", "svc_scene_skip_receipt")],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -387,9 +392,9 @@ async function stepGuardReceipt(ctx: KakebotContext): Promise<void> {
 async function stepGuardInvoice(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Esperaba una foto o PDF. Enviá la factura.");
   await ctx.reply(
-    "*Enviá la foto o PDF de la factura.*\nO tocá el botón si no querés adjuntarla ahora.",
+    "<b>Enviá la foto o PDF de la factura.</b>\nO tocá el botón si no querés adjuntarla ahora.",
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: Markup.inlineKeyboard([
         [Markup.button.callback("Omitir factura", "svc_scene_skip_invoice")],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -423,9 +428,9 @@ async function handlePaymentMethodSelected(ctx: KakebotContext): Promise<void> {
   }
   await editOrReply(
     ctx,
-    `✅ Servicio '${serviceName}' creado.\n\n*¿Deseas agregar una cuota ahora?*`,
+    `✅ Servicio '${escapeHtml(serviceName)}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`,
     {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: Markup.inlineKeyboard([
         [
           Markup.button.callback("Cancelar", "svc_no_cuota"),
@@ -505,12 +510,12 @@ async function handleConfirmAddInstallment(ctx: KakebotContext): Promise<void> {
   const keyboard = buildFilteredMonthKeyboard(availableMonths, serviceId);
   await replyOrEdit(
     ctx,
-    "*Seleccioná el mes de la nueva cuota.*\n" +
+    "<b>Seleccioná el mes de la nueva cuota.</b>\n" +
     "Podés crear cuotas solo para meses que aún no tengan una.",
-    { parse_mode: "Markdown" },
+    { parse_mode: "HTML" },
   );
-  await ctx.reply(`*Seleccioná el mes para ${state.serviceName || "el servicio"}:*`, {
-    parse_mode: "Markdown",
+  await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -533,12 +538,12 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const maxDay = getDaysInMonth(dueMonth);
   await replyOrEdit(
     ctx,
-    `*Mes seleccionado:* ${getMonthLabel(dueMonth)}`,
-    { parse_mode: "Markdown" },
+    `<b>Mes seleccionado:</b> ${getMonthLabel(dueMonth)}`,
+    { parse_mode: "HTML" },
   );
   await ctx.reply(
-    `*¿Qué día de ${getMonthLabel(dueMonth, true)} vence el servicio? (1-${maxDay})*`,
-    { parse_mode: "Markdown" },
+    `<b>¿Qué día de ${getMonthLabel(dueMonth, true)} vence el servicio? (1-${maxDay})</b>`,
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -665,7 +670,7 @@ async function handleInstallmentDetail(ctx: KakebotContext, installmentId: strin
     backLabel: "← Volver al historial",
   });
   await replyOrEdit(ctx, text, {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   });
@@ -682,12 +687,12 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   await ctx.reply("No esperaba un archivo aquí.");
   switch (ctx.wizard.cursor) {
   case 1:
-    await ctx.reply("*¿Cómo se llama el servicio?*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>¿Cómo se llama el servicio?</b>", { parse_mode: "HTML" });
     break;
   case 2: {
     const keyboard = buildPaymentMethodKeyboard(state.serviceId || "", "new");
-    await ctx.reply("*Seleccioná el método de pago*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>Seleccioná el método de pago</b>", {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: keyboard.reply_markup as any,
     });
@@ -695,9 +700,9 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   }
   case 3:
     await ctx.reply(
-      `✅ Servicio '${state.serviceName || "el servicio"}' creado.\n\n*¿Deseas agregar una cuota ahora?*`,
+      `✅ Servicio '${escapeHtml(state.serviceName || "el servicio")}' creado.\n\n<b>¿Deseas agregar una cuota ahora?</b>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: Markup.inlineKeyboard([
           [
             Markup.button.callback("Cancelar", "svc_no_cuota"),
@@ -710,8 +715,8 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     break;
   case MONTH_STEP: {
     const monthKeyboard = buildFilteredMonthKeyboard(state.availableMonths || [], state.serviceId || "");
-    await ctx.reply(`*Seleccioná el mes para ${state.serviceName || "el servicio"}:*`, {
-      parse_mode: "Markdown",
+    await ctx.reply(`<b>Seleccioná el mes para ${escapeHtml(state.serviceName || "el servicio")}:</b>`, {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: monthKeyboard.reply_markup as any,
     });
@@ -721,22 +726,22 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
     if (state.selectedMonth) {
       const maxDay = getDaysInMonth(state.selectedMonth);
       await ctx.reply(
-        `*¿Qué día de ${getMonthLabel(state.selectedMonth, true)} vence el servicio? (1-${maxDay})*`,
-        { parse_mode: "Markdown" },
+        `<b>¿Qué día de ${getMonthLabel(state.selectedMonth, true)} vence el servicio? (1-${maxDay})</b>`,
+        { parse_mode: "HTML" },
       );
     }
     break;
   case 6:
-    await ctx.reply("*¿Cuál es el monto de la cuota?*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>¿Cuál es el monto de la cuota?</b>", { parse_mode: "HTML" });
     break;
   case EDIT_NAME_STEP:
-    await ctx.reply("*¿Cuál es el nuevo nombre del servicio?*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>¿Cuál es el nuevo nombre del servicio?</b>", { parse_mode: "HTML" });
     break;
   case EDIT_AMOUNT_STEP:
-    await ctx.reply("*¿Cuál es el nuevo monto?*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>¿Cuál es el nuevo monto?</b>", { parse_mode: "HTML" });
     break;
   case EDIT_DAY_STEP:
-    await ctx.reply("*¿Cuál es el nuevo día de vencimiento? (1-31)*", { parse_mode: "Markdown" });
+    await ctx.reply("<b>¿Cuál es el nuevo día de vencimiento? (1-31)</b>", { parse_mode: "HTML" });
     break;
   default:
     break;

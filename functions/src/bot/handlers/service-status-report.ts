@@ -34,7 +34,7 @@ async function handleServiceStatusReport(ctx: Context): Promise<void> {
       ctx,
       header + "No tenés servicios registrados.",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "Markdown", reply_markup: backKeyboard.reply_markup as any },
+      { parse_mode: "HTML", reply_markup: backKeyboard.reply_markup as any },
     );
     return;
   }
@@ -43,6 +43,6 @@ async function handleServiceStatusReport(ctx: Context): Promise<void> {
     ctx,
     header + report,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "Markdown", reply_markup: backKeyboard.reply_markup as any },
+    { parse_mode: "HTML", reply_markup: backKeyboard.reply_markup as any },
   );
 }

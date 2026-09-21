@@ -2,8 +2,9 @@ import { Scenes } from "telegraf";
 import { KakebotContext, CardCreateWizardState } from "../../types/telegraf-context.types";
 import { CreditCardProcessor } from "../../types/index";
 import { log } from "../../helpers/logger";
+import { escapeHtml } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
-import { getMessageText } from "../../helpers/wizard";
+import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../../helpers/wizard";
 import {
   buildCardProcessorKeyboard,
   buildCardConfirmText,
@@ -26,8 +27,8 @@ const DIGITS_STEP = 3;
  */
 async function stepInit(ctx: KakebotContext): Promise<void> {
   await ctx.reply(
-    "*¿A qué banco pertenece la tarjeta?*\n_Ejemplo: Galicia, BBVA, etc._",
-    { parse_mode: "Markdown" },
+    "<b>¿A qué banco pertenece la tarjeta?</b>\n<i>Ejemplo: Galicia, BBVA, etc.</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -38,14 +39,19 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
  * @param {KakebotContext} ctx - Wizard context
  */
 async function stepHandleBank(ctx: KakebotContext): Promise<void> {
-  const bank = getMessageText(ctx);
-  if (!bank || bank.length === 0) {
+  const raw = getMessageText(ctx);
+  if (!raw || raw.length === 0) {
     await ctx.reply("El nombre del banco no puede estar vacío.");
     return;
   }
+  const bank = normalizeUserText(raw);
+  if (bank.length > MAX_ENTITY_NAME_LENGTH) {
+    await ctx.reply(`El nombre del banco no puede superar los ${MAX_ENTITY_NAME_LENGTH} caracteres.`);
+    return;
+  }
   (ctx.wizard.state as CardCreateWizardState).bank = bank;
-  await ctx.reply("*Seleccioná el procesador:*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el procesador:</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildCardProcessorKeyboard().reply_markup as any,
   });
@@ -59,8 +65,8 @@ async function stepHandleBank(ctx: KakebotContext): Promise<void> {
  */
 async function stepGuardProcessor(ctx: KakebotContext): Promise<void> {
   await ctx.reply("Elegí el procesador del teclado, o escribí \"cancelar\" para anular.");
-  await ctx.reply("*Seleccioná el procesador:*", {
-    parse_mode: "Markdown",
+  await ctx.reply("<b>Seleccioná el procesador:</b>", {
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildCardProcessorKeyboard().reply_markup as any,
   });
@@ -80,8 +86,8 @@ async function stepHandleDigits(ctx: KakebotContext): Promise<void> {
   }
   (ctx.wizard.state as CardCreateWizardState).lastFourDigits = digits!;
   await ctx.reply(
-    "*Ingresá la fecha de vencimiento de la tarjeta*\n_Formato MM/AA (Ej: 03/28)_",
-    { parse_mode: "Markdown" },
+    "<b>Ingresá la fecha de vencimiento de la tarjeta</b>\n<i>Formato MM/AA (Ej: 03/28)</i>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.next();
 }
@@ -107,7 +113,7 @@ async function stepHandleExpiry(ctx: KakebotContext): Promise<void> {
   const lastFourDigits = state.lastFourDigits ?? "";
   const processor: CreditCardProcessor = state.processor ?? "VISA";
   await ctx.reply(buildCardConfirmText({ digits: lastFourDigits, bank, processor, expiry: expiry! }), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildCardConfirmKeyboard().reply_markup as any,
   });
@@ -131,7 +137,7 @@ async function stepGuardConfirm(ctx: KakebotContext): Promise<void> {
     : "";
   await ctx.reply("Confirmá o cancelá la tarjeta usando los botones.");
   await ctx.reply(buildCardConfirmText({ digits: lastFourDigits, bank, processor, expiry: expiryStr }), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: buildCardConfirmKeyboard().reply_markup as any,
   });
@@ -149,12 +155,12 @@ async function handleProcessorSelected(ctx: KakebotContext): Promise<void> {
   (ctx.wizard.state as CardCreateWizardState).processor = processor;
 
   const processorLabel = processor === "VISA" ? "Visa" : "MasterCard";
-  await replyOrEdit(ctx, `*Procesador seleccionado: ${processorLabel}*`, {
-    parse_mode: "Markdown",
+  await replyOrEdit(ctx, `<b>Procesador seleccionado: ${processorLabel}</b>`, {
+    parse_mode: "HTML",
   });
   await ctx.reply(
-    "*Ingresá los últimos 4 dígitos de la tarjeta*",
-    { parse_mode: "Markdown" },
+    "<b>Ingresá los últimos 4 dígitos de la tarjeta</b>",
+    { parse_mode: "HTML" },
   );
   ctx.wizard.selectStep(DIGITS_STEP);
 }
@@ -201,8 +207,8 @@ async function handleConfirm(ctx: KakebotContext): Promise<void> {
   const processorLabel = state.processor === "VISA" ? "Visa" : "Master";
   const cardLabel = `${processorLabel} ${state.lastFourDigits} - ${state.bank}`;
 
-  await editOrReply(ctx, `✅ Tarjeta *${cardLabel}* registrada.`, {
-    parse_mode: "Markdown",
+  await editOrReply(ctx, `✅ Tarjeta <b>${escapeHtml(cardLabel)}</b> registrada.`, {
+    parse_mode: "HTML",
   });
   await ctx.scene.leave();
   await ctx.reply("¿Deseas añadir un resumen mensual?", buildCardStmtAfterCreateKeyboard(cardId));
@@ -232,27 +238,27 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
   case 0:
   case 1:
     await ctx.reply(
-      "*¿A qué banco pertenece la tarjeta?*\n_Ejemplo: Galicia, BBVA, etc._",
-      { parse_mode: "Markdown" },
+      "<b>¿A qué banco pertenece la tarjeta?</b>\n<i>Ejemplo: Galicia, BBVA, etc.</i>",
+      { parse_mode: "HTML" },
     );
     break;
   case 2:
-    await ctx.reply("*Seleccioná el procesador:*", {
-      parse_mode: "Markdown",
+    await ctx.reply("<b>Seleccioná el procesador:</b>", {
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildCardProcessorKeyboard().reply_markup as any,
     });
     break;
   case 3:
     await ctx.reply(
-      "*Ingresá los últimos 4 dígitos de la tarjeta*",
-      { parse_mode: "Markdown" },
+      "<b>Ingresá los últimos 4 dígitos de la tarjeta</b>",
+      { parse_mode: "HTML" },
     );
     break;
   case 4:
     await ctx.reply(
-      "*Ingresá la fecha de vencimiento de la tarjeta*\n_Formato MM/AA (Ej: 03/28)_",
-      { parse_mode: "Markdown" },
+      "<b>Ingresá la fecha de vencimiento de la tarjeta</b>\n<i>Formato MM/AA (Ej: 03/28)</i>",
+      { parse_mode: "HTML" },
     );
     break;
   case 5: {
@@ -265,7 +271,7 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
       ? `${String(expiryMonth).padStart(2, "0")}/${String(expiryYear).slice(-2)}`
       : "";
     await ctx.reply(buildCardConfirmText({ digits: lastFourDigits, bank, processor, expiry: expiryStr }), {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reply_markup: buildCardConfirmKeyboard().reply_markup as any,
     });
