@@ -26,7 +26,7 @@ import {
   updateTaxInstallmentDueDay,
   clearTaxReceiptUrl,
 } from "../../services/tax.service";
-import { uploadTaxReceipt, deleteFromUrl } from "../../services/storage.service";
+import { uploadTaxReceipt, deleteFromUrl, extractGcsPath } from "../../services/storage.service";
 import { downloadFile } from "../handlers/photo";
 
 export const TAX_SCENE_ID = "tax-wizard";
@@ -57,6 +57,34 @@ async function getAvailableMonthsForTax(taxId: string): Promise<string[]> {
     available.push(`${d.getFullYear()}-${m}`);
   }
   return available.filter((mo) => !existingMonths.has(mo));
+}
+
+/**
+ * Deletes the old GCS receipt file after a replacement upload,
+ * only when the new file's GCS path differs from the old one (format change).
+ *
+ * @param {TaxWizardState} state - Current wizard state (checked for existingReceiptUrl)
+ * @param {string} newReceiptUrl - URL of the just-uploaded receipt
+ * @param {string} telegramUserId - For structured logging
+ */
+async function deleteReplacedReceipt(
+  state: TaxWizardState,
+  newReceiptUrl: string,
+  telegramUserId: string,
+): Promise<void> {
+  if (!state.existingReceiptUrl) return;
+  const oldPath = extractGcsPath(state.existingReceiptUrl);
+  const newPath = extractGcsPath(newReceiptUrl);
+  if (oldPath !== newPath) {
+    try {
+      await deleteFromUrl(state.existingReceiptUrl);
+    } catch (cleanupError) {
+      log.error("Failed to delete old tax receipt from GCS", cleanupError, {
+        module: "tax.scene",
+        userId: telegramUserId,
+      });
+    }
+  }
 }
 
 /**
@@ -791,6 +819,7 @@ async function handleReceiptPhoto(ctx: KakebotContext): Promise<void> {
     const mimeType = fileLink.href.includes(".png") ? "image/png" : "image/jpeg";
     const receiptUrl = await uploadTaxReceipt({ telegramUserId, installmentId, fileBuffer, mimeType });
     await saveTaxReceiptUrl(installmentId, receiptUrl);
+    await deleteReplacedReceipt(state, receiptUrl, telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
     await ctx.scene.leave();
   } catch (error) {
@@ -839,6 +868,7 @@ async function handleReceiptDocument(ctx: KakebotContext): Promise<void> {
       mimeType: "application/pdf",
     });
     await saveTaxReceiptUrl(installmentId, receiptUrl);
+    await deleteReplacedReceipt(state, receiptUrl, telegramUserId);
     await ctx.reply("✅ Comprobante guardado.");
     await ctx.scene.leave();
   } catch (error) {

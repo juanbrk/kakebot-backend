@@ -49,6 +49,9 @@ export interface TaxWizardState {
   /** True when entering the scene to decide whether to keep or delete an existing
    * receipt after unmarking an installment as paid. */
   unpayDecision?: boolean;
+  /** GCS URL of the receipt being replaced; the scene deletes the old file
+   * after a successful upload when the GCS path differs from the new one. */
+  existingReceiptUrl?: string;
 }
 
 /**

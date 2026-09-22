@@ -106,6 +106,18 @@ export async function uploadStatementPaymentReceiptUSD(params: FileUploadParams)
 }
 
 /**
+ * Extracts the GCS object path from a Firebase Storage URL.
+ *
+ * @param {string} url - Firebase Storage URL (emulator or production)
+ * @return {string} Decoded GCS object path (e.g. "tax_receipts/123/abc.jpg")
+ */
+export function extractGcsPath(url: string): string {
+  const parsedUrl = new URL(url);
+  const encodedPath = parsedUrl.pathname.split("/o/")[1];
+  return decodeURIComponent(encodedPath);
+}
+
+/**
  * Downloads a stored file using the Admin SDK by extracting the GCS path from its Firebase Storage URL.
  * Works in both emulator and production — Admin SDK bypasses storage security rules in both environments.
  *

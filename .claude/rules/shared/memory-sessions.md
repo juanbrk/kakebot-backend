@@ -1,5 +1,13 @@
 # Session Log
 
+## 2026-09-21 – 2026-09-22: Modificar comprobante de impuesto — completo
+
+### Completado
+- Feature completa: botón "Modificar comprobante" en detalle de cuota pagada, limpieza GCS del archivo viejo, helper `extractGcsPath`. Refactor DRY post-QA. `/technician-check` + `/audit-pr` APPROVE.
+
+### Pendiente
+- Merge a main (a cargo de Juan). Borrar `scripts/seed-qa-replace-receipt.js` (tooling descartable).
+
 ## 2026-09-14 – 2026-09-21: Migrar parse_mode de Markdown a HTML + escaping de texto de usuario — completo
 
 ### Completado
