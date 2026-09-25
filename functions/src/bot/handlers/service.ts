@@ -1,7 +1,11 @@
 import { Telegraf, Context, Markup } from "telegraf";
 import { KakebotContext, ServiceWizardState } from "../../types/telegraf-context.types";
 import { ServiceInstallment, ServicePaymentMethod } from "../../types/service.types";
-import { ShowInstallmentDetailParams, RenderInstallmentsListParams } from "../../types/handlers.types";
+import {
+  ShowInstallmentDetailParams,
+  RenderInstallmentsListParams,
+  FetchAndRenderInstallmentsListParams,
+} from "../../types/handlers.types";
 import {
   getServicesByUser,
   getServiceById,
@@ -32,6 +36,8 @@ import { buildNameListText, escapeHtml, formatARS, MONTH_NAMES } from "../../hel
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
+import { getAvailableYears, getItemsForYearDesc, getYear } from "../../helpers/period";
+import { buildYearSelectorKeyboard } from "../keyboards/period";
 
 /**
  * Renders the service action view (detail + action keyboard) for a given service.
@@ -128,7 +134,8 @@ export function registerServiceHandler(bot: Telegraf<KakebotContext>): void {
   bot.action(/^svc_pg:(\d+)$/, handlePagination);
 
   bot.action(/^svc_cuotas:(.+)$/, handleInstallmentsList);
-  bot.action(/^svc_cuotas_pg:(.+):(\d+)$/, handleInstallmentsListPagination);
+  bot.action(/^svc_cuotas_y:([^:]+):(\d{4})$/, handleInstallmentsYear);
+  bot.action(/^svc_cuotas_pg:([^:]+):(\d{4}):(\d+)$/, handleInstallmentsListPagination);
   bot.action(/^svc_cuota_detail:(.+)$/, handleInstallmentDetailFromHistory);
   bot.action(/^svc_back_svc:(.+)$/, handleBackToServiceAction);
 
@@ -744,7 +751,7 @@ export async function showInstallmentDetail({
     isPaid: installment.isPaid,
     hasReceipt: !!installment.receiptUrl,
     hasInvoice: !!installment.invoiceUrl,
-    backCallback: `svc_cuotas:${installment.serviceId}`,
+    backCallback: `svc_cuotas_y:${installment.serviceId}:${getYear(installment.dueMonth)}`,
     backLabel,
   });
   await editOrReply(ctx, breadcrumb + text, {
@@ -754,6 +761,12 @@ export async function showInstallmentDetail({
   });
 }
 
+/**
+ * Shows a service's installment history: the year selector, newest year first.
+ * When only one year has installments, skips the year selector and goes straight to that year's months.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
 async function handleInstallmentsList(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const serviceId = ((ctx as any).match as string[])[1];
@@ -764,20 +777,46 @@ async function handleInstallmentsList(ctx: Context): Promise<void> {
     getServiceById(serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
-  const serviceName = service?.name || null;
+  const serviceName = service?.name || serviceId;
 
   if (installments.length === 0) {
     await replyOrEdit(ctx, "No hay cuotas registradas para este servicio.");
     return;
   }
 
-  await renderInstallmentsList({
-    ctx,
-    installments,
-    page: 0,
-    serviceId,
-    serviceName: serviceName || serviceId,
+  const years = getAvailableYears(installments.map((installment) => installment.dueMonth));
+
+  if (years.length === 1) {
+    await renderInstallmentsList({ ctx, installments, year: years[0], page: 0, serviceId, serviceName });
+    return;
+  }
+
+  const keyboard = buildYearSelectorKeyboard({
+    years,
+    callbackPrefix: `svc_cuotas_y:${serviceId}`,
+    backCallback: `svc_back_svc:${serviceId}`,
+    backLabel: `\u2190 Volver a ${serviceName}`,
   });
+  await replyOrEdit(
+    ctx,
+    buildBreadcrumb(["Servicios", serviceName, "Cuotas"]) + "<b>Seleccioná el año</b>",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
+  );
+}
+
+/**
+ * Shows the first page of a service's installments for a given year.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleInstallmentsYear(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const serviceId = match[1];
+  const year = match[2];
+  await ctx.answerCbQuery();
+  await fetchAndRenderInstallmentsList({ ctx, serviceId, year, page: 0 });
 }
 
 async function handleBackToServiceAction(ctx: Context): Promise<void> {
@@ -787,43 +826,74 @@ async function handleBackToServiceAction(ctx: Context): Promise<void> {
   await showServiceActionView(ctx, serviceId);
 }
 
+/**
+ * Shows another page of a service's installments for a given year.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
 async function handleInstallmentsListPagination(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const match = (ctx as any).match as string[];
   const serviceId = match[1];
-  const page = parseInt(match[2], 10);
-  const telegramUserId = ctx.from?.id.toString() || "";
+  const year = match[2];
+  const page = parseInt(match[3], 10);
   await ctx.answerCbQuery();
+  await fetchAndRenderInstallmentsList({ ctx, serviceId, year, page });
+}
 
+/**
+ * Fetches the service and its installments, then renders one page of the given year.
+ *
+ * @param {FetchAndRenderInstallmentsListParams} params - Context, service ID, year, and page
+ */
+async function fetchAndRenderInstallmentsList({
+  ctx,
+  serviceId,
+  year,
+  page,
+}: FetchAndRenderInstallmentsListParams): Promise<void> {
+  const telegramUserId = ctx.from?.id.toString() || "";
   const [service, installments] = await Promise.all([
     getServiceById(serviceId),
     getInstallmentsByService(serviceId, telegramUserId),
   ]);
-  const serviceName = service?.name || null;
   await renderInstallmentsList({
     ctx,
     installments,
+    year,
     page,
     serviceId,
-    serviceName: serviceName || serviceId,
+    serviceName: service?.name || serviceId,
   });
 }
 
+/**
+ * Renders the paginated installment list of one year, newest month first.
+ * Back goes to the year selector only when there is more than one year to pick from;
+ * otherwise it returns to the service, since svc_cuotas would skip straight back here.
+ *
+ * @param {RenderInstallmentsListParams} params - Context, every installment of the service, year, page, service
+ */
 async function renderInstallmentsList({
   ctx,
   installments,
+  year,
   page,
   serviceId,
   serviceName,
 }: RenderInstallmentsListParams): Promise<void> {
-  const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Cuotas"]);
-  const totalPages = Math.ceil(installments.length / INSTALLMENTS_PER_PAGE);
+  const yearInstallments = getItemsForYearDesc(installments, year, (installment) => installment.dueMonth);
+  const hasMultipleYears = getAvailableYears(installments.map((installment) => installment.dueMonth)).length > 1;
+  const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Cuotas", year]);
+  const totalPages = Math.ceil(yearInstallments.length / INSTALLMENTS_PER_PAGE);
   const text = `<b>Seleccioná la cuota a ver.</b>\n\n<i>Página ${page + 1} de ${totalPages}</i>`;
   const keyboard = buildInstallmentListKeyboard({
-    installments,
+    installments: yearInstallments,
+    year,
     page,
     serviceId,
-    serviceName,
+    backCallback: hasMultipleYears ? `svc_cuotas:${serviceId}` : `svc_back_svc:${serviceId}`,
+    backLabel: hasMultipleYears ? "\u2190 Volver" : `\u2190 Volver a ${serviceName}`,
   });
 
   await replyOrEdit(ctx, breadcrumb + text, {
@@ -859,7 +929,7 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     isPaid: installment.isPaid,
     hasReceipt: !!installment.receiptUrl,
     hasInvoice: !!installment.invoiceUrl,
-    backCallback: `svc_cuotas:${installment.serviceId}`,
+    backCallback: `svc_cuotas_y:${installment.serviceId}:${getYear(installment.dueMonth)}`,
     backLabel: "\u2190 Volver al historial",
   });
 
@@ -890,7 +960,7 @@ async function handleEditPaymentMethod(ctx: Context): Promise<void> {
     ? PAYMENT_METHOD_LABELS[service.paymentMethod]
     : "Sin configurar";
 
-  await ctx.reply(`Vas a modificar el método de pago para <b>${escapeHtml(service.name)}</b>`, {
+  await replyOrEdit(ctx, `Vas a modificar el método de pago para <b>${escapeHtml(service.name)}</b>`, {
     parse_mode: "HTML",
   });
 

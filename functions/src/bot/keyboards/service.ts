@@ -8,7 +8,8 @@ import {
   BuildInstallmentListKeyboardParams,
   BuildInstallmentDetailKeyboardParams,
 } from "../../types/service.types";
-import { escapeHtml, formatARS, MONTH_NAMES } from "../../helpers/format";
+import { escapeHtml, formatARS, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
+import { buildPaginatedKeyboardRows } from "./pagination";
 
 export const PAYMENT_METHOD_LABELS: Record<ServicePaymentMethod, string> = {
   credit_card: "Tarjeta de Crédito",
@@ -316,63 +317,31 @@ export function buildInstallmentDetailKeyboard({
   return Markup.inlineKeyboard(rows);
 }
 
+/**
+ * Builds the paginated installment list of one year in Servicios → Cuotas.
+ * Buttons show only the month name — the year lives in the breadcrumb.
+ *
+ * @param {BuildInstallmentListKeyboardParams} params - Installments of the year (newest first),
+ *   year, page, service ID, and back button
+ * @return {Markup.Markup} Inline keyboard markup; each installment emits `svc_cuota_detail:{id}`
+ */
 export function buildInstallmentListKeyboard({
   installments,
+  year,
   page,
   serviceId,
-  serviceName,
+  backCallback,
+  backLabel,
 }: BuildInstallmentListKeyboardParams) {
-  const start = page * INSTALLMENTS_PER_PAGE;
-  const end = start + INSTALLMENTS_PER_PAGE;
-  const pageInstallments = installments.slice(start, end);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[][] = [];
-
-  for (let i = 0; i < pageInstallments.length; i += 2) {
-    const row = [];
-    const inst1 = pageInstallments[i];
-    const [year1, month1] = inst1.dueMonth.split("-");
-    const label1 = `${MONTH_NAMES[parseInt(month1, 10) - 1]} ${year1}`;
-    row.push(Markup.button.callback(label1, `svc_cuota_detail:${inst1.id}`));
-
-    if (i + 1 < pageInstallments.length) {
-      const inst2 = pageInstallments[i + 1];
-      const [year2, month2] = inst2.dueMonth.split("-");
-      const label2 = `${MONTH_NAMES[parseInt(month2, 10) - 1]} ${year2}`;
-      row.push(Markup.button.callback(label2, `svc_cuota_detail:${inst2.id}`));
-    }
-    rows.push(row);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const navRow: any[] = [];
-  if (page > 0) {
-    navRow.push(
-      Markup.button.callback(
-        "← Página anterior",
-        `svc_cuotas_pg:${serviceId}:${page - 1}`,
-      ),
-    );
-  }
-  if (end < installments.length) {
-    navRow.push(
-      Markup.button.callback(
-        "Página siguiente →",
-        `svc_cuotas_pg:${serviceId}:${page + 1}`,
-      ),
-    );
-  }
-  if (navRow.length > 0) {
-    rows.push(navRow);
-  }
-
-  rows.push([
-    Markup.button.callback(
-      `\u2190 Volver a ${serviceName}`,
-      `svc_back_svc:${serviceId}`,
-    ),
-  ]);
+  const rows = buildPaginatedKeyboardRows({
+    items: installments,
+    page,
+    perPage: INSTALLMENTS_PER_PAGE,
+    buttonLabel: (installment) => getMonthLabel(installment.dueMonth, true),
+    buttonCallback: (installment) => `svc_cuota_detail:${installment.id}`,
+    navCallback: (navPage) => `svc_cuotas_pg:${serviceId}:${year}:${navPage}`,
+  });
+  rows.push([Markup.button.callback(backLabel, backCallback)]);
   return Markup.inlineKeyboard(rows);
 }
 

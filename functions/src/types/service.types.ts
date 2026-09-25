@@ -42,10 +42,12 @@ export interface SaveInstallmentParams {
  * Parameters for buildInstallmentListKeyboard.
  */
 export interface BuildInstallmentListKeyboardParams {
-  installments: any[];
+  installments: ServiceInstallment[];
+  year: string;
   page: number;
   serviceId: string;
-  serviceName: string;
+  backCallback: string;
+  backLabel: string;
 }
 
 /**

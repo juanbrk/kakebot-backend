@@ -5,6 +5,7 @@ import { getMessageText, normalizeUserText, MAX_ENTITY_NAME_LENGTH } from "../..
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { buildDueDate, escapeHtml, formatARS, getDaysInMonth, getMonthLabel } from "../../helpers/format";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
+import { getYear } from "../../helpers/period";
 import { log } from "../../helpers/logger";
 import {
   buildPaymentMethodKeyboard,
@@ -666,7 +667,7 @@ async function handleInstallmentDetail(ctx: KakebotContext, installmentId: strin
     isPaid: installment.isPaid,
     hasReceipt: !!installment.receiptUrl,
     hasInvoice: !!installment.invoiceUrl,
-    backCallback: `svc_cuotas:${installment.serviceId}`,
+    backCallback: `svc_cuotas_y:${installment.serviceId}:${getYear(installment.dueMonth)}`,
     backLabel: "← Volver al historial",
   });
   await replyOrEdit(ctx, text, {

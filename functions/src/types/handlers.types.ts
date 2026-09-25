@@ -21,9 +21,20 @@ export interface ShowInstallmentDetailParams {
 export interface RenderInstallmentsListParams {
   ctx: Context;
   installments: ServiceInstallment[];
+  year: string;
   page: number;
   serviceId: string;
   serviceName: string;
+}
+
+/**
+ * Parameters for fetchAndRenderInstallmentsList.
+ */
+export interface FetchAndRenderInstallmentsListParams {
+  ctx: Context;
+  serviceId: string;
+  year: string;
+  page: number;
 }
 
 /**
