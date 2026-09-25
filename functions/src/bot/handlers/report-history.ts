@@ -8,9 +8,12 @@ import { INCOME_SCENE_ID } from "../scenes/income.scene";
 import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { generateMonthlyReport, getPastMonthsWithData } from "../../services/report.service";
 import { ShowMonthSelectorParams } from "../../types/report.types";
-import { MONTH_NAMES } from "../../helpers/format";
+import { getMonthLabel } from "../../helpers/format";
+import { getAvailableYears, getItemsForYearDesc, getYear } from "../../helpers/period";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
+import { buildYearSelectorKeyboard } from "../keyboards/period";
+import { buildReportMonthListKeyboard } from "../keyboards/report";
 
 /**
  * Registers all report history navigation and retroactive registration handlers.
@@ -25,7 +28,8 @@ export function registerReportHistoryHandler(bot: Telegraf<KakebotContext>): voi
   bot.action("rep_impuestos", handleImpuestosMenu);
   bot.action("rep_current", handleRepCurrent);
   bot.action("rep_history", handleRepHistory);
-  bot.action(/^rep_year:(.+)$/, handleRepYear);
+  bot.action(/^rep_year:(\d{4})$/, handleRepYear);
+  bot.action(/^rep_year_pg:(\d{4}):(\d+)$/, handleRepYearPage);
   bot.action(/^rep_month:(.+)$/, handleRepMonth);
   bot.action(/^rep_view:(.+)$/, handleRepView);
   bot.action(/^rep_exp:(.+)$/, handleRepExp);
@@ -167,9 +171,8 @@ async function handleRepCurrent(ctx: Context): Promise<void> {
 }
 
 /**
- * Queries past months with data and navigates to year selector or month selector.
- * When only one year has data, skips the year selector and goes directly to the month selector,
- * passing "menu_reportes" as the back callback to avoid a navigation loop.
+ * Queries past months with data and shows the year selector, newest year first.
+ * When only one year has data, skips the year selector and goes straight to that year's months.
  *
  * @param {Context} ctx - Telegraf context
  */
@@ -191,27 +194,24 @@ async function handleRepHistory(ctx: Context): Promise<void> {
     return;
   }
 
-  const years = [...new Set(pastMonths.map((ym) => ym.split("-")[0]))];
+  const years = getAvailableYears(pastMonths);
 
   if (years.length === 1) {
-    // Only one year: skip year selector. Back button must return to rep_balances,
-    // not to rep_history (which would create a loop by showing this same screen again).
-    await showMonthSelector({ ctx, year: years[0], allPastMonths: pastMonths, backCallback: "rep_balances" });
+    await showMonthSelector({ ctx, year: years[0], allPastMonths: pastMonths, page: 0 });
     return;
   }
 
-  const rows = years.map((year) => [Markup.button.callback(year, `rep_year:${year}`)]);
-  rows.push([Markup.button.callback("← Volver", "rep_balances")]);
+  const keyboard = buildYearSelectorKeyboard({ years, callbackPrefix: "rep_year", backCallback: "rep_balances" });
   await replyOrEdit(
     ctx,
-    buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "Seleccioná el año",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores"]) + "<b>Seleccioná el año</b>",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "HTML", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
 /**
- * Shows the month selector for a given year.
+ * Shows the first page of the month selector for a given year.
  *
  * @param {Context} ctx - Telegraf context
  */
@@ -221,50 +221,52 @@ async function handleRepYear(ctx: Context): Promise<void> {
   const year = ((ctx as any).match as string[])[1];
   const telegramUserId = ctx.from?.id.toString() || "";
   const pastMonths = await getPastMonthsWithData(telegramUserId);
-  await showMonthSelector({ ctx, year, allPastMonths: pastMonths, backCallback: "rep_history" });
+  await showMonthSelector({ ctx, year, allPastMonths: pastMonths, page: 0 });
 }
 
 /**
- * Builds and shows the month selector keyboard for a given year.
+ * Shows another page of the month selector for a given year.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleRepYearPage(ctx: Context): Promise<void> {
+  await ctx.answerCbQuery();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const year = match[1];
+  const page = parseInt(match[2], 10);
+  const telegramUserId = ctx.from?.id.toString() || "";
+  const pastMonths = await getPastMonthsWithData(telegramUserId);
+  await showMonthSelector({ ctx, year, allPastMonths: pastMonths, page });
+}
+
+/**
+ * Shows the paginated month selector for a given year, newest month first.
+ * Back goes to the year selector only when there is more than one year to pick from;
+ * otherwise it returns to Balances, since rep_history would skip straight back here.
+ *
+ * @param {ShowMonthSelectorParams} params - Context, year, every past month with data, and page
  */
 async function showMonthSelector({
   ctx,
   year,
   allPastMonths,
-  backCallback,
+  page,
 }: ShowMonthSelectorParams): Promise<void> {
-  const yearMonths = allPastMonths
-    .filter((ym) => ym.startsWith(year))
-    .sort()
-    .reverse();
-
-  const rows: ReturnType<typeof Markup.button.callback>[][] = [];
-  for (let i = 0; i < yearMonths.length; i += 2) {
-    const [, m1] = yearMonths[i].split("-");
-    const row = [
-      Markup.button.callback(
-        `${MONTH_NAMES[parseInt(m1, 10) - 1]} ${year}`,
-        `rep_month:${yearMonths[i]}`,
-      ),
-    ];
-    if (i + 1 < yearMonths.length) {
-      const [, m2] = yearMonths[i + 1].split("-");
-      row.push(
-        Markup.button.callback(
-          `${MONTH_NAMES[parseInt(m2, 10) - 1]} ${year}`,
-          `rep_month:${yearMonths[i + 1]}`,
-        ),
-      );
-    }
-    rows.push(row);
-  }
-  rows.push([Markup.button.callback("← Volver", backCallback)]);
+  const yearMonths = getItemsForYearDesc(allPastMonths, year, (yearMonth) => yearMonth);
+  const hasMultipleYears = getAvailableYears(allPastMonths).length > 1;
+  const keyboard = buildReportMonthListKeyboard({
+    yearMonths,
+    year,
+    page,
+    backCallback: hasMultipleYears ? "rep_history" : "rep_balances",
+  });
 
   await replyOrEdit(
     ctx,
-    buildBreadcrumb(["Reportes", "Balances", "Anteriores", year]) + "Seleccioná el mes",
+    buildBreadcrumb(["Reportes", "Balances", "Anteriores", year]) + "<b>Seleccioná el mes</b>",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "HTML", reply_markup: Markup.inlineKeyboard(rows).reply_markup as any },
+    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
   );
 }
 
@@ -277,8 +279,7 @@ async function handleRepMonth(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const yearMonth = ((ctx as any).match as string[])[1];
-  const [year, month] = yearMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const monthLabel = getMonthLabel(yearMonth);
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback("Ver reporte", `rep_view:${yearMonth}`)],
@@ -286,7 +287,7 @@ async function handleRepMonth(ctx: Context): Promise<void> {
       Markup.button.callback("Registrar gasto", `rep_exp:${yearMonth}`),
       Markup.button.callback("Registrar ingreso", `rep_inc:${yearMonth}`),
     ],
-    [Markup.button.callback("← Volver", `rep_year:${year}`)],
+    [Markup.button.callback("← Volver", `rep_year:${getYear(yearMonth)}`)],
   ]);
   await replyOrEdit(
     ctx,
@@ -327,8 +328,7 @@ async function handleRepExp(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const yearMonth = ((ctx as any).match as string[])[1];
-  const [year, month] = yearMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const monthLabel = getMonthLabel(yearMonth);
 
   await replyOrEdit(
     ctx,
@@ -348,8 +348,7 @@ async function handleRepInc(ctx: KakebotContext): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const yearMonth = ((ctx as any).match as string[])[1];
-  const [year, month] = yearMonth.split("-");
-  const monthLabel = `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  const monthLabel = getMonthLabel(yearMonth);
 
   await replyOrEdit(
     ctx,

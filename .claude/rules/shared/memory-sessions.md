@@ -1,5 +1,15 @@
 # Session Log
 
+## 2026-09-23 – 2026-09-24: Navegación Año → Mes en historiales — en curso (C1–C3 de C7)
+
+### Completado
+- Plan aprobado (orden descendente, paginación de 6 dentro del año) y volcado a TICKET.md.
+- Piezas compartidas: grilla paginada, helpers de período y selector de año.
+- Reportes → Balances anteriores migrado a Año → Mes; arreglado el loop con un solo año. QA 23/23.
+
+### Pendiente
+- C4 tarjetas, C5 servicios, C6 impuestos, C7 docs. Borrar `scripts/seed-qa-year-month.js` al cerrar el QA.
+
 ## 2026-09-21 – 2026-09-22: Modificar comprobante de impuesto — completo
 
 ### Completado

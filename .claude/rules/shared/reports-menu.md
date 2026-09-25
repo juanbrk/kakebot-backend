@@ -6,7 +6,7 @@
 menu_reportes (Reportes)
 ├── rep_balances (Balances)
 │   ├── rep_current → Balance del mes en curso (2 mensajes: detalle + balance)
-│   └── rep_history → Selector de mes → rep_month:YYYY-MM → rep_view / rep_exp / rep_inc
+│   └── rep_history → Selector de año (solo si >1 año) → rep_year:YYYY → meses (rep_year_pg:YYYY:N) → rep_month:YYYY-MM → rep_view / rep_exp / rep_inc
 ├── rep_pagos (Pagos)
 │   └── menu_upcoming → Próximos Vencimientos (handler separado: upcoming-dues.ts)
 ├── rep_servicios (Servicios)
@@ -51,6 +51,12 @@ sus dos líneas quedaran visualmente iguales) y terminó siendo lo que usan **la
 vivas — Reportes, Balances, Pagos, Servicios e Impuestos. Se documenta como la regla porque ya no
 quedaba ninguna pantalla siguiendo la anterior.
 
+## Historial (Balances anteriores)
+
+Usa el flujo compartido Año → Mes (`keyboards.md`): `getAvailableYears` + `buildYearSelectorKeyboard`
+para los años, y `buildReportMonthListKeyboard` (`bot/keyboards/report.ts`) para los meses — del más
+nuevo al más viejo, 6 por página, botón con solo el nombre del mes (el año va en el breadcrumb).
+
 ## Breadcrumbs
 
 | Pantalla | Breadcrumb |
@@ -75,8 +81,10 @@ quedaba ninguna pantalla siguiendo la anterior.
 | `menu_service_status` | `rep_servicios` |
 | `menu_tax_status` | `rep_impuestos` |
 | `rep_history` (no data) | `rep_balances` |
-| `rep_history` (año único) | `rep_balances` |
-| `rep_history` (multi-año) | `rep_balances` |
+| `rep_history` (selector de año, multi-año) | `rep_balances` |
+| `rep_year` (meses, año único) | `rep_balances` — `rep_history` saltearía de nuevo a esta pantalla |
+| `rep_year` (meses, multi-año) | `rep_history` |
+| `rep_month` (opciones del mes) | `rep_year:{año del mes}` |
 
 ## Cómo agregar un nuevo reporte
 
