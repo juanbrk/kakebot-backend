@@ -23,6 +23,9 @@ import {
   getStatementsByCard,
 } from "../../services/card.service";
 import { downloadFromUrl } from "../../services/storage.service";
+import { getAvailableYears, getItemsForYearDesc } from "../../helpers/period";
+import { buildYearSelectorKeyboard } from "../keyboards/period";
+import { RenderStatementListParams, FetchAndRenderStatementListParams } from "../../types/handlers.types";
 import {
   buildCardListKeyboard,
   buildCardDetailText,
@@ -32,6 +35,7 @@ import {
   buildCardListViewKeyboard,
   buildCardEmptyStateKeyboard,
   buildStatementListKeyboard,
+  buildStatementEmptyStateKeyboard,
   buildStatementDetailText,
   buildStatementDetailKeyboard,
   buildStatementEditMenuKeyboard,
@@ -251,12 +255,20 @@ async function showStatementDetail(
       ...buildStatementDetailKeyboard({
         statementId,
         cardId: statement.cardId,
+        month: statement.month,
         isPaid: statement.isPaid,
       }),
     },
   );
 }
 
+/**
+ * Shows a card's statement history: the year selector, newest year first.
+ * When only one year has statements, skips the year selector and goes straight to that year's months.
+ * "Añadir Resumen" goes on this entry screen, never on a month list reached from the selector.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
 async function handleStatementsList(ctx: Context): Promise<void> {
   await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -274,50 +286,122 @@ async function handleStatementsList(ctx: Context): Promise<void> {
   }
 
   const cardLabel = buildCardLabel(card);
-
   const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
 
   if (statements.length === 0) {
-    await replyOrEdit(
-      ctx,
-      `${breadcrumb}No hay resúmenes registrados para esta tarjeta.`,
-      {
-        parse_mode: "HTML",
-        ...buildStatementListKeyboard({
-          statements,
-          page: 0,
-          cardId,
-          cardLabel,
-        }),
-      },
-    );
+    await replyOrEdit(ctx, `${breadcrumb}No hay resúmenes registrados para esta tarjeta.`, {
+      parse_mode: "HTML",
+      ...buildStatementEmptyStateKeyboard({ cardId, cardLabel }),
+    });
     return;
   }
 
-  await replyOrEdit(ctx, `${breadcrumb}<b>Seleccioná un resumen:</b>`, {
+  const years = getAvailableYears(statements.map((statement) => statement.month));
+
+  if (years.length === 1) {
+    await renderStatementList({ ctx, statements, year: years[0], page: 0, cardId, cardLabel });
+    return;
+  }
+
+  const keyboard = buildYearSelectorKeyboard({
+    years,
+    callbackPrefix: `card_stmts_y:${cardId}`,
+    backCallback: `card_pick:${cardId}`,
+    backLabel: `← Volver a ${cardLabel}`,
+    actionRows: [[Markup.button.callback("Añadir Resumen", `card_stmt_add:${cardId}`)]],
+  });
+  await replyOrEdit(ctx, `${breadcrumb}<b>Seleccioná el año</b>`, {
     parse_mode: "HTML",
-    ...buildStatementListKeyboard({ statements, page: 0, cardId, cardLabel }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
   });
 }
 
-async function handleStatementsListPagination(ctx: Context): Promise<void> {
+/**
+ * Shows the first page of a card's statements for a given year.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleStatementsYear(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const cardId = match[1];
+  const year = match[2];
   await ctx.answerCbQuery();
+  await fetchAndRenderStatementList({ ctx, cardId, year, page: 0 });
+}
+
+/**
+ * Shows another page of a card's statements for a given year.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleStatementsListPagination(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cardId = ((ctx as any).match as string[])[1];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const page = parseInt(((ctx as any).match as string[])[2], 10);
+  const match = (ctx as any).match as string[];
+  const cardId = match[1];
+  const year = match[2];
+  const page = parseInt(match[3], 10);
+  await ctx.answerCbQuery();
+  await fetchAndRenderStatementList({ ctx, cardId, year, page });
+}
+
+/**
+ * Fetches the card and its statements, then renders one page of the given year.
+ *
+ * @param {FetchAndRenderStatementListParams} params - Context, card ID, year, and page
+ */
+async function fetchAndRenderStatementList({
+  ctx,
+  cardId,
+  year,
+  page,
+}: FetchAndRenderStatementListParams): Promise<void> {
   const telegramUserId = String(ctx.from!.id);
+  const [card, statements] = await Promise.all([
+    getCardById(cardId),
+    getStatementsByCard(cardId, telegramUserId),
+  ]);
+  await renderStatementList({
+    ctx,
+    statements,
+    year,
+    page,
+    cardId,
+    cardLabel: card ? buildCardLabel(card) : "",
+  });
+}
 
-  const statements = await getStatementsByCard(cardId, telegramUserId);
-
-  const card = await getCardById(cardId);
-  const cardLabel = card ? buildCardLabel(card) : "";
-
-  const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes"]);
+/**
+ * Renders the paginated statement list of one year, newest month first.
+ * Back goes to the year selector only when there is more than one year to pick from;
+ * otherwise it returns to the card, since card_stmts would skip straight back here.
+ *
+ * @param {RenderStatementListParams} params - Context, every statement of the card, year, page, card
+ */
+async function renderStatementList({
+  ctx,
+  statements,
+  year,
+  page,
+  cardId,
+  cardLabel,
+}: RenderStatementListParams): Promise<void> {
+  const yearStatements = getItemsForYearDesc(statements, year, (statement) => statement.month);
+  const hasMultipleYears = getAvailableYears(statements.map((statement) => statement.month)).length > 1;
+  const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes", year]);
 
   await replyOrEdit(ctx, `${breadcrumb}<b>Seleccioná un resumen:</b>`, {
     parse_mode: "HTML",
-    ...buildStatementListKeyboard({ statements, page, cardId, cardLabel }),
+    ...buildStatementListKeyboard({
+      statements: yearStatements,
+      year,
+      page,
+      cardId,
+      showAddButton: !hasMultipleYears,
+      backCallback: hasMultipleYears ? `card_stmts:${cardId}` : `card_pick:${cardId}`,
+      backLabel: hasMultipleYears ? "← Volver" : `← Volver a ${cardLabel}`,
+    }),
   });
 }
 
@@ -858,7 +942,8 @@ export function registerCardHandler(bot: Telegraf<KakebotContext>): void {
 
   // Statement history
   bot.action(/^card_stmts:(.+)$/, handleStatementsList);
-  bot.action(/^card_stmts_pg:(.+):(\d+)$/, handleStatementsListPagination);
+  bot.action(/^card_stmts_y:([^:]+):(\d{4})$/, handleStatementsYear);
+  bot.action(/^card_stmts_pg:([^:]+):(\d{4}):(\d+)$/, handleStatementsListPagination);
   bot.action(/^card_stmt_detail:(.+)$/, handleStatementDetail);
   bot.action(/^card_hist_attach:(.+)$/, handleAttachStatementPdfFromHistory);
 

@@ -5,12 +5,15 @@ import {
   StmtConfirmTextParams,
   BuildStatementDetailKeyboardParams,
   BuildStatementListKeyboardParams,
+  BuildStatementEmptyStateKeyboardParams,
   BuildStmtEditConfirmKeyboardParams,
   BuildStmtReceiptsKeyboardParams,
   BuildStmtPayARSKeyboardParams,
   BuildStmtUsdCurrencyKeyboardParams,
 } from "../../types/card.types";
 import { escapeHtml, formatARS, formatUSD, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
+import { getYear } from "../../helpers/period";
+import { buildPaginatedKeyboardRows } from "./pagination";
 
 const CARDS_PER_PAGE = 6;
 const STATEMENTS_PER_PAGE = 6;
@@ -413,60 +416,52 @@ export function buildCardEmptyStateKeyboard() {
 }
 
 /**
- * Builds a paginated 2-column grid of statement buttons, ordered oldest to newest.
+ * Keyboard shown when a card has no statements yet: add one, or go back to the card.
  *
- * @param {BuildStatementListKeyboardParams} params
+ * @param {BuildStatementEmptyStateKeyboardParams} params - Card ID and label
  * @return {object} Inline keyboard markup
+ */
+export function buildStatementEmptyStateKeyboard({ cardId, cardLabel }: BuildStatementEmptyStateKeyboardParams) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback("Añadir Resumen", `card_stmt_add:${cardId}`)],
+    [Markup.button.callback(`← Volver a ${cardLabel}`, `card_pick:${cardId}`)],
+  ]);
+}
+
+/**
+ * Builds the paginated statement list of one year in Tarjetas → Resúmenes.
+ * Buttons show only the month name (plus ✅ when paid) — the year lives in the breadcrumb.
+ * "Añadir Resumen" lives on the entry screen only: here when the card has a single year,
+ * on the year selector otherwise.
+ *
+ * @param {BuildStatementListKeyboardParams} params - Statements of the year (newest first),
+ *   year, page, card ID, whether to show "Añadir Resumen", and back button
+ * @return {object} Inline keyboard markup; each statement emits `card_stmt_detail:{id}`
  */
 export function buildStatementListKeyboard({
   statements,
+  year,
   page,
   cardId,
-  cardLabel,
+  showAddButton,
+  backCallback,
+  backLabel,
 }: BuildStatementListKeyboardParams) {
-  const start = page * STATEMENTS_PER_PAGE;
-  const end = start + STATEMENTS_PER_PAGE;
-  const pageStmts = statements.slice(start, end);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[] = [];
-
-  for (let i = 0; i < pageStmts.length; i += 2) {
-    const row = [];
-    const stmt1 = pageStmts[i];
-    const [year1, month1] = stmt1.month.split("-");
-    const baseLabel1 = `${MONTH_NAMES[parseInt(month1, 10) - 1]} ${year1}`;
-    const label1 = stmt1.isPaid ? `${baseLabel1} ✅` : baseLabel1;
-    row.push(Markup.button.callback(label1, `card_stmt_detail:${stmt1.id}`));
-    if (i + 1 < pageStmts.length) {
-      const stmt2 = pageStmts[i + 1];
-      const [year2, month2] = stmt2.month.split("-");
-      const baseLabel2 = `${MONTH_NAMES[parseInt(month2, 10) - 1]} ${year2}`;
-      const label2 = baseLabel2;
-      row.push(Markup.button.callback(label2, `card_stmt_detail:${stmt2.id}`));
-    }
-    rows.push(row);
+  const rows = buildPaginatedKeyboardRows({
+    items: statements,
+    page,
+    perPage: STATEMENTS_PER_PAGE,
+    buttonLabel: (statement) => {
+      const monthName = getMonthLabel(statement.month, true);
+      return statement.isPaid ? `${monthName} ✅` : monthName;
+    },
+    buttonCallback: (statement) => `card_stmt_detail:${statement.id}`,
+    navCallback: (navPage) => `card_stmts_pg:${cardId}:${year}:${navPage}`,
+  });
+  if (showAddButton) {
+    rows.push([Markup.button.callback("Añadir Resumen", `card_stmt_add:${cardId}`)]);
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const navRow: any[] = [];
-  if (page > 0) {
-    navRow.push(
-      Markup.button.callback(
-        "← Anterior",
-        `card_stmts_pg:${cardId}:${page - 1}`,
-      ),
-    );
-  }
-  if (end < statements.length) {
-    navRow.push(
-      Markup.button.callback("Más →", `card_stmts_pg:${cardId}:${page + 1}`),
-    );
-  }
-  if (navRow.length > 0) rows.push(navRow);
-
-  rows.push([Markup.button.callback("Añadir Resumen", `card_stmt_add:${cardId}`)]);
-  rows.push([Markup.button.callback(`← Volver a ${cardLabel}`, `card_pick:${cardId}`)]);
+  rows.push([Markup.button.callback(backLabel, backCallback)]);
   return Markup.inlineKeyboard(rows);
 }
 
@@ -509,13 +504,15 @@ export function buildStatementDetailText(
 
 /**
  * Builds the action keyboard for a statement detail screen.
+ * Back returns to the month list of the statement's own year.
  *
- * @param {BuildStatementDetailKeyboardParams} params
+ * @param {BuildStatementDetailKeyboardParams} params - Statement ID, card ID, month, and paid flag
  * @return {object} Inline keyboard markup
  */
 export function buildStatementDetailKeyboard({
   statementId,
   cardId,
+  month,
   isPaid,
 }: BuildStatementDetailKeyboardParams) {
   const rows: ReturnType<typeof Markup.button.callback>[][] = [];
@@ -528,7 +525,7 @@ export function buildStatementDetailKeyboard({
 
   rows.push([Markup.button.callback("Comprobantes", `card_stmt_receipts:${statementId}`)]);
   rows.push([Markup.button.callback("Modificar", `card_stmt_edit:${statementId}`)]);
-  rows.push([Markup.button.callback("← Volver", `card_stmts:${cardId}`)]);
+  rows.push([Markup.button.callback("← Volver", `card_stmts_y:${cardId}:${getYear(month)}`)]);
   return Markup.inlineKeyboard(rows);
 }
 

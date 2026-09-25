@@ -37,6 +37,7 @@ export interface StmtConfirmTextParams {
 export interface BuildStatementDetailKeyboardParams {
   statementId: string;
   cardId: string;
+  month: string;
   isPaid: boolean;
 }
 
@@ -74,7 +75,15 @@ export interface BuildStmtUsdCurrencyKeyboardParams {
 
 export interface BuildStatementListKeyboardParams {
   statements: CardStatement[];
+  year: string;
   page: number;
+  cardId: string;
+  showAddButton: boolean;
+  backCallback: string;
+  backLabel: string;
+}
+
+export interface BuildStatementEmptyStateKeyboardParams {
   cardId: string;
   cardLabel: string;
 }

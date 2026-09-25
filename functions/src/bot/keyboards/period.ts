@@ -4,9 +4,9 @@ import { BuildYearSelectorKeyboardParams } from "../../types/period.types";
 /**
  * Builds the year selector shown before a month list when history spans more than one year.
  * Years go in a 2-column grid in the order given (callers pass them newest first),
- * followed by the back button row.
+ * followed by the caller's action rows (if any) and the back button row.
  *
- * @param {BuildYearSelectorKeyboardParams} params - Years, callback prefix, and back button
+ * @param {BuildYearSelectorKeyboardParams} params - Years, callback prefix, action rows, and back button
  * @return {Markup.Markup} Inline keyboard markup; each year emits `${callbackPrefix}:${year}`
  */
 export function buildYearSelectorKeyboard({
@@ -14,6 +14,7 @@ export function buildYearSelectorKeyboard({
   callbackPrefix,
   backCallback,
   backLabel = "← Volver",
+  actionRows = [],
 }: BuildYearSelectorKeyboardParams) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: any[][] = [];
@@ -26,6 +27,7 @@ export function buildYearSelectorKeyboard({
     rows.push(row);
   }
 
+  rows.push(...actionRows);
   rows.push([Markup.button.callback(backLabel, backCallback)]);
   return Markup.inlineKeyboard(rows);
 }

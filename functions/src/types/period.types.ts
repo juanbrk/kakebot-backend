@@ -1,3 +1,5 @@
+import { InlineKeyboardButton } from "telegraf/types";
+
 export interface BuildPaginatedKeyboardRowsParams<T> {
   items: T[];
   page: number;
@@ -12,4 +14,5 @@ export interface BuildYearSelectorKeyboardParams {
   callbackPrefix: string;
   backCallback: string;
   backLabel?: string;
+  actionRows?: InlineKeyboardButton[][];
 }

@@ -1,5 +1,6 @@
 import { Context } from "telegraf";
 import { ServiceInstallment } from "./service.types";
+import { CardStatement } from "./index";
 import { InvoiceWizardState, KakebotContext } from "./telegraf-context.types";
 
 /**
@@ -33,6 +34,28 @@ export interface RenderInstallmentsListParams {
 export interface FetchAndRenderInstallmentsListParams {
   ctx: Context;
   serviceId: string;
+  year: string;
+  page: number;
+}
+
+/**
+ * Parameters for renderStatementList.
+ */
+export interface RenderStatementListParams {
+  ctx: Context;
+  statements: CardStatement[];
+  year: string;
+  page: number;
+  cardId: string;
+  cardLabel: string;
+}
+
+/**
+ * Parameters for fetchAndRenderStatementList.
+ */
+export interface FetchAndRenderStatementListParams {
+  ctx: Context;
+  cardId: string;
   year: string;
   page: number;
 }

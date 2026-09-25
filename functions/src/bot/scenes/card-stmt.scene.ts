@@ -1206,6 +1206,7 @@ async function handleConfirmEditArs(ctx: KakebotContext): Promise<void> {
         reply_markup: buildStatementDetailKeyboard({
           statementId,
           cardId: updatedStatement.cardId,
+          month: updatedStatement.month,
           isPaid: updatedStatement.isPaid,
         }).reply_markup as any,
       },
@@ -1252,6 +1253,7 @@ async function handleConfirmEditUsd(ctx: KakebotContext): Promise<void> {
         reply_markup: buildStatementDetailKeyboard({
           statementId,
           cardId: updatedStatement.cardId,
+          month: updatedStatement.month,
           isPaid: updatedStatement.isPaid,
         }).reply_markup as any,
       },
@@ -1297,6 +1299,7 @@ async function handleConfirmEditDay(ctx: KakebotContext): Promise<void> {
         reply_markup: buildStatementDetailKeyboard({
           statementId,
           cardId: updatedStatement.cardId,
+          month: updatedStatement.month,
           isPaid: updatedStatement.isPaid,
         }).reply_markup as any,
       },
