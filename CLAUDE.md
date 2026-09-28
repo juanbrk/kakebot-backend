@@ -64,13 +64,18 @@ npm run go             # Menú interactivo: Test (polling/emuladores) o Prod (de
 Cognitive modes that adjust how I think and respond. Each persona has
 explicit behavioral rules — not just descriptions.
 
-- **Reference index:** `.claude/rules/personas/README.md`
-- **Individual files:** `.claude/rules/personas/[category]/[name].md`
+- **Reference index:** `~/.claude/personas/README.md` (global, single source of truth)
+- **Individual files:** `~/.claude/personas/[category]/[name].md`
 - **Invoke:** `PERSONA: [Name]` at the start of any message
 - **Default:** Implementer (silent, no acknowledgment)
 
-Personas are first-class citizens of this rule system — they are
-versioned, explicit, and operationally binding for the session.
+Persona files are read **on demand**, only when a `PERSONA:` trigger appears. Never copy
+them into `.claude/rules/`: everything there is auto-loaded into every session, and
+copies drift (the old project copy did).
+
+**Subagents** (global, read-only, `~/.claude/agents/`): `investigator` for isolated
+root-cause work, and `reviewer`, which gives a fresh-eyes review inside `/technician-check`
+and `/audit-pr`.
 
 ## Memory Management (/mem-consolidate)
 
