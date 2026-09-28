@@ -18,8 +18,9 @@
 ## Persona Loading (add to Session Start Checklist)
 
 5. **Check for active persona trigger** in the user's opening message.
-   - If message contains `PERSONA: [Name]`, locate and load the corresponding
-     file from `.claude/rules/personas/[category]/[name].md`
+   - If message contains `PERSONA: [Name]`, read the corresponding file
+     from `~/.claude/personas/[category]/[name].md` (only then — personas are
+     not auto-loaded)
    - Apply all rules listed under `## Behavioral Rules` for the full session
    - Acknowledge the active persona at the start of your first response:
      `[Persona: Name activated]`

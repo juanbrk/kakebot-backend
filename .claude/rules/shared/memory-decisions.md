@@ -1,5 +1,19 @@
 # Decisions Log
 
+## 2026-09-28: Personas se leen on demand desde el global; revisión con subagente `reviewer`
+
+- `.claude/rules/personas/` se eliminó: se cargaba en cada sesión (~18 KB) aunque no se usara,
+  y ya había divergido de `~/.claude/personas/` (le faltaban `surveyor` y una regla de
+  `implementer`). Fuente única: el global, que se lee solo cuando aparece `PERSONA:`.
+- Subagentes globales read-only en `~/.claude/agents/`: `investigator` (root cause con contexto
+  aislado) y `reviewer` (ojos frescos). El motivo es que el hilo que escribió el código comparte
+  sus puntos ciegos.
+- `reviewer` corre los pasos 2-3 de `/technician-check` y el paso 2 (Artisan) de `/audit-pr`. El
+  hilo principal reconcilia los hallazgos contra lo decidido en el chat (puede pasarlos a `avoid`
+  con motivo, nunca descartarlos) y es el único que escribe `TICKET.md` y tildea checkpoints.
+- El cambio en `/audit-pr` es opcional y se puede revertir solo: su chequeo es de convenciones
+  escritas, así que gana menos con ojos frescos y cuesta más tokens. Backups en `~/.claude/backups/*.pre-reviewer`.
+
 ## 2026-09-14: El bot migra a `parse_mode: "HTML"` — escapar en Markdown legacy no alcanza
 
 Markdown legacy consume el `\` solo fuera de una entidad — dentro de `*negrita*` la barra queda
