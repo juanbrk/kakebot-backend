@@ -7,7 +7,7 @@
 - Subagentes globales `investigator` y `reviewer`; `/technician-check` y `/audit-pr` delegan su revisión a `reviewer`.
 
 ### Pendiente
-- Commit y merge a main (a cargo de Juan). Verificar en sesión nueva: `/agents`, `/context`, una corrida de `/technician-check`.
+- Commit y merge a main (a cargo de Juan). Verificar en sesión nueva: preguntar qué subagentes hay disponibles (`/agents` ya no existe), `/context`, una corrida de `/technician-check`.
 
 ## 2026-09-21 – 2026-09-22: Modificar comprobante de impuesto — completo
 
