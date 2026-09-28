@@ -2,6 +2,7 @@ import { Telegraf, Context } from "telegraf";
 import { KakebotContext, TaxWizardState } from "../../types/telegraf-context.types";
 import { ServicePaymentMethod } from "../../types/service.types";
 import { TaxInstallment } from "../../types/tax.types";
+import { RenderTaxHistoryParams, FetchAndRenderTaxHistoryParams } from "../../types/handlers.types";
 import {
   buildNameListText,
   escapeHtml,
@@ -11,6 +12,8 @@ import {
   MONTH_NAMES,
 } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
+import { getAvailableYears, getItemsForYearDesc } from "../../helpers/period";
+import { buildYearSelectorKeyboard } from "../keyboards/period";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { log } from "../../helpers/logger";
@@ -37,6 +40,7 @@ import {
   buildTaxEditOptionsKeyboard,
   buildTaxReceiptPromptKeyboard,
   buildTaxInstallmentHistoryKeyboard,
+  buildTaxHistoryEmptyStateKeyboard,
   buildTaxInstallmentDetailText,
   buildTaxInstallmentDetailPayload,
   buildUnpayReceiptDecisionKeyboard,
@@ -63,12 +67,12 @@ export function registerTaxHandler(bot: Telegraf<KakebotContext>): void {
   bot.action("tax_skip_receipt", handleSkipReceipt);
   bot.action(/^tax_pg:(\d+)$/, handlePagination);
   bot.action(/^tax_hist:(.+)$/, handleTaxHistory);
-  bot.action(/^tax_hist_pg:(.+):(\d+)$/, handleTaxHistoryPagination);
+  bot.action(/^tax_hist_y:([^:]+):(\d{4})$/, handleTaxHistoryYear);
+  bot.action(/^tax_hist_pg:([^:]+):(\d{4}):(\d+)$/, handleTaxHistoryPagination);
   bot.action(/^tax_inst:(.+)$/, handleTaxInstallmentDetail);
   bot.action(/^tax_dl_rec:(.+)$/, handleDownloadTaxReceipt);
   bot.action(/^tax_replace_rec:(.+)$/, handleReplaceReceipt);
   bot.action(/^tax_back_tax:(.+)$/, handleBackToTaxAction);
-  bot.action(/^tax_back_hist:(.+)$/, handleBackToTaxHistory);
   bot.action(/^tax_edit_pm:(.+)$/, handleEditPaymentMethod);
   bot.action(/^tax_chg_pm:(.+)$/, handleChangePaymentMethod);
   bot.action(/^tax_edit_due:(.+)$/, handleEditInstallmentDueDay);
@@ -337,7 +341,9 @@ async function handlePagination(ctx: Context): Promise<void> {
 }
 
 /**
- * Shows paginated installment history for a tax.
+ * Shows a tax's installment history: the year selector, newest year first.
+ * When only one year has installments, skips the year selector and goes straight to that year's months.
+ * "Nueva cuota" only shows on the empty state — once there are installments, it lives on the tax view.
  *
  * @param {Context} ctx - Telegraf context
  */
@@ -346,60 +352,118 @@ async function handleTaxHistory(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
 
-  const tax = await getTaxById(taxId);
+  const [tax, installments] = await Promise.all([
+    getTaxById(taxId),
+    getTaxInstallmentsByTaxId(taxId),
+  ]);
   const taxName = tax?.name || "";
+  const breadcrumb = buildBreadcrumb(["Impuestos", taxName, "Historial"]);
 
-  const installments = await getTaxInstallmentsByTaxId(taxId);
   if (installments.length === 0) {
-    await replyOrEdit(
-      ctx,
-      buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
-        "No hay cuotas registradas para este impuesto.",
-      {
-        parse_mode: "HTML",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        reply_markup: buildTaxInstallmentHistoryKeyboard(installments, 0, taxId)
-          .reply_markup as any,
-      },
-    );
+    await replyOrEdit(ctx, breadcrumb + "No hay cuotas registradas para este impuesto.", {
+      parse_mode: "HTML",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reply_markup: buildTaxHistoryEmptyStateKeyboard(taxId).reply_markup as any,
+    });
     return;
   }
 
-  const text =
-    buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
-    "<b>Seleccioná una cuota:</b>";
-  await replyOrEdit(ctx, text, {
+  const years = getAvailableYears(installments.map((installment) => installment.dueMonth));
+
+  if (years.length === 1) {
+    await renderTaxHistory({ ctx, installments, year: years[0], page: 0, taxId, taxName });
+    return;
+  }
+
+  const keyboard = buildYearSelectorKeyboard({
+    years,
+    callbackPrefix: `tax_hist_y:${taxId}`,
+    backCallback: `tax_back_tax:${taxId}`,
+    backLabel: "\u2190 Volver al impuesto",
+  });
+  await replyOrEdit(ctx, breadcrumb + "<b>Seleccioná el año</b>", {
     parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: buildTaxInstallmentHistoryKeyboard(installments, 0, taxId)
-      .reply_markup as any,
+    reply_markup: keyboard.reply_markup as any,
   });
 }
 
 /**
- * Handles pagination for the tax installment history view.
+ * Shows the first page of a tax's installments for a given year.
+ *
+ * @param {Context} ctx - Telegraf context
+ */
+async function handleTaxHistoryYear(ctx: Context): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const match = (ctx as any).match as string[];
+  const taxId = match[1];
+  const year = match[2];
+  await ctx.answerCbQuery();
+  await fetchAndRenderTaxHistory({ ctx, taxId, year, page: 0 });
+}
+
+/**
+ * Shows another page of a tax's installments for a given year.
  *
  * @param {Context} ctx - Telegraf context
  */
 async function handleTaxHistoryPagination(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const match = (ctx as any).match as string[];
   const taxId = match[1];
-  const page = parseInt(match[2], 10);
+  const year = match[2];
+  const page = parseInt(match[3], 10);
+  await ctx.answerCbQuery();
+  await fetchAndRenderTaxHistory({ ctx, taxId, year, page });
+}
 
-  const tax = await getTaxById(taxId);
-  const taxName = tax?.name || "";
+/**
+ * Fetches the tax and its installments, then renders one page of the given year.
+ *
+ * @param {FetchAndRenderTaxHistoryParams} params - Context, tax ID, year, and page
+ */
+async function fetchAndRenderTaxHistory({
+  ctx,
+  taxId,
+  year,
+  page,
+}: FetchAndRenderTaxHistoryParams): Promise<void> {
+  const [tax, installments] = await Promise.all([
+    getTaxById(taxId),
+    getTaxInstallmentsByTaxId(taxId),
+  ]);
+  await renderTaxHistory({ ctx, installments, year, page, taxId, taxName: tax?.name || "" });
+}
 
-  const installments = await getTaxInstallmentsByTaxId(taxId);
-  const text =
-    buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
-    "<b>Seleccioná una cuota:</b>";
-  await replyOrEdit(ctx, text, {
+/**
+ * Renders the paginated installment list of one year, newest month first.
+ * Back goes to the year selector only when there is more than one year to pick from;
+ * otherwise it returns to the tax, since tax_hist would skip straight back here.
+ *
+ * @param {RenderTaxHistoryParams} params - Context, every installment of the tax, year, page, tax
+ */
+async function renderTaxHistory({
+  ctx,
+  installments,
+  year,
+  page,
+  taxId,
+  taxName,
+}: RenderTaxHistoryParams): Promise<void> {
+  const yearInstallments = getItemsForYearDesc(installments, year, (installment) => installment.dueMonth);
+  const hasMultipleYears = getAvailableYears(installments.map((installment) => installment.dueMonth)).length > 1;
+  const keyboard = buildTaxInstallmentHistoryKeyboard({
+    installments: yearInstallments,
+    year,
+    page,
+    taxId,
+    backCallback: hasMultipleYears ? `tax_hist:${taxId}` : `tax_back_tax:${taxId}`,
+    backLabel: hasMultipleYears ? "\u2190 Volver" : "\u2190 Volver al impuesto",
+  });
+  await replyOrEdit(ctx, buildBreadcrumb(["Impuestos", taxName, "Historial", year]) + "<b>Seleccioná una cuota:</b>", {
     parse_mode: "HTML",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: buildTaxInstallmentHistoryKeyboard(installments, page, taxId)
-      .reply_markup as any,
+    reply_markup: keyboard.reply_markup as any,
   });
 }
 
@@ -540,33 +604,6 @@ async function handleBackToTaxAction(ctx: Context): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const taxId = ((ctx as any).match as string[])[1];
   await showTaxActionView(ctx, taxId);
-}
-
-/**
- * Returns to the installment history list from the installment detail view.
- *
- * @param {Context} ctx - Telegraf context
- */
-async function handleBackToTaxHistory(ctx: Context): Promise<void> {
-  await ctx.answerCbQuery?.();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const taxId = ((ctx as any).match as string[])[1];
-
-  const tax = await getTaxById(taxId);
-  const taxName = tax?.name || "";
-
-  const installments = await getTaxInstallmentsByTaxId(taxId);
-  const text =
-    buildBreadcrumb(["Impuestos", taxName, "Historial"]) +
-    (installments.length > 0
-      ? "<b>Seleccioná una cuota:</b>"
-      : "No hay cuotas registradas.");
-  await replyOrEdit(ctx, text, {
-    parse_mode: "HTML",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reply_markup: buildTaxInstallmentHistoryKeyboard(installments, 0, taxId)
-      .reply_markup as any,
-  });
 }
 
 /**

@@ -63,6 +63,19 @@ export interface BuildTaxInstallmentDetailKeyboardParams {
   isPaid: boolean;
   hasReceipt: boolean;
   taxId: string;
+  dueMonth: string;
+}
+
+/**
+ * Parameters for buildTaxInstallmentHistoryKeyboard.
+ */
+export interface BuildTaxInstallmentHistoryKeyboardParams {
+  installments: TaxInstallment[];
+  year: string;
+  page: number;
+  taxId: string;
+  backCallback: string;
+  backLabel: string;
 }
 
 /**
