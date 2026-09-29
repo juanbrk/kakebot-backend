@@ -1,5 +1,7 @@
 import { Context } from "telegraf";
 import { ServiceInstallment } from "./service.types";
+import { CardStatement } from "./index";
+import { TaxInstallment } from "./tax.types";
 import { InvoiceWizardState, KakebotContext } from "./telegraf-context.types";
 
 /**
@@ -21,9 +23,64 @@ export interface ShowInstallmentDetailParams {
 export interface RenderInstallmentsListParams {
   ctx: Context;
   installments: ServiceInstallment[];
+  year: string;
   page: number;
   serviceId: string;
   serviceName: string;
+}
+
+/**
+ * Parameters for fetchAndRenderInstallmentsList.
+ */
+export interface FetchAndRenderInstallmentsListParams {
+  ctx: Context;
+  serviceId: string;
+  year: string;
+  page: number;
+}
+
+/**
+ * Parameters for renderStatementList.
+ */
+export interface RenderStatementListParams {
+  ctx: Context;
+  statements: CardStatement[];
+  year: string;
+  page: number;
+  cardId: string;
+  cardLabel: string;
+}
+
+/**
+ * Parameters for fetchAndRenderStatementList.
+ */
+export interface FetchAndRenderStatementListParams {
+  ctx: Context;
+  cardId: string;
+  year: string;
+  page: number;
+}
+
+/**
+ * Parameters for renderTaxHistory.
+ */
+export interface RenderTaxHistoryParams {
+  ctx: Context;
+  installments: TaxInstallment[];
+  year: string;
+  page: number;
+  taxId: string;
+  taxName: string;
+}
+
+/**
+ * Parameters for fetchAndRenderTaxHistory.
+ */
+export interface FetchAndRenderTaxHistoryParams {
+  ctx: Context;
+  taxId: string;
+  year: string;
+  page: number;
 }
 
 /**

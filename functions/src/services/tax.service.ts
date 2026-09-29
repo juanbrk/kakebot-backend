@@ -249,8 +249,9 @@ export async function clearTaxReceiptUrl(
 }
 
 /**
- * Returns all installments for a given tax, sorted by dueMonth descending (newest first).
- * Used by the installment history view.
+ * Returns all installments for a given tax, sorted by dueMonth ascending (oldest first).
+ * The installment history re-sorts each year newest first; the tax scene only uses it
+ * to filter out months that already have an installment.
  *
  * @param {string} taxId - Tax document ID
  * @return {TaxInstallment[]} All installments sorted ascending by dueMonth (oldest first)

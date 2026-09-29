@@ -28,7 +28,7 @@ Only use emojis in:
 - **Explicit user request**: when the user explicitly asks for an emoji
 
 Never use emojis in:
-- Button labels
+- Button labels — except the `✅` paid mark on history month buttons (cards, taxes); see `shared/keyboards.md` §Labels and breadcrumbs
 - Descriptive UI text (titles, prompts, field labels)
 - Status text that is not a direct action result (e.g., "Método de pago: Tarjeta de Crédito")
 

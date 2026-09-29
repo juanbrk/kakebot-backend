@@ -11,6 +11,7 @@ import {
   buildFilteredMonthKeyboard,
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
+  buildInstallmentHistoryBackCallback,
 } from "../keyboards/service";
 import {
   createService,
@@ -666,7 +667,7 @@ async function handleInstallmentDetail(ctx: KakebotContext, installmentId: strin
     isPaid: installment.isPaid,
     hasReceipt: !!installment.receiptUrl,
     hasInvoice: !!installment.invoiceUrl,
-    backCallback: `svc_cuotas:${installment.serviceId}`,
+    backCallback: buildInstallmentHistoryBackCallback(installment),
     backLabel: "← Volver al historial",
   });
   await replyOrEdit(ctx, text, {

@@ -46,6 +46,12 @@ function buildPaginatedKeyboard(items, page, callbackPrefix) {
 | `buildTaxReceiptTaxPickerKeyboard` | `keyboards/tax.ts` | Yes |
 | `buildTaxReceiptInstallmentPickerKeyboard` | `keyboards/tax.ts` | Yes |
 | `buildStatementDocCardPickerKeyboard` | `keyboards/card.ts` | Yes |
+| `buildStatementListKeyboard` | `keyboards/card.ts` | Yes — via `buildPaginatedKeyboardRows` |
+| `buildInstallmentListKeyboard` | `keyboards/service.ts` | Yes — via `buildPaginatedKeyboardRows` |
+| `buildTaxInstallmentHistoryKeyboard` | `keyboards/tax.ts` | Yes — via `buildPaginatedKeyboardRows` |
+| `buildReportMonthListKeyboard` | `keyboards/report.ts` | Yes — via `buildPaginatedKeyboardRows` |
+
+New paginated grids should call `buildPaginatedKeyboardRows` (`bot/keyboards/pagination.ts`) instead of re-implementing the loop above.
 
 ### Selectores dentro de una escena — sin fila "Volver"
 
@@ -105,6 +111,8 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
 | `buildTaxesEmptyStateKeyboard` | `openTaxesMenu` | `keyboards/tax.ts`, `handlers/tax.ts` |
 | `buildServicesEmptyStateKeyboard` | `openServicesMenu`, `handleViewServices` | `keyboards/service.ts`, `handlers/service.ts` |
 | `buildCardEmptyStateKeyboard` | `handleCardsHub`, `handleOpenCards` | `keyboards/card.ts`, `handlers/card.ts` |
+| `buildStatementEmptyStateKeyboard` | `handleStatementsList` | `keyboards/card.ts`, `handlers/card.ts` |
+| `buildTaxHistoryEmptyStateKeyboard` | `handleTaxHistory` | `keyboards/tax.ts`, `handlers/tax.ts` |
 
 ## Listado de entidades en el submenú raíz
 
@@ -165,26 +173,91 @@ await ctx.reply("<b>¿Qué querés hacer?</b>", {
 });
 ```
 
-## Chronological Keyboard Order — Always Ascending
+## Chronological Keyboard Order
 
-When displaying buttons that represent time periods (months, years, installments, history):
+The order depends on what the keyboard is for (decision 2026-09-23):
 
-- **Order: oldest → newest** (ascending)
-- **Layout direction: left → right, top → bottom**
-- Meaning: earliest item appears top-left, latest item appears bottom-right
+| Keyboard kind | Order | Why |
+|---|---|---|
+| **History** — periods that already have data (statements, service/tax installments, past balances) | **Newest → oldest** (descending) | The user almost always looks for the latest period |
+| **Creation picker** — periods to create something for (current month + 2) | **Oldest → newest** (ascending) | The next one to fall due goes first |
 
-This applies to: month selectors, installment history grids, report period pickers, any date-based paginated list.
+Layout direction is always left → right, top → bottom: the first item in the order goes top-left.
 
-### ❌ WRONG
 ```
-[ Dic 2026 ] [ Nov 2026 ]
-[ Oct 2026 ] [ Sep 2026 ]
-```
-
-### ✅ RIGHT
-```
-[ Ene 2026 ] [ Feb 2026 ]
-[ Mar 2026 ] [ Abr 2026 ]
+History (descending)           Creation picker (ascending)
+[ Diciembre ] [ Noviembre ]    [ Sep 2026 ] [ Oct 2026 ]
+[ Octubre   ] [ Septiembre ]   [ Nov 2026 ]
 ```
 
-**Implementation:** sort array ascending before slicing into the grid. For `dueMonth` strings (`"YYYY-MM"`) use `a.localeCompare(b)` (ascending).
+**Implementation:** sort before slicing into the grid. For `"YYYY-MM"` strings: history uses
+`getItemsForYearDesc` (`helpers/period.ts`), creation pickers use `a.localeCompare(b)`.
+
+Out of scope, still ascending: the installment picker of the `tax-receipt` scene.
+
+## Hierarchical Year/Month Selection
+
+Every history keyboard navigates in two steps: **Year → Month**. Implemented in cards
+(statements), services (installments), taxes (installment history) and Reportes → Balances →
+Anteriores.
+
+### Flow
+
+1. **Entry callback** (`card_stmts:{id}`, `svc_cuotas:{id}`, `tax_hist:{id}`, `rep_history`)
+   fetches the items once and branches:
+   - no items → the domain's empty state;
+   - items in **one** year → skip the selector, render that year's month list directly;
+   - items in **more than one** year → year selector.
+2. **Year selector**: `buildYearSelectorKeyboard` (`bot/keyboards/period.ts`), fed by
+   `getAvailableYears` — years come from real data, newest first, 2 columns. No pagination yet —
+   only needed past 6 years of data.
+3. **Month list** (`*_y:{id}:{year}`): `getItemsForYearDesc` + `buildPaginatedKeyboardRows`
+   (`bot/keyboards/pagination.ts`), 6 per page, newest first. Pages go through
+   `*_pg:{id}:{year}:{page}`.
+4. **Detail** of one item.
+
+### Callbacks
+
+| Domain | Entry | Year | Page |
+|---|---|---|---|
+| Cards | `card_stmts:{cardId}` | `card_stmts_y:{cardId}:{year}` | `card_stmts_pg:{cardId}:{year}:{page}` |
+| Services | `svc_cuotas:{serviceId}` | `svc_cuotas_y:{serviceId}:{year}` | `svc_cuotas_pg:{serviceId}:{year}:{page}` |
+| Taxes | `tax_hist:{taxId}` | `tax_hist_y:{taxId}:{year}` | `tax_hist_pg:{taxId}:{year}:{page}` |
+| Reports | `rep_history` | `rep_year:{year}` | `rep_year_pg:{year}:{page}` |
+
+Regex rules: capture the ID with `([^:]+)` and the year with `(\d{4})` — never a greedy `(.+)`
+before the year, or the ID swallows it.
+
+### Back navigation
+
+| Screen | Back goes to |
+|---|---|
+| Year selector | The parent screen (card, service, tax, Balances) |
+| Month list, >1 year | The entry callback (year selector) |
+| Month list, 1 year | The parent screen — the entry callback would skip straight back here (loop) |
+| Detail | `*_y:{id}:{getYear(month)}` — the year is derived from the item already read, not encoded in the callback |
+
+### Labels and breadcrumbs
+
+- Month buttons show **only the month name** (`getMonthLabel(month, true)`); the year lives in the
+  breadcrumb (`[..., year]`).
+- Paid mark: history month buttons in **cards and taxes** append `✅` when the item is paid
+  (`Abril ✅`). This is the one exception to "no emojis in button labels" (`user-preferences.md`):
+  the mark is status, not decoration. Services' month list does not show it yet.
+- Year selector prompt: `<b>Seleccioná el año</b>`.
+
+### Create actions
+
+- Cards: "Añadir Resumen" goes on the **entry screen** — the year selector (via `actionRows`) when
+  there is more than one year, the month list when there is only one. Never repeated inside every
+  year: statements can only be created for the current period.
+- Taxes: "Nueva cuota" is **not** in the history at all — only in the empty state. New installments
+  only go to upcoming months, and the tax view already offers "Nueva cuota".
+
+### Adding a new history
+
+1. Entry handler: fetch once, `getAvailableYears`, branch on 0 / 1 / >1 years.
+2. Register `*_y:([^:]+):(\d{4})` and `*_pg:([^:]+):(\d{4}):(\d+)`.
+3. Month list: `getItemsForYearDesc` + `buildPaginatedKeyboardRows`; use
+   `hasMultipleYears` (`helpers/period.ts`) to pick the back target.
+4. Detail back button: `*_y:{id}:{getYear(month)}`.

@@ -10,6 +10,13 @@ export interface ShowMonthSelectorParams {
   ctx: Context;
   year: string;
   allPastMonths: string[];
+  page: number;
+}
+
+export interface BuildReportMonthListKeyboardParams {
+  yearMonths: string[];
+  year: string;
+  page: number;
   backCallback: string;
 }
 
