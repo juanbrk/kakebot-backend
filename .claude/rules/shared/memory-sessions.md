@@ -10,6 +10,14 @@
 
 ### Pendiente
 - Commitear los archivos de memoria (quedaron fuera de `292745d`) y merge a main (a cargo de Juan).
+## 2026-09-28: Personas on demand + subagentes `investigator`/`reviewer`
+
+### Completado
+- Borrada la copia auto-cargada de personas del repo; `CLAUDE.md` y `session-protocol.md` apuntan al global.
+- Subagentes globales `investigator` y `reviewer`; `/technician-check` y `/audit-pr` delegan su revisión a `reviewer`.
+
+### Pendiente
+- Commit y merge a main (a cargo de Juan). Verificar en sesión nueva: preguntar qué subagentes hay disponibles (`/agents` ya no existe), `/context`, una corrida de `/technician-check`.
 
 ## 2026-09-21 – 2026-09-22: Modificar comprobante de impuesto — completo
 
