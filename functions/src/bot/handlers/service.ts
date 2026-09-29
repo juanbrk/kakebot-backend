@@ -27,6 +27,7 @@ import {
   buildDeleteConfirmKeyboard,
   buildInstallmentDetailText,
   buildInstallmentDetailKeyboard,
+  buildInstallmentHistoryBackCallback,
   buildInstallmentListKeyboard,
   buildPaymentMethodKeyboard,
   PAYMENT_METHOD_LABELS,
@@ -36,7 +37,7 @@ import { buildNameListText, escapeHtml, formatARS, MONTH_NAMES } from "../../hel
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
 import { downloadFromUrl } from "../../services/storage.service";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
-import { getAvailableYears, getItemsForYearDesc, getYear } from "../../helpers/period";
+import { getAvailableYears, getItemsForYearDesc, hasMultipleYears } from "../../helpers/period";
 import { buildYearSelectorKeyboard } from "../keyboards/period";
 
 /**
@@ -751,7 +752,7 @@ export async function showInstallmentDetail({
     isPaid: installment.isPaid,
     hasReceipt: !!installment.receiptUrl,
     hasInvoice: !!installment.invoiceUrl,
-    backCallback: `svc_cuotas_y:${installment.serviceId}:${getYear(installment.dueMonth)}`,
+    backCallback: buildInstallmentHistoryBackCallback(installment),
     backLabel,
   });
   await editOrReply(ctx, breadcrumb + text, {
@@ -883,7 +884,7 @@ async function renderInstallmentsList({
   serviceName,
 }: RenderInstallmentsListParams): Promise<void> {
   const yearInstallments = getItemsForYearDesc(installments, year, (installment) => installment.dueMonth);
-  const hasMultipleYears = getAvailableYears(installments.map((installment) => installment.dueMonth)).length > 1;
+  const isMultiYearHistory = hasMultipleYears(installments.map((installment) => installment.dueMonth));
   const breadcrumb = buildBreadcrumb(["Servicios", serviceName, "Cuotas", year]);
   const totalPages = Math.ceil(yearInstallments.length / INSTALLMENTS_PER_PAGE);
   const text = `<b>Seleccioná la cuota a ver.</b>\n\n<i>Página ${page + 1} de ${totalPages}</i>`;
@@ -892,8 +893,8 @@ async function renderInstallmentsList({
     year,
     page,
     serviceId,
-    backCallback: hasMultipleYears ? `svc_cuotas:${serviceId}` : `svc_back_svc:${serviceId}`,
-    backLabel: hasMultipleYears ? "\u2190 Volver" : `\u2190 Volver a ${serviceName}`,
+    backCallback: isMultiYearHistory ? `svc_cuotas:${serviceId}` : `svc_back_svc:${serviceId}`,
+    backLabel: isMultiYearHistory ? "\u2190 Volver" : `\u2190 Volver a ${serviceName}`,
   });
 
   await replyOrEdit(ctx, breadcrumb + text, {
@@ -929,7 +930,7 @@ async function handleInstallmentDetailFromHistory(ctx: Context): Promise<void> {
     isPaid: installment.isPaid,
     hasReceipt: !!installment.receiptUrl,
     hasInvoice: !!installment.invoiceUrl,
-    backCallback: `svc_cuotas_y:${installment.serviceId}:${getYear(installment.dueMonth)}`,
+    backCallback: buildInstallmentHistoryBackCallback(installment),
     backLabel: "\u2190 Volver al historial",
   });
 

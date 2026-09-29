@@ -12,7 +12,8 @@ functions/src/types/
 ├── expense.types.ts     # Expense, BulkExpenseEntry, SaveExpenseParams
 ├── income.types.ts      # Income, SaveIncomeParams
 ├── report.types.ts      # MonthlyReport, ShowMonthSelectorParams
-├── period.types.ts      # BuildPaginatedKeyboardRowsParams, BuildYearSelectorKeyboardParams
+├── pagination.types.ts  # BuildTwoColumnRowsParams, BuildPaginatedKeyboardRowsParams
+├── period.types.ts      # BuildYearSelectorKeyboardParams
 └── index.ts             # Tipos legacy — congelado, migración gradual
 ```
 

@@ -217,8 +217,9 @@ functions/src/
 │       ├── category.ts             # buildCategoryKeyboard, buildExpensePromptText
 │       ├── service.ts              # service keyboards
 │       ├── invoice.ts              # invoice + receipt keyboards
-│       ├── pagination.ts           # buildPaginatedKeyboardRows — shared 2-column paginated grid
-│       └── period.ts               # buildYearSelectorKeyboard — year step of year → month history
+│       ├── pagination.ts           # buildTwoColumnRows, buildPaginatedKeyboardRows — shared 2-column (paginated) grid
+│       ├── period.ts               # buildYearSelectorKeyboard — year step of year → month history
+│       └── report.ts               # buildReportMonthListKeyboard — month step of Reportes → Anteriores
 ├── services/
 │   ├── db.ts                       # getDb() lazy Firestore getter
 │   ├── session.service.ts          # Session CRUD + emptySessionForPartial
@@ -234,7 +235,7 @@ functions/src/
 │   ├── format.ts                   # formatARS, MONTH_NAMES, buildBackdatedTimestamp
 │   ├── breadcrumb.ts               # buildBreadcrumb — navigation path display
 │   ├── telegram.ts                 # replyOrEdit + editOrReply — ONLY allowed message-edit helpers
-│   ├── period.ts                   # getYear, getAvailableYears, getItemsForYearDesc
+│   ├── period.ts                   # getYear, getAvailableYears, getItemsForYearDesc, hasMultipleYears
 │   └── bulk-parse.ts               # Bulk message parsing + text builders
 ├── types/index.ts                  # TypeScript interfaces
 ├── middleware/auth.ts               # Express auth middleware (unused by bot)
@@ -290,7 +291,9 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `getYear(yearMonth)` | `helpers/period.ts` | `"YYYY-MM"` → `"YYYY"` — usarlo en vez de `split("-")[0]` inline |
 | `getAvailableYears(yearMonths)` | `helpers/period.ts` | Años únicos presentes en una lista de `"YYYY-MM"`, del más nuevo al más viejo — fuente del selector de año |
 | `getItemsForYearDesc(items, year, getYearMonth)` | `helpers/period.ts` | Filtra ítems de un año y los ordena del mes más nuevo al más viejo — lista de meses del selector año → mes |
-| `buildYearSelectorKeyboard({ years, callbackPrefix, backCallback, backLabel? })` | `bot/keyboards/period.ts` | Teclado de años (2 columnas + fila de vuelta) para historiales con datos en más de un año |
+| `hasMultipleYears(yearMonths)` | `helpers/period.ts` | `true` si los meses cubren más de un año — decide si se muestra el selector de año y adónde vuelve la lista de meses |
+| `buildYearSelectorKeyboard({ years, callbackPrefix, backCallback, backLabel?, actionRows? })` | `bot/keyboards/period.ts` | Teclado de años (2 columnas + `actionRows` opcionales + fila de vuelta) para historiales con datos en más de un año |
+| `buildTwoColumnRows({ items, buttonLabel, buttonCallback })` | `bot/keyboards/pagination.ts` | Grilla de 2 columnas sin paginar; base de `buildPaginatedKeyboardRows` y del selector de año |
 | `buildPaginatedKeyboardRows({ items, page, perPage, ... })` | `bot/keyboards/pagination.ts` | Grilla de 2 columnas + fila `← Anterior`/`Más →`; el caller agrega sus filas de acción/vuelta |
 | `buildStatusReportText({ title, entries })` | `helpers/status-report.ts` | Agrupa entradas `{ name, installment }` en las 5 secciones de estado de cuota (Vencidos / Próximos a vencer / Pagados / Pendientes / Sin cuota). Fuente única del umbral de 7 días y del formato de línea — compartido por los reportes de servicios e impuestos |
 | `escapeHtml(text)` | `helpers/format.ts` | Escapes `& < >` for safe HTML interpolation — use at `${...}`, never in the variable |

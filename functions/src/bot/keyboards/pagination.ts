@@ -1,5 +1,31 @@
 import { Markup } from "telegraf";
-import { BuildPaginatedKeyboardRowsParams } from "../../types/period.types";
+import { InlineKeyboardButton } from "telegraf/types";
+import { BuildPaginatedKeyboardRowsParams, BuildTwoColumnRowsParams } from "../../types/pagination.types";
+
+/**
+ * Lays items out in a 2-column button grid, in the order given. The last row holds a single
+ * button when the item count is odd.
+ *
+ * @param {BuildTwoColumnRowsParams} params - Items and their label/callback builders
+ * @return {Array} Grid rows, ready to be combined with other rows
+ */
+export function buildTwoColumnRows<T>({
+  items,
+  buttonLabel,
+  buttonCallback,
+}: BuildTwoColumnRowsParams<T>): InlineKeyboardButton[][] {
+  const rows: InlineKeyboardButton[][] = [];
+
+  for (let i = 0; i < items.length; i += 2) {
+    const row: InlineKeyboardButton[] = [Markup.button.callback(buttonLabel(items[i]), buttonCallback(items[i]))];
+    if (i + 1 < items.length) {
+      row.push(Markup.button.callback(buttonLabel(items[i + 1]), buttonCallback(items[i + 1])));
+    }
+    rows.push(row);
+  }
+
+  return rows;
+}
 
 /**
  * Builds the 2-column item grid plus pagination nav row shared by every paginated
@@ -15,24 +41,12 @@ export function buildPaginatedKeyboardRows<T>({
   buttonLabel,
   buttonCallback,
   navCallback,
-}: BuildPaginatedKeyboardRowsParams<T>) {
+}: BuildPaginatedKeyboardRowsParams<T>): InlineKeyboardButton[][] {
   const start = page * perPage;
   const end = start + perPage;
-  const pageItems = items.slice(start, end);
+  const rows = buildTwoColumnRows({ items: items.slice(start, end), buttonLabel, buttonCallback });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[][] = [];
-
-  for (let i = 0; i < pageItems.length; i += 2) {
-    const row = [Markup.button.callback(buttonLabel(pageItems[i]), buttonCallback(pageItems[i]))];
-    if (i + 1 < pageItems.length) {
-      row.push(Markup.button.callback(buttonLabel(pageItems[i + 1]), buttonCallback(pageItems[i + 1])));
-    }
-    rows.push(row);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const navRow: any[] = [];
+  const navRow: InlineKeyboardButton[] = [];
   if (page > 0) {
     navRow.push(Markup.button.callback("← Anterior", navCallback(page - 1)));
   }

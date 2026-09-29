@@ -9,7 +9,7 @@ import { EXPENSE_SCENE_ID } from "../scenes/expense.scene";
 import { generateMonthlyReport, getPastMonthsWithData } from "../../services/report.service";
 import { ShowMonthSelectorParams } from "../../types/report.types";
 import { getMonthLabel } from "../../helpers/format";
-import { getAvailableYears, getItemsForYearDesc, getYear } from "../../helpers/period";
+import { getAvailableYears, getItemsForYearDesc, hasMultipleYears, getYear } from "../../helpers/period";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { replyOrEdit } from "../../helpers/telegram";
 import { buildYearSelectorKeyboard } from "../keyboards/period";
@@ -254,12 +254,12 @@ async function showMonthSelector({
   page,
 }: ShowMonthSelectorParams): Promise<void> {
   const yearMonths = getItemsForYearDesc(allPastMonths, year, (yearMonth) => yearMonth);
-  const hasMultipleYears = getAvailableYears(allPastMonths).length > 1;
+  const isMultiYearHistory = hasMultipleYears(allPastMonths);
   const keyboard = buildReportMonthListKeyboard({
     yearMonths,
     year,
     page,
-    backCallback: hasMultipleYears ? "rep_history" : "rep_balances",
+    backCallback: isMultiYearHistory ? "rep_history" : "rep_balances",
   });
 
   await replyOrEdit(

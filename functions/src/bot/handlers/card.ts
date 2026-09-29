@@ -23,7 +23,7 @@ import {
   getStatementsByCard,
 } from "../../services/card.service";
 import { downloadFromUrl } from "../../services/storage.service";
-import { getAvailableYears, getItemsForYearDesc } from "../../helpers/period";
+import { getAvailableYears, getItemsForYearDesc, hasMultipleYears } from "../../helpers/period";
 import { buildYearSelectorKeyboard } from "../keyboards/period";
 import { RenderStatementListParams, FetchAndRenderStatementListParams } from "../../types/handlers.types";
 import {
@@ -388,7 +388,7 @@ async function renderStatementList({
   cardLabel,
 }: RenderStatementListParams): Promise<void> {
   const yearStatements = getItemsForYearDesc(statements, year, (statement) => statement.month);
-  const hasMultipleYears = getAvailableYears(statements.map((statement) => statement.month)).length > 1;
+  const isMultiYearHistory = hasMultipleYears(statements.map((statement) => statement.month));
   const breadcrumb = buildBreadcrumb(["Tarjetas", cardLabel, "Resúmenes", year]);
 
   await replyOrEdit(ctx, `${breadcrumb}<b>Seleccioná un resumen:</b>`, {
@@ -398,9 +398,9 @@ async function renderStatementList({
       year,
       page,
       cardId,
-      showAddButton: !hasMultipleYears,
-      backCallback: hasMultipleYears ? `card_stmts:${cardId}` : `card_pick:${cardId}`,
-      backLabel: hasMultipleYears ? "← Volver" : `← Volver a ${cardLabel}`,
+      showAddButton: !isMultiYearHistory,
+      backCallback: isMultiYearHistory ? `card_stmts:${cardId}` : `card_pick:${cardId}`,
+      backLabel: isMultiYearHistory ? "← Volver" : `← Volver a ${cardLabel}`,
     }),
   });
 }

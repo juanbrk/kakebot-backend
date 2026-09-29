@@ -12,7 +12,7 @@ import {
   MONTH_NAMES,
 } from "../../helpers/format";
 import { TAX_SCENE_ID } from "../scenes/tax.scene";
-import { getAvailableYears, getItemsForYearDesc } from "../../helpers/period";
+import { getAvailableYears, getItemsForYearDesc, hasMultipleYears } from "../../helpers/period";
 import { buildYearSelectorKeyboard } from "../keyboards/period";
 import { buildBreadcrumb } from "../../helpers/breadcrumb";
 import { editOrReply, replyOrEdit } from "../../helpers/telegram";
@@ -451,14 +451,14 @@ async function renderTaxHistory({
   taxName,
 }: RenderTaxHistoryParams): Promise<void> {
   const yearInstallments = getItemsForYearDesc(installments, year, (installment) => installment.dueMonth);
-  const hasMultipleYears = getAvailableYears(installments.map((installment) => installment.dueMonth)).length > 1;
+  const isMultiYearHistory = hasMultipleYears(installments.map((installment) => installment.dueMonth));
   const keyboard = buildTaxInstallmentHistoryKeyboard({
     installments: yearInstallments,
     year,
     page,
     taxId,
-    backCallback: hasMultipleYears ? `tax_hist:${taxId}` : `tax_back_tax:${taxId}`,
-    backLabel: hasMultipleYears ? "\u2190 Volver" : "\u2190 Volver al impuesto",
+    backCallback: isMultiYearHistory ? `tax_hist:${taxId}` : `tax_back_tax:${taxId}`,
+    backLabel: isMultiYearHistory ? "\u2190 Volver" : "\u2190 Volver al impuesto",
   });
   await replyOrEdit(ctx, buildBreadcrumb(["Impuestos", taxName, "Historial", year]) + "<b>Seleccioná una cuota:</b>", {
     parse_mode: "HTML",

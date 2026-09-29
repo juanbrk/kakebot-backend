@@ -9,6 +9,7 @@ import {
   BuildInstallmentDetailKeyboardParams,
 } from "../../types/service.types";
 import { escapeHtml, formatARS, getMonthLabel, MONTH_NAMES } from "../../helpers/format";
+import { getYear } from "../../helpers/period";
 import { buildPaginatedKeyboardRows } from "./pagination";
 
 export const PAYMENT_METHOD_LABELS: Record<ServicePaymentMethod, string> = {
@@ -241,6 +242,16 @@ export function buildInstallmentDetailText(
     `Vencimiento: ${day}/${month}\n` +
     statusLine
   );
+}
+
+/**
+ * Builds the callback that returns from an installment's detail to its year in the service's history.
+ *
+ * @param {ServiceInstallment} installment - Installment whose detail is being shown
+ * @return {string} `svc_cuotas_y:{serviceId}:{year}` callback
+ */
+export function buildInstallmentHistoryBackCallback(installment: ServiceInstallment): string {
+  return `svc_cuotas_y:${installment.serviceId}:${getYear(installment.dueMonth)}`;
 }
 
 export function buildInstallmentDetailKeyboard({

@@ -111,6 +111,8 @@ async function openTaxesMenu(ctx: Context): Promise<void> {
 | `buildTaxesEmptyStateKeyboard` | `openTaxesMenu` | `keyboards/tax.ts`, `handlers/tax.ts` |
 | `buildServicesEmptyStateKeyboard` | `openServicesMenu`, `handleViewServices` | `keyboards/service.ts`, `handlers/service.ts` |
 | `buildCardEmptyStateKeyboard` | `handleCardsHub`, `handleOpenCards` | `keyboards/card.ts`, `handlers/card.ts` |
+| `buildStatementEmptyStateKeyboard` | `handleStatementsList` | `keyboards/card.ts`, `handlers/card.ts` |
+| `buildTaxHistoryEmptyStateKeyboard` | `handleTaxHistory` | `keyboards/tax.ts`, `handlers/tax.ts` |
 
 ## Listado de entidades en el submenú raíz
 
@@ -238,7 +240,10 @@ before the year, or the ID swallows it.
 ### Labels and breadcrumbs
 
 - Month buttons show **only the month name** (`getMonthLabel(month, true)`); the year lives in the
-  breadcrumb (`[..., year]`). Status marks stay on the button (e.g. `Abril ✅` in cards).
+  breadcrumb (`[..., year]`).
+- Paid mark: history month buttons in **cards and taxes** append `✅` when the item is paid
+  (`Abril ✅`). This is the one exception to "no emojis in button labels" (`user-preferences.md`):
+  the mark is status, not decoration. Services' month list does not show it yet.
 - Year selector prompt: `<b>Seleccioná el año</b>`.
 
 ### Create actions
@@ -253,6 +258,6 @@ before the year, or the ID swallows it.
 
 1. Entry handler: fetch once, `getAvailableYears`, branch on 0 / 1 / >1 years.
 2. Register `*_y:([^:]+):(\d{4})` and `*_pg:([^:]+):(\d{4}):(\d+)`.
-3. Month list: `getItemsForYearDesc` + `buildPaginatedKeyboardRows`; compute
-   `hasMultipleYears` to pick the back target.
+3. Month list: `getItemsForYearDesc` + `buildPaginatedKeyboardRows`; use
+   `hasMultipleYears` (`helpers/period.ts`) to pick the back target.
 4. Detail back button: `*_y:{id}:{getYear(month)}`.

@@ -1,4 +1,5 @@
 import { Markup } from "telegraf";
+import { buildTwoColumnRows } from "./pagination";
 import { BuildYearSelectorKeyboardParams } from "../../types/period.types";
 
 /**
@@ -16,16 +17,11 @@ export function buildYearSelectorKeyboard({
   backLabel = "← Volver",
   actionRows = [],
 }: BuildYearSelectorKeyboardParams) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[][] = [];
-
-  for (let i = 0; i < years.length; i += 2) {
-    const row = [Markup.button.callback(years[i], `${callbackPrefix}:${years[i]}`)];
-    if (i + 1 < years.length) {
-      row.push(Markup.button.callback(years[i + 1], `${callbackPrefix}:${years[i + 1]}`));
-    }
-    rows.push(row);
-  }
+  const rows = buildTwoColumnRows({
+    items: years,
+    buttonLabel: (year) => year,
+    buttonCallback: (year) => `${callbackPrefix}:${year}`,
+  });
 
   rows.push(...actionRows);
   rows.push([Markup.button.callback(backLabel, backCallback)]);

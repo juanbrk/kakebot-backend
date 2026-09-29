@@ -32,3 +32,14 @@ export function getItemsForYearDesc<T>(items: T[], year: string, getYearMonth: (
     .filter((item) => getYear(getYearMonth(item)) === year)
     .sort((a, b) => getYearMonth(b).localeCompare(getYearMonth(a)));
 }
+
+/**
+ * Tells whether a history spans more than one year — the rule that decides if the year
+ * selector is shown, and where the month list's back button points.
+ *
+ * @param {string[]} yearMonths - Months in "YYYY-MM" format, in any order
+ * @return {boolean} True when the months cover at least two distinct years
+ */
+export function hasMultipleYears(yearMonths: string[]): boolean {
+  return getAvailableYears(yearMonths).length > 1;
+}
