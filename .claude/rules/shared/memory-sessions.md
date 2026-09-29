@@ -1,14 +1,15 @@
 # Session Log
 
-## 2026-09-23 – 2026-09-24: Navegación Año → Mes en historiales — en curso (C1–C3 de C7)
+## 2026-09-23 – 2026-09-28: Navegación Año → Mes en historiales — C1–C7 completos
 
 ### Completado
-- Plan aprobado (orden descendente, paginación de 6 dentro del año) y volcado a TICKET.md.
-- Piezas compartidas: grilla paginada, helpers de período y selector de año.
-- Reportes → Balances anteriores migrado a Año → Mes; arreglado el loop con un solo año. QA 23/23.
+- Piezas compartidas (grilla paginada, helpers de período, selector de año) y los 4 historiales migrados a Año → Mes, del más nuevo al más viejo: Reportes, Servicios, Tarjetas e Impuestos. QA 116/116.
+- De paso: "Cambiar método de pago" ya no deja el menú anterior activo; en Tarjetas todo pagado muestra ✅ y "Añadir Resumen" vive en la entrada; en Impuestos "Nueva cuota" queda solo en el estado vacío.
+- Docs: la regla de orden distingue historiales (desc) de pickers de creación (asc), y hay una guía para navegar historiales por año y mes.
+- `/technician-check` + `/audit-pr` (APPROVE, 9 menores + 3 DRY). Fixes aplicados sin cambio visible: grilla de 2 columnas compartida, `hasMultipleYears`, callback de vuelta de Servicios, docs al día. QA de regresión 31/31.
 
 ### Pendiente
-- C4 tarjetas, C5 servicios, C6 impuestos, C7 docs. Borrar `scripts/seed-qa-year-month.js` al cerrar el QA.
+- Commitear los archivos de memoria (quedaron fuera de `292745d`) y merge a main (a cargo de Juan).
 
 ## 2026-09-21 – 2026-09-22: Modificar comprobante de impuesto — completo
 

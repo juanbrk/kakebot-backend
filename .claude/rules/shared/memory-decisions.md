@@ -1,5 +1,35 @@
 # Decisions Log
 
+## 2026-09-23: Navegación Año → Mes en historiales — orden descendente, paginación dentro del año
+
+Decisión de Juan, contra la regla vigente "Chronological Keyboard Order — Always Ascending":
+- Los historiales (resúmenes de tarjeta, cuotas de servicio, historial de impuesto, Reportes →
+  Anteriores) muestran años y meses del más nuevo al más viejo.
+- Los pickers de creación (mes actual + 2) siguen ascendentes: ofrecen períodos a crear, y el
+  próximo a vencer va primero.
+- Se mantiene la paginación de 6 por página dentro del año.
+- El picker de la escena `tax-receipt` queda fuera de alcance.
+
+Diseño:
+- El callback de entrada existente hace de selector de años. Solo aparece con >1 año de datos
+  reales; con 1 año se saltea.
+- Hay un `*_y:{id}:{year}` nuevo por dominio.
+- El back del detalle deriva el año del mes del ítem ya leído, sin codificarlo en el callback.
+- (2026-09-25, QA de tarjetas) La acción de crear ("Añadir Resumen") va en la pantalla de entrada:
+  el selector de años si hay >1 año, la lista de meses si hay uno solo. Dentro de un año no se
+  repite, porque solo se puede crear para el período actual. `buildYearSelectorKeyboard` suma
+  `actionRows` opcionales para eso.
+- (2026-09-28, QA de impuestos) Impuestos es la excepción: "Nueva cuota" sale de todo el historial
+  (selector de años y listas de meses) y queda solo en el estado vacío. Las cuotas nuevas solo van
+  a meses venideros, así que crearlas mirando años pasados no tiene sentido; la vista del impuesto
+  ya ofrece "Nueva cuota".
+- (2026-09-28, `/audit-pr`) El ✅ de pagado en los botones de mes de tarjetas e impuestos es la única
+  excepción a "sin emojis en botones": es estado, no decoración (documentado en `keyboards.md` y
+  `user-preferences.md`). El selector de años comparte con la lista de meses solo la grilla
+  (`buildTwoColumnRows`), no la paginación, porque paginar años sigue diferido.
+
+Plan de commits en TICKET.md (C1–C7).
+
 ## 2026-09-14: El bot migra a `parse_mode: "HTML"` — escapar en Markdown legacy no alcanza
 
 Markdown legacy consume el `\` solo fuera de una entidad — dentro de `*negrita*` la barra queda
