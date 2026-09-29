@@ -235,7 +235,7 @@ functions/src/
 │   ├── format.ts                   # formatARS, MONTH_NAMES, buildBackdatedTimestamp
 │   ├── breadcrumb.ts               # buildBreadcrumb — navigation path display
 │   ├── telegram.ts                 # replyOrEdit + editOrReply — ONLY allowed message-edit helpers
-│   ├── period.ts                   # getYear, getAvailableYears, getItemsForYearDesc, hasMultipleYears
+│   ├── period.ts                   # getYear, getAvailableYears, getItemsForYearDesc, hasMultipleYears, getUpcomingMonths
 │   └── bulk-parse.ts               # Bulk message parsing + text builders
 ├── types/index.ts                  # TypeScript interfaces
 ├── middleware/auth.ts               # Express auth middleware (unused by bot)
@@ -292,6 +292,7 @@ Or use Grep tool to search `functions/src/helpers/` for any function with a simi
 | `getAvailableYears(yearMonths)` | `helpers/period.ts` | Años únicos presentes en una lista de `"YYYY-MM"`, del más nuevo al más viejo — fuente del selector de año |
 | `getItemsForYearDesc(items, year, getYearMonth)` | `helpers/period.ts` | Filtra ítems de un año y los ordena del mes más nuevo al más viejo — lista de meses del selector año → mes |
 | `hasMultipleYears(yearMonths)` | `helpers/period.ts` | `true` si los meses cubren más de un año — decide si se muestra el selector de año y adónde vuelve la lista de meses |
+| `getUpcomingMonths(count)` | `helpers/period.ts` | Mes actual + los siguientes como `"YYYY-MM"`, ascendente — base de los pickers de creación (mes actual + 2). Usarlo en vez del loop `new Date(y, m + i, 1)` inline |
 | `buildYearSelectorKeyboard({ years, callbackPrefix, backCallback, backLabel?, actionRows? })` | `bot/keyboards/period.ts` | Teclado de años (2 columnas + `actionRows` opcionales + fila de vuelta) para historiales con datos en más de un año |
 | `buildTwoColumnRows({ items, buttonLabel, buttonCallback })` | `bot/keyboards/pagination.ts` | Grilla de 2 columnas sin paginar; base de `buildPaginatedKeyboardRows` y del selector de año |
 | `buildPaginatedKeyboardRows({ items, page, perPage, ... })` | `bot/keyboards/pagination.ts` | Grilla de 2 columnas + fila `← Anterior`/`Más →`; el caller agrega sus filas de acción/vuelta |

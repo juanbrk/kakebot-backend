@@ -88,6 +88,8 @@ export interface InvoiceWizardState {
   /** Due day as a string, stored between stepHandleDay and stepHandleAmount. */
   partialDescription?: string;
   isNewService?: boolean;
+  /** Months offered by the month picker, cached so guards and reprompts re-render without re-fetching. */
+  availableMonths?: string[];
 }
 
 /**
