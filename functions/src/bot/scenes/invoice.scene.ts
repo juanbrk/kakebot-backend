@@ -245,13 +245,7 @@ async function resolveMonthPicker(ctx: KakebotContext, installments: ServiceInst
     return;
   }
 
-  const keyboard = buildMonthKeyboard(availableMonths, state.serviceId ?? "");
-  await replyOrEdit(
-    ctx,
-    buildMonthPrompt(state.flow),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
-  );
+  await repromptMonthPicker(ctx, true);
   ctx.wizard.selectStep(MONTH_GUARD_STEP);
 }
 
