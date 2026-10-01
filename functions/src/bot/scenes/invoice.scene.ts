@@ -1,5 +1,5 @@
 import { Scenes, Markup } from "telegraf";
-import { KakebotContext, InvoiceWizardState } from "../../types/telegraf-context.types";
+import { KakebotContext, InvoiceFlow, InvoiceWizardState } from "../../types/telegraf-context.types";
 import { AttachFileParams } from "../../types/handlers.types";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -7,6 +7,7 @@ import {
   getServicesByUser,
   getServiceById,
   getInstallment,
+  getInstallmentsByService,
   saveInvoiceUrl,
   saveReceiptUrl,
   markInstallmentAsPaid,
@@ -15,10 +16,11 @@ import {
 } from "../../services/service.service";
 import { uploadInvoice, uploadReceipt } from "../../services/storage.service";
 import { downloadFile } from "../handlers/photo";
-import { buildDueDate, getDaysInMonth, getMonthLabel } from "../../helpers/format";
+import { buildDueDate, escapeHtml, getDaysInMonth, getMonthLabel } from "../../helpers/format";
+import { getUpcomingMonths } from "../../helpers/period";
 import { parseArgentineAmount } from "../../helpers/parse-amount";
 import { getMessageText } from "../../helpers/wizard";
-import { Service } from "../../types/service.types";
+import { Service, ServiceInstallment } from "../../types/service.types";
 
 export const INVOICE_SCENE_ID = "invoice-wizard";
 
@@ -28,6 +30,7 @@ const PICKER_GUARD_STEP = 2;
 const MONTH_GUARD_STEP = 3;
 const DAY_STEP = 4;
 const AMOUNT_STEP = 5;
+const PICKER_MONTH_COUNT = 3;
 
 // ─── private keyboard builders ───────────────────────────────────────────────
 
@@ -65,20 +68,17 @@ function buildServicePickerKeyboard(services: Service[], page = 0) {
 }
 
 /**
- * Builds a month-selector keyboard (current + 2 next months) with invr_* callbacks.
+ * Builds the month-selector keyboard (one month per row) with invr_* callbacks.
+ * Labels carry the year because the offered months can cross December into January.
  *
+ * @param {string[]} availableMonths - Months in "YYYY-MM" format, ascending
  * @param {string} serviceId - Firestore service ID embedded in the callback data
  * @return {Markup} Inline keyboard markup
  */
-function buildMonthKeyboard(serviceId: string) {
-  const now = new Date();
-  const rows = [];
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yearMonth = `${d.getFullYear()}-${mm}`;
-    rows.push([Markup.button.callback(getMonthLabel(yearMonth, true), `invr_month:${serviceId}:${yearMonth}`)]);
-  }
+function buildMonthKeyboard(availableMonths: string[], serviceId: string) {
+  const rows = availableMonths.map((yearMonth) => [
+    Markup.button.callback(getMonthLabel(yearMonth), `invr_month:${serviceId}:${yearMonth}`),
+  ]);
   return Markup.inlineKeyboard(rows);
 }
 
@@ -130,7 +130,7 @@ async function handleAttachFile({
  * @param {string} flow - "invoice" or "receipt"
  * @return {string} "la factura" or "el comprobante"
  */
-function flowLabel(flow: "invoice" | "receipt"): string {
+function flowLabel(flow: InvoiceFlow): string {
   return flow === "receipt" ? "el comprobante" : "la factura";
 }
 
@@ -141,13 +141,114 @@ function flowLabel(flow: "invoice" | "receipt"): string {
  * @param {boolean} isNewService - Whether the service was just created in this flow
  * @return {string} Localized success message
  */
-function defaultSuccessMessage(flow: "invoice" | "receipt", isNewService: boolean): string {
+function defaultSuccessMessage(flow: InvoiceFlow, isNewService: boolean): string {
   if (flow === "receipt") {
     return isNewService
       ? "✅ Servicio creado, comprobante adjunto y cuota marcada como pagada."
       : "✅ Comprobante adjunto. Cuota marcada como pagada.";
   }
   return isNewService ? "✅ Servicio creado y factura adjuntada." : "✅ Factura adjunta.";
+}
+
+/**
+ * Tells whether an installment already holds the file this flow attaches
+ * (the invoice for "invoice", the receipt for "receipt").
+ *
+ * @param {ServiceInstallment} installment - Installment to inspect
+ * @param {string} flow - "invoice" or "receipt"
+ * @return {boolean} True when attaching would overwrite an existing file
+ */
+function hasFlowFile(installment: ServiceInstallment, flow: InvoiceFlow): boolean {
+  return Boolean(flow === "receipt" ? installment.receiptUrl : installment.invoiceUrl);
+}
+
+/**
+ * Returns the months the picker offers: the current month and the next two, minus the ones
+ * whose installment already holds this flow's file. Months without an installment stay —
+ * picking one starts the new-installment steps.
+ *
+ * @param {ServiceInstallment[]} installments - Every installment of the picked service
+ * @param {string} flow - "invoice" or "receipt"
+ * @return {string[]} Months in "YYYY-MM" format, ascending
+ */
+function getAttachableMonths(installments: ServiceInstallment[], flow: InvoiceFlow): string[] {
+  const monthsWithFile = new Set(
+    installments.filter((installment) => hasFlowFile(installment, flow)).map((installment) => installment.dueMonth),
+  );
+  return getUpcomingMonths(PICKER_MONTH_COUNT).filter((month) => !monthsWithFile.has(month));
+}
+
+/**
+ * Returns the notice shown when no offered month can take this flow's file.
+ *
+ * @param {InvoiceWizardState} state - Wizard state (flow and service name)
+ * @return {string} HTML notice
+ */
+function buildNoMonthsText(state: InvoiceWizardState): string {
+  const fileNoun = state.flow === "receipt" ? "un comprobante cargado" : "una factura cargada";
+  return `No hay meses disponibles para adjuntar ${flowLabel(state.flow)} de ${escapeHtml(state.serviceName ?? "")}.\n`
+    + `Las cuotas de este mes y los dos siguientes ya tienen ${fileNoun}.`;
+}
+
+/**
+ * Returns the month-picker prompt for the current flow.
+ *
+ * @param {string} flow - "invoice" or "receipt"
+ * @return {string} Bold HTML prompt
+ */
+function buildMonthPrompt(flow: InvoiceFlow): string {
+  return `<b>¿A qué mes corresponde ${flowLabel(flow)}?</b>`;
+}
+
+/**
+ * Sends the month picker, from the months cached in state. Single funnel for the stale-button
+ * recovery and for the one path that already consumed the tap with a separate notice ("ya tiene
+ * cargado") and needs a fresh keyboard as its own message. The cursor guard on typed text and the
+ * unexpected-file reprompt do NOT call this — see stepGuardMonth's own comment for why.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ * @param {boolean} consumeButton - True when this reprompt answers the very button that was just
+ * tapped (a stale month): edits that message into the current picker instead of sending a new
+ * one, so only one picker stays open. False (default) sends it as a new message.
+ */
+async function repromptMonthPicker(ctx: KakebotContext, consumeButton = false): Promise<void> {
+  const state = ctx.wizard.state as InvoiceWizardState;
+  const keyboard = buildMonthKeyboard(state.availableMonths ?? [], state.serviceId ?? "");
+  const extra = {
+    parse_mode: "HTML" as const,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reply_markup: keyboard.reply_markup as any,
+  };
+  if (consumeButton && ctx.callbackQuery) {
+    await replyOrEdit(ctx, buildMonthPrompt(state.flow), extra);
+    state.monthPickerMessageId = ctx.callbackQuery.message?.message_id;
+    return;
+  }
+  const sent = await ctx.reply(buildMonthPrompt(state.flow), extra);
+  state.monthPickerMessageId = sent.message_id;
+}
+
+/**
+ * Computes and caches the months to offer for the picked service, then renders the picker
+ * (editing the service picker when reached from a button). When every offered month already
+ * holds this flow's file, says so and leaves the scene.
+ *
+ * @param {KakebotContext} ctx - Telegraf context
+ * @param {ServiceInstallment[]} installments - Every installment of the picked service
+ */
+async function resolveMonthPicker(ctx: KakebotContext, installments: ServiceInstallment[]): Promise<void> {
+  const state = ctx.wizard.state as InvoiceWizardState;
+  const availableMonths = getAttachableMonths(installments, state.flow);
+  state.availableMonths = availableMonths;
+
+  if (availableMonths.length === 0) {
+    await replyOrEdit(ctx, buildNoMonthsText(state), { parse_mode: "HTML" });
+    await ctx.scene.leave();
+    return;
+  }
+
+  await repromptMonthPicker(ctx, true);
+  ctx.wizard.selectStep(MONTH_GUARD_STEP);
 }
 
 // ─── steps ────────────────────────────────────────────────────────────────────
@@ -193,7 +294,7 @@ async function stepInit(ctx: KakebotContext): Promise<void> {
 
 /**
  * Step 1: receives the typed service name, creates the service,
- * then shows the month picker.
+ * then shows the month picker (all upcoming months — a new service has no installments).
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -214,14 +315,7 @@ async function stepHandleName(ctx: KakebotContext): Promise<void> {
     state.isNewService = true;
 
     await ctx.reply(`✅ Servicio "${name}" creado.`);
-
-    const keyboard = buildMonthKeyboard(serviceId);
-    await ctx.reply(
-      `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
-    );
-    ctx.wizard.selectStep(MONTH_GUARD_STEP);
+    await resolveMonthPicker(ctx, []);
   } catch (error) {
     log.error("Error creating service in invoice scene", error, {
       module: "invoice.scene",
@@ -258,20 +352,15 @@ async function stepGuardPicker(ctx: KakebotContext): Promise<void> {
 }
 
 /**
- * Step 3: cursor guard — fires when the user types text while the
- * month-picker keyboard is active.
+ * Step 3: cursor guard — fires when the user types text while the month-picker keyboard is
+ * active. Points back at that keyboard instead of sending a new one: the months on offer haven't
+ * changed, so a second picker would just leave two active selectors offering the same buttons
+ * (QA finding — a stale-looking selector that still works is confusing, not just cosmetic).
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
 async function stepGuardMonth(ctx: KakebotContext): Promise<void> {
-  const state = ctx.wizard.state as InvoiceWizardState;
-  await ctx.reply("Elegí un mes del teclado, o escribí \"cancelar\" para salir.");
-  const keyboard = buildMonthKeyboard(state.serviceId ?? "");
-  await ctx.reply(
-    `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
-  );
+  await ctx.reply("Elegí un mes del selector que te mandé arriba, o escribí \"cancelar\" para salir.");
 }
 
 /**
@@ -351,9 +440,8 @@ async function stepHandleAmount(ctx: KakebotContext): Promise<void> {
 // ─── action handlers ──────────────────────────────────────────────────────────
 
 /**
- * Handles service selection from the picker keyboard.
- * If a current-month installment already exists, attaches the file directly.
- * Otherwise shows the month picker.
+ * Handles service selection from the picker keyboard: always shows the month picker,
+ * filtered by the service's installments — never attaches to a month on its own.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -365,42 +453,14 @@ async function handlePickService(ctx: KakebotContext): Promise<void> {
   const serviceId = ((ctx as any).match as string[])[1];
 
   try {
-    const now = new Date();
-    const monthStr = String(now.getMonth() + 1).padStart(2, "0");
-    const currentMonth = `${now.getFullYear()}-${monthStr}`;
-
-    const [service, installment] = await Promise.all([
+    const [service, installments] = await Promise.all([
       getServiceById(serviceId),
-      getInstallment(serviceId, currentMonth),
+      getInstallmentsByService(serviceId, telegramUserId),
     ]);
 
     state.serviceId = serviceId;
     state.serviceName = service?.name ?? "";
-
-    if (installment) {
-      await replyOrEdit(
-        ctx,
-        `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(currentMonth, true)}...`,
-      );
-      await handleAttachFile({
-        ctx,
-        state,
-        telegramUserId,
-        installmentId: installment.id ?? "",
-        successMessage: defaultSuccessMessage(state.flow, false),
-      });
-      await ctx.scene.leave();
-      return;
-    }
-
-    const keyboard = buildMonthKeyboard(serviceId);
-    await replyOrEdit(
-      ctx,
-      `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
-    );
-    ctx.wizard.selectStep(MONTH_GUARD_STEP);
+    await resolveMonthPicker(ctx, installments);
   } catch (error) {
     log.error("Error picking service in invoice scene", error, {
       module: "invoice.scene",
@@ -429,7 +489,8 @@ async function handleNewService(ctx: KakebotContext): Promise<void> {
 /**
  * Handles month selection from the month-picker keyboard.
  * If an installment already exists for that month, attaches directly.
- * Otherwise asks for the due day.
+ * Otherwise asks for the due day to create it. A button from an older picker that no longer
+ * applies (month not offered now, or its installment already holds the file) re-sends the picker.
  *
  * @param {KakebotContext} ctx - Telegraf context
  */
@@ -442,16 +503,45 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const serviceId = match[1];
   const dueMonth = match[2];
 
-  state.serviceId = serviceId;
+  const isLivePicker = ctx.callbackQuery?.message?.message_id === state.monthPickerMessageId;
+  if (!isLivePicker) {
+    await replyOrEdit(ctx, "Este selector ya no está vigente.", { reply_markup: { inline_keyboard: [] } });
+    return;
+  }
+
+  const isOfferedMonth = serviceId === state.serviceId && (state.availableMonths ?? []).includes(dueMonth);
+  if (!isOfferedMonth) {
+    await repromptMonthPicker(ctx, true);
+    return;
+  }
+
   state.selectedMonth = dueMonth;
 
   try {
     const installment = await getInstallment(serviceId, dueMonth);
 
+    if (installment && hasFlowFile(installment, state.flow)) {
+      state.availableMonths = (state.availableMonths ?? []).filter((month) => month !== dueMonth);
+      const loaded = state.flow === "receipt" ? "cargado" : "cargada";
+      await replyOrEdit(
+        ctx,
+        `La cuota de ${getMonthLabel(dueMonth)} ya tiene ${flowLabel(state.flow)} ${loaded}.`,
+        { reply_markup: { inline_keyboard: [] } },
+      );
+      if (state.availableMonths.length === 0) {
+        await ctx.reply(buildNoMonthsText(state), { parse_mode: "HTML" });
+        await ctx.scene.leave();
+        return;
+      }
+      await repromptMonthPicker(ctx);
+      return;
+    }
+
     if (installment) {
       await replyOrEdit(
         ctx,
-        `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(dueMonth, true)}...`,
+        `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(dueMonth)}...`,
+        { reply_markup: { inline_keyboard: [] } },
       );
       await handleAttachFile({
         ctx,
@@ -467,7 +557,12 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
     const maxDay = getDaysInMonth(dueMonth);
     await replyOrEdit(
       ctx,
-      `<b>¿Qué día vence la cuota de ${getMonthLabel(dueMonth, true)}? (1-${maxDay})</b>\n`
+      `No hay cuota de ${getMonthLabel(dueMonth)} para ${state.serviceName ?? ""}.`,
+      { reply_markup: { inline_keyboard: [] } },
+    );
+    await ctx.reply(
+      `<b>Vas a registrar la cuota de ${getMonthLabel(dueMonth)} para ${escapeHtml(state.serviceName ?? "")}</b>\n\n`
+      + `<b>¿Qué día vence? (1-${maxDay})</b>\n`
       + "<i>Enviá \"cancelar\" para salir.</i>",
       { parse_mode: "HTML" },
     );
@@ -536,15 +631,9 @@ async function repromptCurrentStep(ctx: KakebotContext): Promise<void> {
       await ctx.reply("Elegí un servicio del teclado.");
     }
     break;
-  case MONTH_GUARD_STEP: {
-    const keyboard = buildMonthKeyboard(state.serviceId ?? "");
-    await ctx.reply(
-      `<b>¿A qué mes corresponde ${flowLabel(state.flow)}?</b>`,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { parse_mode: "HTML", reply_markup: keyboard.reply_markup as any },
-    );
+  case MONTH_GUARD_STEP:
+    await ctx.reply("Elegí un mes del selector que te mandé arriba.");
     break;
-  }
   case DAY_STEP: {
     const maxDay = state.selectedMonth ? getDaysInMonth(state.selectedMonth) : 31;
     await ctx.reply(`<b>¿Qué día vence? (1-${maxDay})</b>`, { parse_mode: "HTML" });

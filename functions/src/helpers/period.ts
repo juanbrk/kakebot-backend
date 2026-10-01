@@ -43,3 +43,18 @@ export function getItemsForYearDesc<T>(items: T[], year: string, getYearMonth: (
 export function hasMultipleYears(yearMonths: string[]): boolean {
   return getAvailableYears(yearMonths).length > 1;
 }
+
+/**
+ * Returns the current month followed by the next months, oldest first — the period list a
+ * creation picker offers (see `keyboards.md` §Chronological Keyboard Order).
+ *
+ * @param {number} count - How many months to return, current month included
+ * @return {string[]} Months in "YYYY-MM" format, ascending
+ */
+export function getUpcomingMonths(count: number): string[] {
+  const now = new Date();
+  return Array.from({ length: count }, (_, offset) => {
+    const date = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  });
+}

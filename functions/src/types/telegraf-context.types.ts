@@ -73,13 +73,16 @@ export interface BulkWizardState {
   bulkExpenses?: BulkExpenseEntry[];
 }
 
+/** Which file the invoice scene attaches: a service invoice or a payment receipt. */
+export type InvoiceFlow = "invoice" | "receipt";
+
 /**
  * Persistent state for the invoice/receipt wizard, held in `ctx.wizard.state`.
  * Handles both flows (invoice and receipt) via the `flow` discriminator.
  * Always entered from the doc-router scene with `pendingFileId` and `pendingFileType` pre-set.
  */
 export interface InvoiceWizardState {
-  flow: "invoice" | "receipt";
+  flow: InvoiceFlow;
   pendingFileId: string;
   pendingFileType: PendingFileType;
   serviceId?: string;
@@ -88,6 +91,10 @@ export interface InvoiceWizardState {
   /** Due day as a string, stored between stepHandleDay and stepHandleAmount. */
   partialDescription?: string;
   isNewService?: boolean;
+  /** Months offered by the month picker, cached so guards and reprompts re-render without re-fetching. */
+  availableMonths?: string[];
+  /** Message id of the one live month picker; taps on any other picker message are stale. */
+  monthPickerMessageId?: number;
 }
 
 /**
