@@ -1,5 +1,5 @@
 import { Scenes, Markup } from "telegraf";
-import { KakebotContext, InvoiceWizardState } from "../../types/telegraf-context.types";
+import { KakebotContext, InvoiceFlow, InvoiceWizardState } from "../../types/telegraf-context.types";
 import { AttachFileParams } from "../../types/handlers.types";
 import { log } from "../../helpers/logger";
 import { replyOrEdit } from "../../helpers/telegram";
@@ -30,7 +30,7 @@ const PICKER_GUARD_STEP = 2;
 const MONTH_GUARD_STEP = 3;
 const DAY_STEP = 4;
 const AMOUNT_STEP = 5;
-const PICKER_MONTHS_AHEAD = 3;
+const PICKER_MONTH_COUNT = 3;
 
 // ─── private keyboard builders ───────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ async function handleAttachFile({
  * @param {string} flow - "invoice" or "receipt"
  * @return {string} "la factura" or "el comprobante"
  */
-function flowLabel(flow: "invoice" | "receipt"): string {
+function flowLabel(flow: InvoiceFlow): string {
   return flow === "receipt" ? "el comprobante" : "la factura";
 }
 
@@ -141,7 +141,7 @@ function flowLabel(flow: "invoice" | "receipt"): string {
  * @param {boolean} isNewService - Whether the service was just created in this flow
  * @return {string} Localized success message
  */
-function defaultSuccessMessage(flow: "invoice" | "receipt", isNewService: boolean): string {
+function defaultSuccessMessage(flow: InvoiceFlow, isNewService: boolean): string {
   if (flow === "receipt") {
     return isNewService
       ? "✅ Servicio creado, comprobante adjunto y cuota marcada como pagada."
@@ -158,7 +158,7 @@ function defaultSuccessMessage(flow: "invoice" | "receipt", isNewService: boolea
  * @param {string} flow - "invoice" or "receipt"
  * @return {boolean} True when attaching would overwrite an existing file
  */
-function hasFlowFile(installment: ServiceInstallment, flow: "invoice" | "receipt"): boolean {
+function hasFlowFile(installment: ServiceInstallment, flow: InvoiceFlow): boolean {
   return Boolean(flow === "receipt" ? installment.receiptUrl : installment.invoiceUrl);
 }
 
@@ -171,11 +171,11 @@ function hasFlowFile(installment: ServiceInstallment, flow: "invoice" | "receipt
  * @param {string} flow - "invoice" or "receipt"
  * @return {string[]} Months in "YYYY-MM" format, ascending
  */
-function getAttachableMonths(installments: ServiceInstallment[], flow: "invoice" | "receipt"): string[] {
+function getAttachableMonths(installments: ServiceInstallment[], flow: InvoiceFlow): string[] {
   const monthsWithFile = new Set(
     installments.filter((installment) => hasFlowFile(installment, flow)).map((installment) => installment.dueMonth),
   );
-  return getUpcomingMonths(PICKER_MONTHS_AHEAD).filter((month) => !monthsWithFile.has(month));
+  return getUpcomingMonths(PICKER_MONTH_COUNT).filter((month) => !monthsWithFile.has(month));
 }
 
 /**
@@ -187,7 +187,7 @@ function getAttachableMonths(installments: ServiceInstallment[], flow: "invoice"
 function buildNoMonthsText(state: InvoiceWizardState): string {
   const fileNoun = state.flow === "receipt" ? "un comprobante cargado" : "una factura cargada";
   return `No hay meses disponibles para adjuntar ${flowLabel(state.flow)} de ${escapeHtml(state.serviceName ?? "")}.\n`
-    + `Las cuotas de los próximos ${PICKER_MONTHS_AHEAD} meses ya tienen ${fileNoun}.`;
+    + `Las cuotas de este mes y los dos siguientes ya tienen ${fileNoun}.`;
 }
 
 /**
@@ -196,7 +196,7 @@ function buildNoMonthsText(state: InvoiceWizardState): string {
  * @param {string} flow - "invoice" or "receipt"
  * @return {string} Bold HTML prompt
  */
-function buildMonthPrompt(flow: "invoice" | "receipt"): string {
+function buildMonthPrompt(flow: InvoiceFlow): string {
   return `<b>¿A qué mes corresponde ${flowLabel(flow)}?</b>`;
 }
 
@@ -219,11 +219,13 @@ async function repromptMonthPicker(ctx: KakebotContext, consumeButton = false): 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reply_markup: keyboard.reply_markup as any,
   };
-  if (consumeButton) {
+  if (consumeButton && ctx.callbackQuery) {
     await replyOrEdit(ctx, buildMonthPrompt(state.flow), extra);
+    state.monthPickerMessageId = ctx.callbackQuery.message?.message_id;
     return;
   }
-  await ctx.reply(buildMonthPrompt(state.flow), extra);
+  const sent = await ctx.reply(buildMonthPrompt(state.flow), extra);
+  state.monthPickerMessageId = sent.message_id;
 }
 
 /**
@@ -501,6 +503,12 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
   const serviceId = match[1];
   const dueMonth = match[2];
 
+  const isLivePicker = ctx.callbackQuery?.message?.message_id === state.monthPickerMessageId;
+  if (!isLivePicker) {
+    await replyOrEdit(ctx, "Este selector ya no está vigente.", { reply_markup: { inline_keyboard: [] } });
+    return;
+  }
+
   const isOfferedMonth = serviceId === state.serviceId && (state.availableMonths ?? []).includes(dueMonth);
   if (!isOfferedMonth) {
     await repromptMonthPicker(ctx, true);
@@ -532,7 +540,7 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
     if (installment) {
       await replyOrEdit(
         ctx,
-        `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(dueMonth, true)}...`,
+        `Adjuntando ${flowLabel(state.flow)} a la cuota de ${getMonthLabel(dueMonth)}...`,
         { reply_markup: { inline_keyboard: [] } },
       );
       await handleAttachFile({
@@ -553,7 +561,7 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
       { reply_markup: { inline_keyboard: [] } },
     );
     await ctx.reply(
-      `<b>Vas a registrar la cuota de ${getMonthLabel(dueMonth, true)} para ${escapeHtml(state.serviceName ?? "")}</b>\n\n`
+      `<b>Vas a registrar la cuota de ${getMonthLabel(dueMonth)} para ${escapeHtml(state.serviceName ?? "")}</b>\n\n`
       + `<b>¿Qué día vence? (1-${maxDay})</b>\n`
       + "<i>Enviá \"cancelar\" para salir.</i>",
       { parse_mode: "HTML" },
