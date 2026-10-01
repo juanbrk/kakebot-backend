@@ -549,7 +549,7 @@ async function handleMonthSelected(ctx: KakebotContext): Promise<void> {
     const maxDay = getDaysInMonth(dueMonth);
     await replyOrEdit(
       ctx,
-      `No hay cuota de ${getMonthLabel(dueMonth)} para ${escapeHtml(state.serviceName ?? "")}.`,
+      `No hay cuota de ${getMonthLabel(dueMonth)} para ${state.serviceName ?? ""}.`,
       { reply_markup: { inline_keyboard: [] } },
     );
     await ctx.reply(
