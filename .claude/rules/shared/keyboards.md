@@ -195,6 +195,23 @@ History (descending)           Creation picker (ascending)
 
 Out of scope, still ascending: the installment picker of the `tax-receipt` scene.
 
+### Creation picker example: month selector when attaching a file
+
+After the user picks the service in `invoice.scene.ts` (Factura or Comprobante sent directly to the
+bot), `buildMonthKeyboard` offers the current month + the next 2, ascending, one month per row,
+via `getUpcomingMonths` (`helpers/period.ts`). Rules specific to this picker:
+
+- **Filtered**: months whose installment already holds this flow's file (Factura → `invoiceUrl`,
+  Comprobante → `receiptUrl`) are dropped (`getAttachableMonths`). Months **without** an
+  installment stay — picking one starts the day → amount steps and attaches on creation.
+- **Labels carry the year** (`getMonthLabel(month)`, not the short form): the three months can
+  cross December into January. This differs from history month lists, where the year lives in the
+  breadcrumb.
+- **No "Volver" row** (it is inside a scene — see "Selectores dentro de una escena"); callbacks
+  use the `invr_month:{serviceId}:{YYYY-MM}` prefix.
+- **One live selector at a time**: re-presenting it edits the tapped message (`repromptMonthPicker`
+  with `consumeButton`) so old selectors never pile up with working buttons.
+
 ## Hierarchical Year/Month Selection
 
 Every history keyboard navigates in two steps: **Year → Month**. Implemented in cards
