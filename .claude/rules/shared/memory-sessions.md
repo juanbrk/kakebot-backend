@@ -1,5 +1,16 @@
 # Session Log
 
+## 2026-09-28 – 2026-10-01: Selector de mes al adjuntar factura/comprobante enviado directo — completo
+
+### Completado
+- Después de elegir el servicio (Factura o Comprobante), el bot siempre muestra un selector de mes actual + 2, filtrado a los que no tienen archivo — ya no adjunta en silencio al mes en curso. Mes sin cuota inicia el flujo de día → monto y adjunta al crearla.
+- 4 rondas de QA (matriz descartada al cerrar): un solo selector vigente — un botón de un selector viejo ahora queda como "Este selector ya no está vigente." en vez de reabrirse; wording de "no hay cuota" separado de la pregunta del día. Pulido del `/audit-pr`: el año se muestra en todos los avisos del mes y el tipo del flujo es compartido.
+- Docs: el selector quedó documentado en `keyboards.md` como ejemplo de picker de creación ascendente.
+- Bug encontrado por investigación aparte (fuera de alcance): una imagen enviada como "documento" sin comprimir se rechaza siempre con "Solo se aceptan archivos PDF" — diferido en TICKET.md.
+
+### Pendiente
+- Commit y merge a main (a cargo de Juan).
+
 ## 2026-09-23 – 2026-09-28: Navegación Año → Mes en historiales — C1–C7 completos
 
 ### Completado

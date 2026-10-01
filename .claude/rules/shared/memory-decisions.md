@@ -1,5 +1,11 @@
 # Decisions Log
 
+## 2026-09-28 – 2026-10-01: Selector de mes al adjuntar factura/comprobante enviado directo — criterio y un único selector vigente
+
+Decisión de Juan, contra el ticket original (meses pasados): tras elegir el servicio en `invoice.scene.ts` se muestra siempre el selector (sin adjunto silencioso), mes actual + 2, filtrado a meses sin cuota o cuya cuota no tiene el archivo del flujo (Factura → `invoiceUrl`, Comprobante → `receiptUrl`); sin meses → aviso y salir; mes sin cuota → steps día → monto de la propia escena, sin saltar a `service.scene` (se perdería el archivo pendiente).
+
+Invariante de QA: un único selector vigente. Cada selector guarda su `monthPickerMessageId`; `handleMonthSelected` solo actúa si el botón es de ese mensaje, cualquier otro se edita a "Este selector ya no está vigente." (reemplaza la reconversión de C2.8, que fallaba cuando el estado ya tenía meses). Los guards de texto/archivo (`stepGuardMonth`, case `MONTH_GUARD_STEP`) ya no reenvían el teclado, solo señalan el selector de arriba: excepción documentada a `wizard-scenes.md §3`, vive solo en esta escena. D4/D4-último (adjuntar por otra vía con el selector abierto) son irreproducibles dentro de una `WizardScene`. Bug de `mime_type` (imagen enviada como documento rechazada como "no PDF") diferido a propósito en TICKET.md D4. Plan C1–C3 en TICKET.md.
+
 ## 2026-09-23: Navegación Año → Mes en historiales — orden descendente, paginación dentro del año
 
 Decisión de Juan, contra la regla vigente "Chronological Keyboard Order — Always Ascending":
