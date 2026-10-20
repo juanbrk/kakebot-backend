@@ -1,5 +1,9 @@
 # Decisions Log
 
+## 2026-10-19: El detalle del reporte mensual deja de listar cada venta de USD
+
+La sección `VENTA DE USD` del detalle queda solo con su encabezado (total USD → total ARS): con muchas ventas en el mes, las líneas individuales tapaban el resto del mensaje. Ver ventas una por una queda para un acceso propio, en un ticket aparte. Riesgo aceptado (TICKET.md T1): ese desglose era la única forma de ver en el bot cada venta, y `usd_sales` no se puede listar, editar ni borrar — una venta mal cargada infla el "Resultado del mes" sin pista visible, así que el acceso nuevo es un control de datos, no una comodidad.
+
 ## 2026-09-28 – 2026-10-01: Selector de mes al adjuntar factura/comprobante enviado directo — criterio y un único selector vigente
 
 Decisión de Juan, contra el ticket original (meses pasados): tras elegir el servicio en `invoice.scene.ts` se muestra siempre el selector (sin adjunto silencioso), mes actual + 2, filtrado a meses sin cuota o cuya cuota no tiene el archivo del flujo (Factura → `invoiceUrl`, Comprobante → `receiptUrl`); sin meses → aviso y salir; mes sin cuota → steps día → monto de la propia escena, sin saltar a `service.scene` (se perdería el archivo pendiente).

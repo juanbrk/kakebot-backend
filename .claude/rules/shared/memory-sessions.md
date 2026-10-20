@@ -1,5 +1,14 @@
 # Session Log
 
+## 2026-10-19: Solo el total de la venta de USD en el detalle del reporte mensual — completo
+
+### Completado
+- La sección "VENTA DE USD" del detalle muestra solo el total (USD → ARS), sin una línea por venta; aplica igual al mes en curso y al historial. El balance no cambió.
+- QA en botitio_testitoBot, `/technician-check` y `/audit-pr` (APPROVE) cerrados.
+
+### Pendiente
+- Commit y merge a main (a cargo de Juan). El acceso al desglose individual queda para un ticket propio.
+
 ## 2026-09-28 – 2026-10-01: Selector de mes al adjuntar factura/comprobante enviado directo — completo
 
 ### Completado

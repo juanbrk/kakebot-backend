@@ -394,18 +394,9 @@ export async function generateMonthlyReport(
   }
 
   if (sales.length > 0) {
-    const chronologicalSales = [...sales].sort(
-      (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis(),
-    );
-
     detailLines.push(
       `<b>VENTA DE USD</b>  ${formatUSD(totalUSDSold)} → ${formatARS(totalARSFromSales)}`,
     );
-    for (const sale of chronologicalSales) {
-      detailLines.push(
-        `  • ${formatUSD(sale.amountUSD)}  (${formatARS(sale.exchangeRate)})  →  ${formatARS(sale.amountARS)}`,
-      );
-    }
     detailLines.push("");
   }
 
